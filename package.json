@@ -9,12 +9,18 @@
     "test:watch": "vitest",
     "check": "npm run build && npm run test",
     "hiveforge": "node dist/src/cli/main.js",
-    "serve": "node dist/src/server/main.js"
+    "serve": "node dist/src/server/main.js",
+    "hiveforge-mcp": "node dist/src/mcp/server.js"
+  },
+  "bin": {
+    "hiveforge-mcp": "dist/src/mcp/server.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

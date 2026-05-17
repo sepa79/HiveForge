@@ -75,3 +75,11 @@ npm run serve
 Open `http://127.0.0.1:3000/` for the bundled operator console. The UI loads
 without auth so the browser can render it, but API calls require the bearer
 token.
+
+Run the MCP server against the REST API over stdio:
+
+```bash
+HIVEFORGE_BASE_URL=http://127.0.0.1:3000 \
+HIVEFORGE_AUTH_TOKEN=local-dev-token \
+npm run hiveforge-mcp
+```

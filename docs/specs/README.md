@@ -73,12 +73,13 @@ docs/specs/
 
 ## Known Gaps
 
-- No MCP server yet.
+- MCP server has only POC stdio coverage and still needs client integration
+  smoke tests.
 - UI is POC-only and server-rendered/static for now.
 - No SQLite journal backend yet.
 
 ## Next Spec Work
 
-1. Define MCP transport and bootstrap tools.
+1. Define repository bootstrap/edit tools for MCP.
 2. Extend UI operator console actions and failure states.
 3. Decide SQLite journal/inventory contract.

@@ -67,6 +67,13 @@ Open the bundled operator console:
 http://127.0.0.1:3000/
 ```
 
+Run the MCP server over stdio:
+
+```bash
+npm run build
+HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN=local-dev-token npm run hiveforge-mcp
+```
+
 Inspect a project:
 
 ```bash

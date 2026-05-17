@@ -6,8 +6,15 @@ Draft POC contract.
 
 ## Rule
 
-MCP tools reuse the same application services as REST and CLI. MCP must not add
-alternate deployment logic, action fallbacks, or manifest discovery.
+MCP tools call the HiveForge REST API with an explicit bearer token. MCP must
+not add alternate deployment logic, action fallbacks, or manifest discovery.
+
+## Configuration
+
+The MCP process fails fast unless both variables are set:
+
+- `HIVEFORGE_BASE_URL`
+- `HIVEFORGE_AUTH_TOKEN`
 
 ## Tools
 
@@ -31,6 +38,25 @@ Input: none.
 
 Output: deployment inventory for the current environment, derived from
 succeeded lifecycle actions in the journal.
+
+### `list_operations`
+
+Input: none.
+
+Output: process-local lifecycle operations retained by the running HiveForge
+server.
+
+### `get_operation`
+
+Input:
+
+```json
+{
+  "operationId": "uiop-..."
+}
+```
+
+Output: operation status and logs.
 
 ### `inspect_repository`
 
@@ -80,7 +106,7 @@ Behavior: checkout, inspect, and validate declared requirements.
 
 Output: operation ID, `ok`, and validation issues.
 
-### `run_action`
+### `start_action`
 
 Input:
 
@@ -94,13 +120,14 @@ Input:
 }
 ```
 
-Behavior: checkout, inspect, validate, then run the declared action.
+Behavior: start checkout, inspect, validate, then run the declared action.
 `action` must be one of `deploy`, `remove`, `purge`, `update`, or `upgrade`.
 `profile` is optional at the tool contract level, but projects may declare it as
 a required environment variable. Environment policy may also require and limit
 profiles.
 
-Output: operation ID, stdout, and stderr.
+Output: operation ID, status, and current logs. Use `get_operation` to poll live
+logs and final stdout/stderr.
 
 ### `read_journal`
 

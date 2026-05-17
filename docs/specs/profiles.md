@@ -22,7 +22,9 @@ HiveWatch declares:
 For the current POC, HiveWatch Ansible actions read the selected profile from
 `HIVEFORGE_PROFILE`. The value must be either `normal` or `test`.
 
-## Known Gap
+## Contract Surface
 
-Profiles are not yet first-class request fields in the REST, CLI, or MCP
-contracts. They are explicit action environment for the current POC only.
+Profiles are first-class request fields for REST, CLI, and MCP validation/action
+calls. HiveForge normalizes the requested profile once, checks it against the
+current environment policy, and passes it to action runners as
+`HIVEFORGE_PROFILE`.

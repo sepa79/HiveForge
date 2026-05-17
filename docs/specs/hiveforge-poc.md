@@ -149,11 +149,14 @@ REST:
 MCP:
 
 - `list_projects`
-- `checkout_project`
-- `inspect_manifest`
-- `list_components`
-- `validate`
-- `run_action`
+- `list_environments`
+- `list_deployments`
+- `inspect_repository`
+- `inspect_project`
+- `validate_requirements`
+- `start_action`
+- `get_operation`
+- `list_operations`
 - `read_journal`
 
 UI:

@@ -49,9 +49,10 @@ Implemented now:
 - per-operation profile environment passed to Ansible,
 - first deployment inventory derived from the operation journal,
 - bundled POC operator console,
-- explicit REST bearer token.
+- explicit REST bearer token,
+- POC MCP stdio server backed by the REST API.
 
 Still pending:
 
-- MCP server implementation,
+- MCP client smoke coverage and repository bootstrap tools,
 - richer UI action history and repository bootstrap workflows.
