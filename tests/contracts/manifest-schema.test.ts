@@ -182,4 +182,10 @@ describe("manifest schema", () => {
       "Action file missing for api.deploy: ansible/deploy.yml"
     );
   });
+
+  it("fails explicitly when the root manifest is missing", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
+
+    await expect(loadProjectRegistry(workspace)).rejects.toThrow("Root manifest missing: hiveforge.yaml");
+  });
 });

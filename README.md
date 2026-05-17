@@ -68,6 +68,7 @@ The REST server requires an explicit bearer token:
 HIVEFORGE_ALLOWLIST_PATH=examples/hivewatch/allowlist.yaml \
 HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml \
 HIVEFORGE_AUTH_TOKEN=local-dev-token \
+HIVEWATCH_API_PORT=3000 \
 npm run serve
 ```
 

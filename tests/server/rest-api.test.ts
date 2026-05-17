@@ -115,6 +115,41 @@ describe("REST API", () => {
     });
   });
 
+  it("starts async lifecycle operations and exposes operation logs", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/operations/projects/hivewatch/actions/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main", profile: "test" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      operationId: "uiop-1",
+      status: "running",
+      projectId: "hivewatch",
+      component: "api",
+      action: "deploy"
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const operation = await fetch(`${baseUrl}/operations/uiop-1`);
+
+    expect(operation.status).toBe(200);
+    await expect(operation.json()).resolves.toMatchObject({
+      operationId: "uiop-1",
+      status: "succeeded",
+      result: {
+        actionOperationId: "action-op"
+      },
+      logs: expect.arrayContaining([
+        expect.objectContaining({ level: "info", message: "Started deploy for hivewatch/api" }),
+        expect.objectContaining({ level: "stdout", message: "changed=1" })
+      ])
+    });
+  });
+
   it("lists configured environments", async () => {
     const baseUrl = await startServer();
 
@@ -301,6 +336,7 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
           };
         }
       } as never,
+      operations: operationService(options.calls),
       repositoryInspection: {
         async inspect(request: { repository: string; gitRef: string }) {
           return {
@@ -341,6 +377,46 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+function operationService(calls?: unknown[]) {
+  const operations = new Map<string, unknown>();
+  return {
+    list() {
+      return { operations: [...operations.values()] };
+    },
+    get(operationId: string) {
+      return operations.get(operationId) ?? null;
+    },
+    startLifecycleAction(request: unknown) {
+      calls?.push(request);
+      const operation = {
+        operationId: "uiop-1",
+        status: "running",
+        kind: "lifecycle_action",
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        startedAt: "2026-05-17T10:00:00.000Z",
+        logs: [{ at: "2026-05-17T10:00:00.000Z", level: "info", message: "Started deploy for hivewatch/api" }]
+      };
+      operations.set("uiop-1", operation);
+      queueMicrotask(() => {
+        operations.set("uiop-1", {
+          ...operation,
+          status: "succeeded",
+          endedAt: "2026-05-17T10:00:01.000Z",
+          result: { actionOperationId: "action-op" },
+          logs: [
+            ...operation.logs,
+            { at: "2026-05-17T10:00:01.000Z", level: "stdout", message: "changed=1" }
+          ]
+        });
+      });
+      return operation;
+    }
+  } as never;
 }
 
 function journal(): Journal {

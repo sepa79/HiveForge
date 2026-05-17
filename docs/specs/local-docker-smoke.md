@@ -34,3 +34,8 @@ from the deploy container, not from the host shell.
 scripts/local-docker/setup-hivewatch-fixture.sh
 scripts/local-docker/run-hivewatch-smoke.sh
 ```
+
+`run-hivewatch-smoke.sh` restores ownership of `tmp/workspace` and
+`tmp/journal` to the host user on exit. Docker writes mounted files as root
+during the smoke flow, and host-run REST/CLI processes must still be able to
+read and append the local journal afterwards.

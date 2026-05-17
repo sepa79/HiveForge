@@ -11,7 +11,7 @@ environments:
       - registry
     policy:
       projects:
-        - id: hivewatch
+        - id: hivewatch-local
           profiles:
             - normal
             - test
@@ -21,7 +21,7 @@ environments:
             - purge
             - update
             - upgrade
-        - id: hivewatch-local
+        - id: hivewatch
           profiles:
             - normal
             - test

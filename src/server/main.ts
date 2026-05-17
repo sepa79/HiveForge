@@ -6,6 +6,7 @@ import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { SystemClock } from "../operation/clock.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
+import { OperationLogService } from "../operation/operation-log-service.js";
 import { UuidGenerator } from "../operation/id-generator.js";
 import { ProjectActionService } from "../operation/project-action-service.js";
 import { ProjectInspectionService } from "../operation/project-inspection-service.js";
@@ -50,6 +51,7 @@ if (!currentEnvironment) {
 }
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
+const operations = new OperationLogService(deploy, ids, clock);
 
 createHttpServer(
   [
@@ -63,6 +65,7 @@ createHttpServer(
       currentEnvironmentId: currentEnvironment.id,
       environmentPolicy,
       deploymentInventory,
+      operations,
       repositoryInspection,
       environments: {
         current: currentEnvironment,

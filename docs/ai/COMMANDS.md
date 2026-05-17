@@ -58,7 +58,7 @@ Run the REST API:
 
 ```bash
 npm run build
-HIVEFORGE_ALLOWLIST_PATH=examples/hivewatch/allowlist.yaml HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml HIVEFORGE_AUTH_TOKEN=local-dev-token HIVEFORGE_WORKSPACE_DIR=tmp/workspace HIVEFORGE_JOURNAL_DIR=tmp/journal npm run serve
+HIVEFORGE_ALLOWLIST_PATH=examples/hivewatch/allowlist.yaml HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml HIVEFORGE_AUTH_TOKEN=local-dev-token HIVEFORGE_WORKSPACE_DIR=tmp/workspace HIVEFORGE_JOURNAL_DIR=tmp/journal HIVEWATCH_API_PORT=3000 npm run serve
 ```
 
 Open the bundled operator console:
@@ -85,7 +85,7 @@ Run a declared action:
 
 ```bash
 npm run build
-npm run hiveforge -- run-action --allowlist examples/hivewatch/allowlist.yaml --workspace tmp/workspace --journal tmp/journal --project hivewatch --ref main --component api --action deploy
+HIVEWATCH_API_PORT=3000 npm run hiveforge -- run-action --allowlist examples/hivewatch/allowlist.yaml --workspace tmp/workspace --journal tmp/journal --project hivewatch-local --ref main --component api --action deploy --profile test
 ```
 
 Run the local Docker smoke flow against the explicit local fixture:

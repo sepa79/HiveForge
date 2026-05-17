@@ -3,6 +3,7 @@ import type { EnvironmentPolicyService } from "../config/environment-policy.js";
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
+import type { OperationLogService } from "../operation/operation-log-service.js";
 import type { ProjectInspectionService } from "../operation/project-inspection-service.js";
 import type { ProjectValidationService } from "../operation/project-validation-service.js";
 import { HttpError, readJsonBody } from "./json-http.js";
@@ -19,6 +20,7 @@ export interface RestApiServices {
   currentEnvironmentId?: string;
   environmentPolicy?: EnvironmentPolicyService;
   deploymentInventory?: DeploymentInventoryService;
+  operations?: OperationLogService;
   repositoryInspection?: {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
@@ -60,6 +62,30 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           throw new HttpError(501, "Deployment inventory is not configured");
         }
         return services.deploymentInventory.list();
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/operations$/,
+      async handle() {
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
+        return services.operations.list();
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/operations\/(?<operationId>[A-Za-z0-9_-]+)$/,
+      async handle({ params }) {
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
+        const operation = services.operations.get(params.operationId);
+        if (!operation) {
+          throw new HttpError(404, `Operation not found: ${params.operationId}`);
+        }
+        return operation;
       }
     },
     {
@@ -141,6 +167,34 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           stdout: result.action.stdout,
           stderr: result.action.stderr
         };
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/operations\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/actions\/(?<component>[a-z][a-z0-9-]*)\/(?<action>[a-z][a-z0-9-]*)$/,
+      async handle({ request, params }) {
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
+        if (!LIFECYCLE_ACTIONS.has(params.action)) {
+          throw new HttpError(400, `Unsupported lifecycle action: ${params.action}`);
+        }
+
+        const body = await readActionRequest(request);
+        assertEnvironmentPolicy(services, {
+          projectId: params.projectId,
+          action: params.action,
+          profile: body.profile
+        });
+        const operation = services.operations.startLifecycleAction({
+          projectId: params.projectId,
+          gitRef: body.gitRef,
+          component: params.component,
+          action: params.action,
+          environmentId: services.currentEnvironmentId,
+          profile: body.profile
+        });
+        return operation;
       }
     },
     {

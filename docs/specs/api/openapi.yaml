@@ -75,6 +75,70 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Deployment"
+  /operations:
+    get:
+      summary: List lifecycle operations retained by this HiveForge process
+      operationId: listOperations
+      responses:
+        "200":
+          description: Operation list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operations]
+                properties:
+                  operations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Operation"
+  /operations/{operationId}:
+    get:
+      summary: Read one operation status and logs
+      operationId: readOperation
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Operation status and logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operation"
+  /operations/projects/{projectId}/actions/{component}/{action}:
+    post:
+      summary: Start a lifecycle action asynchronously and return an operation id
+      operationId: startActionOperation
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - name: component
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+        - name: action
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LifecycleAction"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: Started operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operation"
   /projects/{projectId}/inspect:
     post:
       summary: Checkout and inspect project manifests
@@ -342,5 +406,58 @@ components:
         updatedAt:
           type: string
           format: date-time
+    Operation:
+      type: object
+      required: [operationId, status, kind, projectId, gitRef, component, action, startedAt, logs]
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+          enum: [running, succeeded, failed]
+        kind:
+          type: string
+          enum: [lifecycle_action]
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        gitRef:
+          type: string
+        component:
+          $ref: "#/components/schemas/Identifier"
+        action:
+          $ref: "#/components/schemas/LifecycleAction"
+        environmentId:
+          $ref: "#/components/schemas/Identifier"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationLogEntry"
+        result:
+          type: object
+          properties:
+            actionOperationId:
+              type: string
+        error:
+          type: string
+    OperationLogEntry:
+      type: object
+      required: [at, level, message]
+      properties:
+        at:
+          type: string
+          format: date-time
+        level:
+          type: string
+          enum: [info, stdout, stderr, error]
+        message:
+          type: string
 security:
   - bearerAuth: []

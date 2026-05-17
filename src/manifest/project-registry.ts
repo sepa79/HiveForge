@@ -7,7 +7,7 @@ const ROOT_MANIFEST_FILE = "hiveforge.yaml";
 
 export async function loadProjectRegistry(workspacePath: string): Promise<ProjectRegistry> {
   const rootPath = path.join(workspacePath, ROOT_MANIFEST_FILE);
-  const rootManifest = await loadAndValidateManifest<RootManifest>(rootPath);
+  const rootManifest = await loadAndValidateManifest<RootManifest>(rootPath, `Root manifest missing: ${ROOT_MANIFEST_FILE}`);
 
   const components = [];
   const seenNames = new Set<string>();
@@ -19,7 +19,10 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
     seenNames.add(componentRef.name);
 
     const componentPath = path.join(workspacePath, componentRef.manifest);
-    const componentManifest = await loadAndValidateManifest<ComponentManifest>(componentPath);
+    const componentManifest = await loadAndValidateManifest<ComponentManifest>(
+      componentPath,
+      `Component manifest missing for ${componentRef.name}: ${componentRef.manifest}`
+    );
 
     if (componentManifest.component.name !== componentRef.name) {
       throw new Error(
@@ -48,10 +51,22 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
   };
 }
 
-async function loadAndValidateManifest<T>(manifestPath: string): Promise<T> {
-  const manifest = await loadYamlFile(manifestPath);
+async function loadAndValidateManifest<T>(manifestPath: string, missingMessage: string): Promise<T> {
+  let manifest;
+  try {
+    manifest = await loadYamlFile(manifestPath);
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      throw new Error(missingMessage);
+    }
+    throw error;
+  }
   await validateContract(schemaPaths.manifest, manifest);
   return manifest as T;
+}
+
+function isNodeError(error: unknown): error is Error & { code: string } {
+  return error instanceof Error && "code" in error && typeof error.code === "string";
 }
 
 async function assertActionFilesExist(componentDir: string, manifest: ComponentManifest): Promise<void> {

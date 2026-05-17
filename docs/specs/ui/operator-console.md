@@ -24,6 +24,8 @@ require the configured bearer token.
 - current environment summary,
 - deployment inventory for the current environment,
 - lifecycle action form,
+- live operation status and logs,
+- process-local operation history,
 - recent journal events.
 
 ## Actions
@@ -31,8 +33,13 @@ require the configured bearer token.
 The first UI can run lifecycle actions through:
 
 ```text
-POST /projects/{projectId}/actions/{component}/{action}
+POST /operations/projects/{projectId}/actions/{component}/{action}
 ```
+
+The UI polls `GET /operations/{operationId}` while the action runs. Completed
+operation logs remain available from `GET /operations` and
+`GET /operations/{operationId}` for as long as the HiveForge process is running.
+The append-only journal remains the durable audit source.
 
 The UI sends the bearer token supplied by the user. Environment policy remains
 server-side and is enforced before actions run.

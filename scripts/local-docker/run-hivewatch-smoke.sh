@@ -2,6 +2,17 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+HOST_UID="$(id -u)"
+HOST_GID="$(id -g)"
+
+restore_tmp_owner() {
+  docker run --rm \
+    -v "$ROOT_DIR:$ROOT_DIR" \
+    hiveforge:local \
+    chown -R "$HOST_UID:$HOST_GID" "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal" >/dev/null 2>&1 || true
+}
+
+trap restore_tmp_owner EXIT
 
 "$ROOT_DIR/scripts/local-docker/setup-hivewatch-fixture.sh"
 
