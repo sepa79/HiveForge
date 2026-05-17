@@ -1,0 +1,346 @@
+openapi: 3.1.0
+info:
+  title: HiveForge POC API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /projects:
+    get:
+      summary: List allowlisted projects
+      operationId: listProjects
+      responses:
+        "200":
+          description: Allowlisted projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects]
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+  /environments:
+    get:
+      summary: List known environments for this HiveForge instance
+      operationId: listEnvironments
+      responses:
+        "200":
+          description: Known environments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [current, known]
+                properties:
+                  current:
+                    $ref: "#/components/schemas/Environment"
+                  known:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Environment"
+  /repositories/inspect:
+    post:
+      summary: Inspect a repository for HiveForge deployability without authorizing deployment
+      operationId: inspectRepository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepositoryInspectionRequest"
+      responses:
+        "200":
+          description: Repository inspection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepositoryInspectionResult"
+  /deployments:
+    get:
+      summary: List deployment inventory for the current environment
+      operationId: listDeployments
+      responses:
+        "200":
+          description: Current deployment inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deployments]
+                properties:
+                  deployments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Deployment"
+  /projects/{projectId}/inspect:
+    post:
+      summary: Checkout and inspect project manifests
+      operationId: inspectProject
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefRequest"
+      responses:
+        "200":
+          description: Inspection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InspectionResult"
+  /projects/{projectId}/validate:
+    post:
+      summary: Checkout, inspect, and validate declared runtime requirements
+      operationId: validateProject
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResult"
+  /projects/{projectId}/actions/{component}/{action}:
+    post:
+      summary: Checkout, inspect, validate, and run a declared component action
+      operationId: runAction
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - name: component
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+        - name: action
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LifecycleAction"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: Action result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+  /journal:
+    get:
+      summary: Read operation journal
+      operationId: readJournal
+      responses:
+        "200":
+          description: Journal events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "../journal/event.schema.json"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+  schemas:
+    Identifier:
+      type: string
+      pattern: "^[a-z][a-z0-9-]*$"
+    LifecycleAction:
+      type: string
+      enum: [deploy, remove, purge, update, upgrade]
+    Project:
+      type: object
+      required: [id, name, source, repository, allowedRefs]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        name:
+          type: string
+        source:
+          type: string
+          enum: [github, local-git]
+        repository:
+          type: string
+        allowedRefs:
+          type: array
+          items:
+            type: string
+    RefRequest:
+      type: object
+      additionalProperties: false
+      required: [gitRef]
+      properties:
+        gitRef:
+          type: string
+          minLength: 1
+    ActionRequest:
+      type: object
+      additionalProperties: false
+      required: [gitRef]
+      properties:
+        gitRef:
+          type: string
+          minLength: 1
+        profile:
+          $ref: "#/components/schemas/Identifier"
+    Environment:
+      type: object
+      required: [id, name, kind, capabilities, policy]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [local-docker, docker, swarm]
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [docker, compose, swarm, volumes, secrets, registry]
+        policy:
+          type: object
+          required: [projects]
+          properties:
+            projects:
+              type: array
+              items:
+                type: object
+                required: [id, actions]
+                properties:
+                  id:
+                    $ref: "#/components/schemas/Identifier"
+                  profiles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Identifier"
+                  actions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LifecycleAction"
+    RepositoryInspectionRequest:
+      type: object
+      additionalProperties: false
+      required: [repository, gitRef]
+      properties:
+        repository:
+          type: string
+          minLength: 1
+        gitRef:
+          type: string
+          minLength: 1
+    RepositoryInspectionResult:
+      type: object
+      required: [repository, gitRef, deployable, components]
+      properties:
+        repository:
+          type: string
+        gitRef:
+          type: string
+        deployable:
+          type: boolean
+        project:
+          type: object
+        components:
+          type: array
+          items:
+            type: object
+        reason:
+          type: string
+    InspectionResult:
+      type: object
+      required: [operationId, projectId, repository, gitRef, components]
+      properties:
+        operationId:
+          type: string
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        repository:
+          type: string
+        gitRef:
+          type: string
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+    ValidationResult:
+      type: object
+      required: [operationId, ok, issues]
+      properties:
+        operationId:
+          type: string
+        ok:
+          type: boolean
+        issues:
+          type: array
+          items:
+            type: object
+    ActionResult:
+      type: object
+      required: [operationId, stdout, stderr]
+      properties:
+        operationId:
+          type: string
+        stdout:
+          type: string
+        stderr:
+          type: string
+    Deployment:
+      type: object
+      required: [environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
+      properties:
+        environment:
+          $ref: "#/components/schemas/Identifier"
+        project:
+          $ref: "#/components/schemas/Identifier"
+        repository:
+          type: string
+        gitRef:
+          type: string
+        component:
+          $ref: "#/components/schemas/Identifier"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        status:
+          type: string
+          enum: [deployed, removed]
+        lastAction:
+          $ref: "#/components/schemas/LifecycleAction"
+        operationId:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+security:
+  - bearerAuth: []

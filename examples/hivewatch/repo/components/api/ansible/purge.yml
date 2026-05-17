@@ -1,0 +1,8 @@
+---
+- name: HiveWatch API placeholder purge
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Confirm placeholder purge path
+      ansible.builtin.debug:
+        msg: "HiveForge POC placeholder purge for HiveWatch API"

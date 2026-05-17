@@ -1,0 +1,8 @@
+---
+- name: HiveWatch API placeholder remove
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Confirm placeholder remove path
+      ansible.builtin.debug:
+        msg: "HiveForge POC placeholder remove for HiveWatch API"

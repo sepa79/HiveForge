@@ -1,0 +1,33 @@
+current: local
+environments:
+  - id: local
+    name: Local Docker
+    kind: local-docker
+    capabilities:
+      - docker
+      - compose
+      - volumes
+      - secrets
+      - registry
+    policy:
+      projects:
+        - id: hivewatch
+          profiles:
+            - normal
+            - test
+          actions:
+            - deploy
+            - remove
+            - purge
+            - update
+            - upgrade
+        - id: hivewatch-local
+          profiles:
+            - normal
+            - test
+          actions:
+            - deploy
+            - remove
+            - purge
+            - update
+            - upgrade

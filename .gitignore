@@ -1,0 +1,24 @@
+.DS_Store
+Thumbs.db
+
+# Editor / local tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Runtime/cache
+.cache/
+.tmp/
+tmp/
+dist/
+build/
+node_modules/
+target/
+
+# HiveForge local state
+workspace/
+journal/
+.env
+.env.*
+!.env.example

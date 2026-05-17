@@ -1,0 +1,36 @@
+# Local Docker Smoke Flow
+
+## Status
+
+Development-only POC workflow.
+
+## Rule
+
+Local Docker smoke tests use an explicitly allowlisted local git repository:
+`hivewatch-local`. This is not a fallback for the real HiveWatch repository.
+
+The setup script creates:
+
+- a bare local git repository under `tmp/hivewatch-fixture.git`,
+- a local single-node Swarm when Docker is not already in Swarm mode,
+- Docker volume `hivewatch-api-data`,
+- Docker secret `hivewatch-api-token`.
+
+The deploy command still follows the normal flow:
+
+1. checkout allowlisted git ref,
+2. inspect manifests,
+3. validate local Docker resources,
+4. run the declared Ansible playbook,
+5. write journal events.
+
+The smoke deploy runs inside the `hiveforge:local` container with the local
+Docker socket mounted. This verifies that Ansible and Docker CLI are available
+from the deploy container, not from the host shell.
+
+## Commands
+
+```bash
+scripts/local-docker/setup-hivewatch-fixture.sh
+scripts/local-docker/run-hivewatch-smoke.sh
+```

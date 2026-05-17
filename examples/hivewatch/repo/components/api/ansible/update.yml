@@ -1,0 +1,8 @@
+---
+- name: HiveWatch API placeholder update
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Confirm placeholder update path
+      ansible.builtin.debug:
+        msg: "HiveForge POC placeholder update for HiveWatch API"

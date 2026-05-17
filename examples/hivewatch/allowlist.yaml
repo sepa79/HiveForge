@@ -1,0 +1,13 @@
+projects:
+  - id: hivewatch
+    name: HiveWatch
+    source: github
+    repository: https://github.com/sepa79/HiveWatch.git
+    allowedRefs:
+      - main
+  - id: hivewatch-local
+    name: HiveWatch Local Fixture
+    source: local-git
+    repository: file:///home/sepa/HiveForge/tmp/hivewatch-fixture.git
+    allowedRefs:
+      - main

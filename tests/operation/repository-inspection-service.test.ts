@@ -1,0 +1,103 @@
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { RepositoryInspectionService } from "../../src/operation/repository-inspection-service.js";
+import type { CommandRunner } from "../../src/workspace/command-runner.js";
+
+class FixtureGitRunner implements CommandRunner {
+  async run(command: string, args: string[]) {
+    if (command !== "git") {
+      throw new Error(`Unexpected command: ${command}`);
+    }
+    if (args[0] === "clone") {
+      await writeDeployableProject(args[3]);
+    }
+    return { stdout: "", stderr: "" };
+  }
+}
+
+describe("repository inspection service", () => {
+  it("reports deployable repositories without requiring deployment allowlist", async () => {
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+
+    await expect(
+      service.inspect({
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main"
+      })
+    ).resolves.toEqual({
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      gitRef: "main",
+      deployable: true,
+      project: {
+        name: "hivewatch",
+        profiles: ["normal"]
+      },
+      components: [
+        {
+          name: "service",
+          actions: ["deploy", "remove", "purge", "update", "upgrade"]
+        }
+      ]
+    });
+  });
+
+  it("rejects unsupported repository URLs before git runs", async () => {
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+
+    await expect(
+      service.inspect({
+        repository: "ssh://git@example.test/repo.git",
+        gitRef: "main"
+      })
+    ).rejects.toThrow("Repository is not inspectable by HiveForge: ssh://git@example.test/repo.git");
+  });
+});
+
+async function writeDeployableProject(workspace: string): Promise<void> {
+  await mkdir(path.join(workspace, "deploy"), { recursive: true });
+  await writeFile(
+    path.join(workspace, "hiveforge.yaml"),
+    [
+      "kind: project",
+      "project:",
+      "  name: hivewatch",
+      "  repository: https://github.com/sepa79/HiveWatch.git",
+      "  profiles:",
+      "    - normal",
+      "components:",
+      "  - name: service",
+      "    manifest: service.hiveforge.yaml",
+      ""
+    ].join("\n")
+  );
+  await writeFile(
+    path.join(workspace, "service.hiveforge.yaml"),
+    [
+      "kind: component",
+      "component:",
+      "  name: service",
+      "  project: hivewatch",
+      "deployment:",
+      "  adapter: ansible",
+      "  actions:",
+      "    deploy:",
+      "      playbook: deploy/deploy.yml",
+      "    remove:",
+      "      playbook: deploy/remove.yml",
+      "    purge:",
+      "      playbook: deploy/purge.yml",
+      "    update:",
+      "      playbook: deploy/update.yml",
+      "    upgrade:",
+      "      playbook: deploy/upgrade.yml",
+      ""
+    ].join("\n")
+  );
+  for (const action of ["deploy", "remove", "purge", "update", "upgrade"]) {
+    await writeFile(path.join(workspace, `deploy/${action}.yml`), "---\n- hosts: localhost\n");
+  }
+}

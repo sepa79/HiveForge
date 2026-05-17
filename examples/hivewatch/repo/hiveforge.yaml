@@ -1,0 +1,7 @@
+kind: project
+project:
+  name: hivewatch
+  repository: https://github.com/sepa79/HiveWatch.git
+components:
+  - name: api
+    manifest: components/api/hiveforge.yaml

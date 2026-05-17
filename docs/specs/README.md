@@ -1,0 +1,84 @@
+# Specs / Contracts
+
+This directory is the canonical home for project specs and contracts.
+
+Use it for:
+
+- REST/OpenAPI contracts,
+- config schemas,
+- file formats,
+- CLI contracts,
+- MCP/tool contracts,
+- integration contracts,
+- journal event contracts.
+
+## Rules
+
+- One canonical spec per contract.
+- Implementation follows the spec, not the other way around.
+- Contract changes must be reviewed.
+- Breaking changes must be explicit.
+- If generated code is used, document source spec and generation command.
+- Do not keep duplicate schemas/DTOs/parsers for the same contract without
+  documenting why.
+
+## Current Specs
+
+| Spec | Purpose | Status |
+|---|---|---|
+| `control-plane-vision.md` | Direction for environments, bootstrap, UI, MCP, and deployments. | Draft |
+| `hiveforge-poc.md` | Initial HiveForge/HiveWatch POC contract. | Draft |
+| `manifest.schema.json` | Root and component `hiveforge.yaml` contract. | Draft |
+| `config/allowlist.schema.json` | Repository allowlist config contract. | Draft |
+| `config/environments.schema.json` | Known environments config contract. | Draft |
+| `environments.md` | Known deployment environment contract. | Draft |
+| `repository-inspection.md` | Read-only repository bootstrap inspection contract. | Draft |
+| `journal/event.schema.json` | Append-only operation journal event contract. | Draft |
+| `journal/jsonl.md` | POC JSONL journal storage contract. | Draft |
+| `runtime-container.md` | Self-contained deploy container runtime contract. | Draft |
+| `validation/runtime-requirements.md` | Runtime requirement validation contract. | Draft |
+| `profiles.md` | Deployment profile contract. | Draft |
+| `actions/lifecycle.md` | Canonical deployment lifecycle action contract. | Draft |
+| `actions/ansible.md` | POC Ansible action runner contract. | Draft |
+| `orchestration/deploy-flow.md` | POC deploy orchestration contract. | Draft |
+| `api/openapi.yaml` | POC REST API contract. | Draft |
+| `mcp/tools.md` | POC MCP tool contract. | Draft |
+| `ui/operator-console.md` | POC human operator console contract. | Draft |
+| `local-docker-smoke.md` | Development-only local Docker smoke flow. | Draft |
+
+## Suggested structure
+
+```text
+docs/specs/
+  README.md
+  hiveforge-poc.md
+  manifest.schema.json
+  api/
+  config/
+    allowlist.schema.json
+  integrations/
+  journal/
+    event.schema.json
+  mcp/
+```
+
+## Open Questions
+
+- UI operator console contract.
+- Durable inventory backend after JSONL POC.
+
+## Decisions Needed
+
+- SQLite journal/inventory migration timing.
+
+## Known Gaps
+
+- No MCP server yet.
+- UI is POC-only and server-rendered/static for now.
+- No SQLite journal backend yet.
+
+## Next Spec Work
+
+1. Define MCP transport and bootstrap tools.
+2. Extend UI operator console actions and failure states.
+3. Decide SQLite journal/inventory contract.

@@ -1,0 +1,27 @@
+{
+  "name": "hiveforge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run build && npm run test",
+    "hiveforge": "node dist/src/cli/main.js",
+    "serve": "node dist/src/server/main.js"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

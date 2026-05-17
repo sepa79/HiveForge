@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hiveforge.local/specs/config/allowlist.schema.json",
+  "title": "HiveForge repository allowlist",
+  "description": "Canonical schema for repositories HiveForge may check out.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["projects"],
+  "properties": {
+    "projects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "source", "repository", "allowedRefs"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "enum": ["github", "local-git"]
+          },
+          "repository": {
+            "type": "string",
+            "minLength": 1
+          },
+          "allowedRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "source": { "const": "github" } },
+              "required": ["source"]
+            },
+            "then": {
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": { "source": { "const": "local-git" } },
+              "required": ["source"]
+            },
+            "then": {
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "pattern": "^file:///.+"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
