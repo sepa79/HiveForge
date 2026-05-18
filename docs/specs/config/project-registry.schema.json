@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hiveforge.local/specs/config/project-registry.schema.json",
   "title": "HiveForge project registry",
-  "description": "Canonical schema for registered projects HiveForge may deploy.",
+  "description": "Canonical schema for registered projects HiveForge may deploy. local-git is development/smoke-test tooling, not the managed service release deployment contract.",
   "type": "object",
   "additionalProperties": false,
   "required": ["projects"],

@@ -27,12 +27,15 @@ Use it for:
 | Spec | Purpose | Status |
 |---|---|---|
 | `control-plane-vision.md` | Direction for environments, bootstrap, UI, MCP, and deployments. | Draft |
+| `capabilities.md` | Capability vocabulary for portable profile matching. | Draft |
+| `deployment-artifacts.md` | Portable release deployment profiles and environment matching design. | Draft |
 | `hiveforge-poc.md` | Initial HiveForge/HiveWatch POC contract. | Draft |
 | `manifest.schema.json` | Root and component `hiveforge.yaml` contract. | Draft |
 | `config/project-registry.schema.json` | Registered project registry contract. | Draft |
 | `config/environments.schema.json` | Known environments config contract. | Draft |
 | `environments.md` | Known deployment environment contract. | Draft |
 | `repository-inspection.md` | Read-only repository bootstrap inspection contract. | Draft |
+| `releases.md` | Target release-driven deployment contract for managed services. | Draft |
 | `journal/event.schema.json` | Append-only operation journal event contract. | Draft |
 | `journal/jsonl.md` | POC JSONL journal storage contract. | Draft |
 | `runtime-container.md` | Self-contained deploy container runtime contract. | Draft |
@@ -80,6 +83,7 @@ docs/specs/
 
 ## Next Spec Work
 
-1. Define repository bootstrap/edit tools for MCP.
-2. Extend UI operator console actions and failure states.
-3. Decide SQLite journal/inventory contract.
+1. Implement release deploy/upgrade API and MCP operations from `releases.md`.
+2. Define repository bootstrap/edit tools for MCP.
+3. Extend UI operator console actions and failure states.
+4. Decide SQLite journal/inventory contract.

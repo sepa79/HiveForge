@@ -9,9 +9,9 @@ Draft architecture for the initial HiveWatch deployment POC.
 ## Purpose
 
 HiveForge is a deployment control plane that runs on a target Docker/Swarm
-environment. It checks out approved project repositories, reads `hiveforge.yaml`
-manifests, validates declared requirements, executes declared lifecycle actions,
-and records operation history.
+environment. It validates registered projects, prepares managed files under its
+own data root, executes declared lifecycle actions, and records operation
+history.
 
 ## Architecture principles
 
@@ -26,8 +26,8 @@ and records operation history.
 ## System overview
 
 HiveForge does not own application code. Consumer projects, initially HiveWatch
-and later PocketHive, carry manifests and action files. HiveForge provides the
-control plane around those assets.
+and later PocketHive, carry manifests and deployment assets. HiveForge provides
+the control plane around those assets.
 
 ```text
 Human / AI Agent
@@ -53,6 +53,12 @@ Docker / Swarm target resources
 
 HiveForge journal records every operation.
 ```
+
+The diagram reflects the current HiveWatch POC, which still checks out a
+registered project ref before deployment. The target v1 contract for
+PocketHive/HiveMind-style managed services is release-driven: deployment input
+is a release ref or image tag set with already-published registry artifacts. The
+release contract lives in `docs/specs/releases.md`.
 
 ## Main components
 
@@ -93,6 +99,10 @@ Secret values are never read, persisted, logged, or returned.
 Canonical specs live under `docs/specs/`.
 
 - `docs/specs/hiveforge-poc.md` defines the current POC behavior.
+- `docs/specs/capabilities.md` defines the capability vocabulary for portable
+  profile matching.
+- `docs/specs/deployment-artifacts.md` defines the portable release deployment
+  profile and environment capability matching direction.
 - `docs/specs/manifest.schema.json` is the SSOT for root and component
   `hiveforge.yaml`.
 - `docs/specs/config/project-registry.schema.json` is the SSOT for registered project
@@ -101,6 +111,8 @@ Canonical specs live under `docs/specs/`.
   environments.
 - `docs/specs/repository-inspection.md` defines read-only bootstrap inspection
   for candidate repositories.
+- `docs/specs/releases.md` defines the target release-driven deployment
+  contract for managed services.
 - `docs/specs/journal/event.schema.json` is the SSOT for operation journal
   events.
 - `docs/specs/journal/jsonl.md` defines the POC journal storage backend.

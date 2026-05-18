@@ -3,9 +3,8 @@
 HiveForge is a deployment control plane for target Docker/Swarm environments.
 
 It runs as a container on the target environment, lets a human or AI agent connect
-through UI, MCP, or REST, checks out an approved project repository, reads its
-`hiveforge.yaml` manifests, validates declared requirements, and runs explicitly
-declared lifecycle actions.
+through UI, MCP, or REST, validates registered projects, prepares managed files
+under its own data root, and runs explicitly declared lifecycle actions.
 
 HiveForge is a separate project from PocketHive. PocketHive and HiveWatch are
 consumers: they carry manifests and deployment assets, while HiveForge provides
@@ -33,6 +32,12 @@ POC flow:
 11. HiveForge writes the operation result to an append-only journal.
 12. HiveForge exposes deployment inventory derived from journaled lifecycle
     actions.
+
+The HiveWatch POC is still repo/ref-driven. The target v1 model for
+PocketHive/HiveMind-style managed services is release-driven: deploy an
+already-published release or registry-qualified image tag set, validate registry
+artifacts, and use repository inspection as bootstrap/dev tooling rather than
+the deployment source of truth. See [Release deployment](docs/specs/releases.md).
 
 ## Core Rule
 

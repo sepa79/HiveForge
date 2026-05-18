@@ -4,7 +4,7 @@ export interface RootManifest {
     name: string;
     repository: string;
     actions: string[];
-    profiles?: string[];
+    profiles?: ProjectProfile[];
   };
   components: Array<{
     name: string;
@@ -12,6 +12,21 @@ export interface RootManifest {
   }>;
   artifacts?: {
     managedPaths?: ManagedPathDeclaration[];
+  };
+}
+
+export type RuntimeCapability = "docker-single" | "docker-swarm";
+export type ProfileCapabilityName = "placement" | "shared-runtime-root";
+
+export interface ProjectProfile {
+  id: string;
+  runtime: RuntimeCapability;
+  serviceSet: string;
+  requires?: {
+    registry?: boolean;
+    ingress?: boolean;
+    managedRoots?: string[];
+    capabilities?: ProfileCapabilityName[];
   };
 }
 

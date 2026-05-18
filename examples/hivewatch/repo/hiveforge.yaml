@@ -6,6 +6,23 @@ project:
     - deploy
     - remove
     - update
+  profiles:
+    - id: normal
+      runtime: docker-single
+      serviceSet: normal
+      requires:
+        registry: true
+        ingress: true
+        managedRoots:
+          - stack-root
+    - id: test
+      runtime: docker-single
+      serviceSet: test
+      requires:
+        registry: true
+        ingress: true
+        managedRoots:
+          - stack-root
 components:
   - name: api
     manifest: components/api/hiveforge.yaml

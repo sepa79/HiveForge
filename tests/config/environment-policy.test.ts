@@ -32,7 +32,12 @@ function environment() {
     id: "local",
     name: "Local Docker",
     kind: "local-docker" as const,
-    capabilities: ["docker" as const],
+    capabilities: {
+      runtime: ["docker-single" as const],
+      registry: true,
+      ingress: true,
+      managedRoots: ["stack-root"]
+    },
     policy: {
       projects: [
         {

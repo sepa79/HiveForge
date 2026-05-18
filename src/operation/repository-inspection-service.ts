@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp } from "node:fs/promises";
 import path from "node:path";
+import type { ProjectProfile } from "../manifest/manifest-types.js";
 import { loadProjectRegistry } from "../manifest/project-registry.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
 
@@ -14,7 +15,7 @@ export interface RepositoryInspectionResult {
   deployable: boolean;
   project?: {
     name: string;
-    profiles?: string[];
+    profiles?: ProjectProfile[];
   };
   components: Array<{
     name: string;

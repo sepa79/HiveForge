@@ -6,7 +6,7 @@ Draft POC contract.
 
 ## Rule
 
-Every managed component manifest declares the full lifecycle action set:
+HiveForge has a canonical lifecycle action vocabulary:
 
 - `deploy`
 - `remove`
@@ -14,9 +14,20 @@ Every managed component manifest declares the full lifecycle action set:
 - `update`
 - `upgrade`
 
+Each project root manifest declares the subset of canonical lifecycle actions
+the project exposes. Each managed component manifest then declares the component
+implementation for that project action subset.
+
 HiveForge does not infer aliases such as `start`, `stop`, `destroy`,
 `redeploy`, or environment-specific suffixes. A request must name one of the
-declared lifecycle actions exactly.
+declared project lifecycle actions exactly.
+
+For a project registry build to succeed, every managed component must implement
+the project action subset exactly:
+
+- missing project action on a component is a hard failure,
+- extra component action outside the project action subset is a hard failure,
+- action names remain limited to the canonical lifecycle vocabulary.
 
 ## Semantics
 

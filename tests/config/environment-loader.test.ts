@@ -13,8 +13,12 @@ describe("environment loader", () => {
       "    name: Local Docker",
       "    kind: local-docker",
       "    capabilities:",
-      "      - docker",
-      "      - compose",
+      "      runtime:",
+      "        - docker-single",
+      "      registry: true",
+      "      ingress: true",
+      "      managedRoots:",
+      "        - stack-root",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -30,7 +34,12 @@ describe("environment loader", () => {
           id: "local",
           name: "Local Docker",
           kind: "local-docker",
-          capabilities: ["docker", "compose"],
+          capabilities: {
+            runtime: ["docker-single"],
+            registry: true,
+            ingress: true,
+            managedRoots: ["stack-root"]
+          },
           policy: {
             projects: [
               {
@@ -52,7 +61,11 @@ describe("environment loader", () => {
       "    name: Local Docker",
       "    kind: local-docker",
       "    capabilities:",
-      "      - docker",
+      "      runtime:",
+      "        - docker-single",
+      "      registry: true",
+      "      ingress: false",
+      "      managedRoots: []",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -72,7 +85,12 @@ describe("environment loader", () => {
           id: "local",
           name: "Local Docker",
           kind: "local-docker",
-          capabilities: ["docker"],
+          capabilities: {
+            runtime: ["docker-single"],
+            registry: true,
+            ingress: false,
+            managedRoots: []
+          },
           policy: {
             projects: [
               {
@@ -95,7 +113,11 @@ describe("environment loader", () => {
       "    name: Local Docker",
       "    kind: local-docker",
       "    capabilities:",
-      "      - docker",
+      "      runtime:",
+      "        - docker-single",
+      "      registry: true",
+      "      ingress: true",
+      "      managedRoots: []",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -115,7 +137,11 @@ describe("environment loader", () => {
       "    name: Local Docker",
       "    kind: local-docker",
       "    capabilities:",
-      "      - docker",
+      "      runtime:",
+      "        - docker-single",
+      "      registry: true",
+      "      ingress: true",
+      "      managedRoots: []",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",

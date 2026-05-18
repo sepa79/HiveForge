@@ -4,11 +4,12 @@ environments:
     name: Local Docker
     kind: local-docker
     capabilities:
-      - docker
-      - compose
-      - volumes
-      - secrets
-      - registry
+      runtime:
+        - docker-single
+      registry: true
+      ingress: true
+      managedRoots:
+        - stack-root
     policy:
       projects:
         - id: hivewatch-local

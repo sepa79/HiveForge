@@ -33,7 +33,18 @@ describe("repository inspection service", () => {
       deployable: true,
       project: {
         name: "hivewatch",
-        profiles: ["normal"]
+        profiles: [
+          {
+            id: "normal",
+            runtime: "docker-single",
+            serviceSet: "normal",
+            requires: {
+              registry: true,
+              ingress: true,
+              managedRoots: ["stack-root"]
+            }
+          }
+        ]
       },
       components: [
         {
@@ -67,7 +78,14 @@ async function writeDeployableProject(workspace: string): Promise<void> {
       "  name: hivewatch",
       "  repository: https://github.com/sepa79/HiveWatch.git",
       "  profiles:",
-      "    - normal",
+      "    - id: normal",
+      "      runtime: docker-single",
+      "      serviceSet: normal",
+      "      requires:",
+      "        registry: true",
+      "        ingress: true",
+      "        managedRoots:",
+      "          - stack-root",
       "  actions:",
       "    - deploy",
       "    - remove",

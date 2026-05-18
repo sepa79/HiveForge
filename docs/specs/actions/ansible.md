@@ -45,8 +45,8 @@ When managed files are configured, HiveForge also passes:
 - `HIVEFORGE_STACK_DIR` - `<HIVEFORGE_PROJECT_DIR>/stacks`,
 - `HIVEFORGE_ARTIFACTS_DIR` - `<HIVEFORGE_PROJECT_DIR>/artifacts`.
 
-Before HiveMind or another production project is deployed through HiveForge,
-the Ansible adapter contract needs an explicit, typed variable surface for:
+For the target managed-service release contract in `docs/specs/releases.md`, the
+Ansible adapter contract needs an explicit, typed variable surface for:
 
 - image tag or release ref,
 - stack name,

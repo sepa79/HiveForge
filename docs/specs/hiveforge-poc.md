@@ -81,6 +81,10 @@ not guess what to copy.
 project:
   name: hivewatch
   repository: https://github.com/sepa79/HiveWatch.git
+  actions:
+    - deploy
+    - remove
+    - update
 
 components:
   - name: api
@@ -105,12 +109,8 @@ deployment:
       playbook: ansible/deploy.yml
     remove:
       playbook: ansible/remove.yml
-    purge:
-      playbook: ansible/purge.yml
     update:
       playbook: ansible/update.yml
-    upgrade:
-      playbook: ansible/upgrade.yml
 
 requirements:
   volumes:

@@ -4,6 +4,11 @@
 
 Draft POC contract.
 
+This file describes the current HiveWatch POC deploy flow. It is repo/ref-driven
+because the POC uses a local HiveWatch-shaped repository fixture. The target v1
+managed service flow is release-driven and is defined in
+`docs/specs/releases.md`.
+
 ## Flow
 
 The POC deploy flow is:

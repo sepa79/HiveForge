@@ -1,3 +1,5 @@
+import type { RuntimeCapability } from "../manifest/manifest-types.js";
+
 export interface EnvironmentConfig {
   current: string;
   environments: EnvironmentDefinition[];
@@ -7,8 +9,17 @@ export interface EnvironmentDefinition {
   id: string;
   name: string;
   kind: "local-docker" | "docker" | "swarm";
-  capabilities: Array<"docker" | "compose" | "swarm" | "volumes" | "secrets" | "registry">;
+  capabilities: EnvironmentCapabilities;
   policy: EnvironmentPolicy;
+}
+
+export interface EnvironmentCapabilities {
+  runtime: RuntimeCapability[];
+  registry: boolean;
+  ingress: boolean;
+  managedRoots: string[];
+  placement?: boolean;
+  sharedRuntimeRoot?: boolean;
 }
 
 export interface EnvironmentPolicy {

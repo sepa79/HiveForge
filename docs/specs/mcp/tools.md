@@ -32,6 +32,10 @@ Output: current environment and known environment metadata/capabilities.
 When configured, environment metadata includes project policy for allowed
 project/profile/action combinations.
 
+Capabilities are structured as described in `docs/specs/capabilities.md`. For
+release deployment, clients must treat them as reported environment facts, not
+as provider-specific target mappings.
+
 ### `list_deployments`
 
 Input: none.
@@ -157,9 +161,21 @@ Failures are explicit tool errors and are also recorded in the journal by the
 underlying services where operation context exists. Secret values must not be
 returned.
 
-## Known Gap
+## Release Deployment Gap
 
-The POC exposes generic lifecycle actions through `start_action`. HiveMind-style
-release promotion needs a future explicit tool for upgrading a deployed project
-or component to a selected release/tag, with the release/ref carried as a typed
-field instead of hidden inside generic action parameters.
+The POC exposes generic lifecycle actions through `start_action`. The target
+managed-service v1 contract is release-driven and is defined in
+`docs/specs/releases.md`. HiveMind/PocketHive deployment needs an explicit tool
+for deploying or upgrading a project/component to a selected release or image
+tag set, with the release carried as a typed field instead of hidden inside
+generic action parameters.
+
+Target MCP additions:
+
+- `list_environment_capabilities` - return environment-local capability reports
+  using the structured capability contract.
+- `match_project_profiles` - return eligible and ineligible profile/environment
+  pairs with explicit missing capability issues.
+- `deploy_release` - deploy or upgrade a component/action to an explicit
+  release ref or image tag set. This tool must not build, push, infer `latest`,
+  infer tags from branches, or select fallback profiles.

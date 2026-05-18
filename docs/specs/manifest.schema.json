@@ -12,6 +12,43 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$"
     },
+    "runtimeCapability": {
+      "type": "string",
+      "enum": ["docker-single", "docker-swarm"]
+    },
+    "profileCapabilityName": {
+      "type": "string",
+      "enum": ["placement", "shared-runtime-root"]
+    },
+    "profileRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "registry": { "type": "boolean" },
+        "ingress": { "type": "boolean" },
+        "managedRoots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" },
+          "uniqueItems": true
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/profileCapabilityName" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "projectProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "runtime", "serviceSet"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "runtime": { "$ref": "#/$defs/runtimeCapability" },
+        "serviceSet": { "$ref": "#/$defs/identifier" },
+        "requires": { "$ref": "#/$defs/profileRequirements" }
+      }
+    },
     "relativePath": {
       "type": "string",
       "minLength": 1,
@@ -66,7 +103,7 @@
             "profiles": {
               "type": "array",
               "minItems": 1,
-              "items": { "$ref": "#/$defs/identifier" },
+              "items": { "$ref": "#/$defs/projectProfile" },
               "uniqueItems": true
             }
           }

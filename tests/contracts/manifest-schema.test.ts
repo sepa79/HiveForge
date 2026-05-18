@@ -13,7 +13,28 @@ describe("manifest schema", () => {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
         actions: ["deploy", "remove", "update"],
-        profiles: ["normal", "test"]
+        profiles: [
+          {
+            id: "normal",
+            runtime: "docker-single",
+            serviceSet: "normal",
+            requires: {
+              registry: true,
+              ingress: true,
+              managedRoots: ["stack-root"]
+            }
+          },
+          {
+            id: "test",
+            runtime: "docker-single",
+            serviceSet: "test",
+            requires: {
+              registry: true,
+              ingress: true,
+              managedRoots: ["stack-root"]
+            }
+          }
+        ]
       },
       components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }],
       artifacts: {
@@ -101,6 +122,15 @@ describe("manifest schema", () => {
         "    - deploy",
         "    - remove",
         "    - update",
+        "  profiles:",
+        "    - id: normal",
+        "      runtime: docker-single",
+        "      serviceSet: normal",
+        "      requires:",
+        "        registry: true",
+        "        ingress: true",
+        "        managedRoots:",
+        "          - stack-root",
         "components:",
         "  - name: api",
         "    manifest: components/api/hiveforge.yaml",
@@ -186,6 +216,51 @@ describe("manifest schema", () => {
     await expect(loadProjectRegistry(workspace)).rejects.toThrow(
       "Action file missing for api.deploy: ansible/deploy.yml"
     );
+  });
+
+  it("fails explicitly when project profile ids are duplicated", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
+    await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "hiveforge.yaml"),
+      [
+        "kind: project",
+        "project:",
+        "  name: hivewatch",
+        "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "  profiles:",
+        "    - id: normal",
+        "      runtime: docker-single",
+        "      serviceSet: normal",
+        "    - id: normal",
+        "      runtime: docker-single",
+        "      serviceSet: test",
+        "components:",
+        "  - name: api",
+        "    manifest: components/api/hiveforge.yaml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(
+      path.join(workspace, "components/api/hiveforge.yaml"),
+      [
+        "kind: component",
+        "component:",
+        "  name: api",
+        "  project: hivewatch",
+        "deployment:",
+        "  adapter: ansible",
+        "  actions:",
+        "    deploy:",
+        "      playbook: ansible/deploy.yml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(path.join(workspace, "components/api/ansible/deploy.yml"), "---\n- hosts: localhost\n");
+
+    await expect(loadProjectRegistry(workspace)).rejects.toThrow("Duplicate project profile in root manifest: normal");
   });
 
   it("fails explicitly when the root manifest is missing", async () => {

@@ -8,6 +8,7 @@ const ROOT_MANIFEST_FILE = "hiveforge.yaml";
 export async function loadProjectRegistry(workspacePath: string): Promise<ProjectRegistry> {
   const rootPath = path.join(workspacePath, ROOT_MANIFEST_FILE);
   const rootManifest = await loadAndValidateManifest<RootManifest>(rootPath, `Root manifest missing: ${ROOT_MANIFEST_FILE}`);
+  assertUniqueProjectProfiles(rootManifest);
 
   const components = [];
   const seenNames = new Set<string>();
@@ -51,6 +52,16 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
     artifacts: rootManifest.artifacts,
     components
   };
+}
+
+function assertUniqueProjectProfiles(rootManifest: RootManifest): void {
+  const seen = new Set<string>();
+  for (const profile of rootManifest.project.profiles ?? []) {
+    if (seen.has(profile.id)) {
+      throw new Error(`Duplicate project profile in root manifest: ${profile.id}`);
+    }
+    seen.add(profile.id);
+  }
 }
 
 function assertComponentActionSet(

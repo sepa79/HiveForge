@@ -161,7 +161,12 @@ describe("REST API", () => {
         id: "local",
         name: "Local Docker",
         kind: "local-docker",
-        capabilities: ["docker", "compose"],
+        capabilities: {
+          runtime: ["docker-single"],
+          registry: true,
+          ingress: true,
+          managedRoots: ["stack-root"]
+        },
         policy: {
           projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
         }
@@ -171,7 +176,12 @@ describe("REST API", () => {
           id: "local",
           name: "Local Docker",
           kind: "local-docker",
-          capabilities: ["docker", "compose"],
+          capabilities: {
+            runtime: ["docker-single"],
+            registry: true,
+            ingress: true,
+            managedRoots: ["stack-root"]
+          },
           policy: {
             projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
           }
@@ -394,7 +404,12 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
           id: "local",
           name: "Local Docker",
           kind: "local-docker",
-          capabilities: ["docker", "compose"],
+          capabilities: {
+            runtime: ["docker-single"],
+            registry: true,
+            ingress: true,
+            managedRoots: ["stack-root"]
+          },
           policy: {
             projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
           }
@@ -404,7 +419,12 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
             id: "local",
             name: "Local Docker",
             kind: "local-docker",
-            capabilities: ["docker", "compose"],
+            capabilities: {
+              runtime: ["docker-single"],
+              registry: true,
+              ingress: true,
+              managedRoots: ["stack-root"]
+            },
             policy: {
               projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
             }
