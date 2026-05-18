@@ -22,7 +22,7 @@ The MCP process fails fast unless both variables are set:
 
 Input: none.
 
-Output: allowlisted project IDs, names, repositories, and allowed refs.
+Output: registered project IDs, names, repositories, and approved refs.
 
 ### `list_environments`
 
@@ -76,6 +76,22 @@ run project actions.
 Output: deployability result, project metadata, component names, lifecycle
 actions, and an explicit reason when not deployable.
 
+### `register_project`
+
+Input:
+
+```json
+{
+  "repository": "https://github.com/sepa79/HiveWatch.git",
+  "gitRef": "main"
+}
+```
+
+Behavior: run read-only repository inspection. If the repository/ref is
+deployable, register the project and approve the inspected ref.
+
+Output: registered project metadata and `deployable: true`.
+
 ### `inspect_project`
 
 Input:
@@ -87,7 +103,7 @@ Input:
 }
 ```
 
-Behavior: checkout allowlisted ref and load root/component manifests.
+Behavior: checkout registered ref and load root/component manifests.
 
 Output: operation ID, project metadata, and managed components.
 
@@ -140,3 +156,10 @@ Output: journal events validated by `docs/specs/journal/event.schema.json`.
 Failures are explicit tool errors and are also recorded in the journal by the
 underlying services where operation context exists. Secret values must not be
 returned.
+
+## Known Gap
+
+The POC exposes generic lifecycle actions through `start_action`. HiveMind-style
+release promotion needs a future explicit tool for upgrading a deployed project
+or component to a selected release/tag, with the release/ref carried as a typed
+field instead of hidden inside generic action parameters.

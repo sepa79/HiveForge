@@ -2,6 +2,10 @@ kind: project
 project:
   name: hivewatch
   repository: https://github.com/sepa79/HiveWatch.git
+  actions:
+    - deploy
+    - remove
+    - update
 components:
   - name: api
     manifest: components/api/hiveforge.yaml

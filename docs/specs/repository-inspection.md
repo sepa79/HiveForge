@@ -7,7 +7,7 @@ Draft POC contract.
 ## Rule
 
 Repository inspection is a read-only bootstrap path. It may inspect a repository
-that is not yet deploy-allowlisted, but it must not run project actions.
+that is not yet deploy-registered, but it must not run project actions.
 
 HiveForge clones the requested repository/ref to an isolated temporary
 workspace, loads `hiveforge.yaml`, validates listed component manifests, and
@@ -23,4 +23,4 @@ The result reports whether the repository is deployable by HiveForge:
 ## Boundary
 
 Inspection is not deployment authorization. Deployment still requires the repo
-and ref to be present in the allowlist for the target environment.
+and ref to be present in the project registry for the target environment.

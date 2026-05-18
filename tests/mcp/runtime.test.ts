@@ -13,6 +13,7 @@ describe("HiveForge MCP runtime", () => {
       "list_environments",
       "list_deployments",
       "inspect_repository",
+      "register_project",
       "inspect_project",
       "validate_requirements",
       "start_action",

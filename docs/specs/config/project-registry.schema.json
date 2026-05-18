@@ -1,19 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hiveforge.local/specs/config/allowlist.schema.json",
-  "title": "HiveForge repository allowlist",
-  "description": "Canonical schema for repositories HiveForge may check out.",
+  "$id": "https://hiveforge.local/specs/config/project-registry.schema.json",
+  "title": "HiveForge project registry",
+  "description": "Canonical schema for registered projects HiveForge may deploy.",
   "type": "object",
   "additionalProperties": false,
   "required": ["projects"],
   "properties": {
     "projects": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "source", "repository", "allowedRefs"],
+        "required": ["id", "name", "source", "repository", "approvedRefs"],
         "properties": {
           "id": {
             "type": "string",
@@ -30,7 +29,7 @@
             "type": "string",
             "minLength": 1
           },
-          "allowedRefs": {
+          "approvedRefs": {
             "type": "array",
             "minItems": 1,
             "items": {

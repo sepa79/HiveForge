@@ -56,3 +56,20 @@ Still pending:
 
 - MCP client smoke coverage and repository bootstrap tools,
 - richer UI action history and repository bootstrap workflows.
+
+## Future Direction: Per-Node Agent
+
+The current deployment model assumes HiveForge runs on the target environment
+and manages files under its own mounted root. That keeps file lifecycle work
+simple: checkout, render/copy into the managed root, then run declared
+lifecycle actions.
+
+A future extension may add a per-node HiveForge agent for resources that must
+live on a specific Docker/Swarm node. Example: a ClickHouse component may
+require a dedicated `HF_EBS` mount on `Master 2`. In that model, the node agent
+would expose that mount as an explicit named managed root. Project/component
+manifests would reference the named root and placement constraints.
+
+This is not part of the current POC. The rule remains: HiveForge manages only
+explicitly configured roots and manifest-declared contents. It does not create
+arbitrary host mounts or replace Docker/Swarm.

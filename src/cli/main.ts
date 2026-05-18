@@ -1,5 +1,5 @@
 import { AnsibleRunner } from "../action/ansible-runner.js";
-import { loadAllowlist } from "../config/allowlist-loader.js";
+import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import { SystemClock } from "../operation/clock.js";
@@ -13,7 +13,7 @@ import { NodeCommandRunner } from "../workspace/node-command-runner.js";
 import { WorkspaceManager } from "../workspace/workspace-manager.js";
 
 interface CliOptions {
-  allowlist?: string;
+  registry?: string;
   workspace?: string;
   journal?: string;
   project?: string;
@@ -104,8 +104,8 @@ function parseOptions(args: string[]): CliOptions {
     }
 
     switch (key) {
-      case "--allowlist":
-        options.allowlist = value;
+      case "--registry":
+        options.registry = value;
         break;
       case "--workspace":
         options.workspace = value;
@@ -137,13 +137,13 @@ function parseOptions(args: string[]): CliOptions {
 }
 
 async function buildContext(options: CliOptions) {
-  const allowlist = await loadAllowlist(required(options.allowlist, "--allowlist"));
+  const projectRegistry = await loadProjectRegistryConfig(required(options.registry, "--registry"));
   const workspaceRoot = required(options.workspace, "--workspace");
   const journal = new JsonlJournal(required(options.journal, "--journal"));
   const ids = new UuidGenerator();
   const clock = new SystemClock();
   const commandRunner = new NodeCommandRunner();
-  const workspace = new WorkspaceManager(workspaceRoot, allowlist, commandRunner);
+  const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
   const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
   const validation = new ProjectValidationService(
     new RequirementValidator(new DockerCliProbe(commandRunner)),

@@ -12,6 +12,7 @@ describe("manifest schema", () => {
       project: {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
+        actions: ["deploy", "remove", "update"],
         profiles: ["normal", "test"]
       },
       components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }]
@@ -32,14 +33,8 @@ describe("manifest schema", () => {
           remove: {
             playbook: "ansible/remove.yml"
           },
-          purge: {
-            playbook: "ansible/purge.yml"
-          },
           update: {
             playbook: "ansible/update.yml"
-          },
-          upgrade: {
-            playbook: "ansible/upgrade.yml"
           }
         }
       },
@@ -99,6 +94,10 @@ describe("manifest schema", () => {
         "project:",
         "  name: hivewatch",
         "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "    - remove",
+        "    - update",
         "components:",
         "  - name: api",
         "    manifest: components/api/hiveforge.yaml",
@@ -119,16 +118,12 @@ describe("manifest schema", () => {
         "      playbook: ansible/deploy.yml",
         "    remove:",
         "      playbook: ansible/remove.yml",
-        "    purge:",
-        "      playbook: ansible/purge.yml",
         "    update:",
         "      playbook: ansible/update.yml",
-        "    upgrade:",
-        "      playbook: ansible/upgrade.yml",
         ""
       ].join("\n")
     );
-    for (const action of ["deploy", "remove", "purge", "update", "upgrade"]) {
+    for (const action of ["deploy", "remove", "update"]) {
       await writeFile(path.join(workspace, `components/api/ansible/${action}.yml`), "---\n- hosts: localhost\n");
     }
 
@@ -148,6 +143,10 @@ describe("manifest schema", () => {
         "project:",
         "  name: hivewatch",
         "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "    - remove",
+        "    - update",
         "components:",
         "  - name: api",
         "    manifest: components/api/hiveforge.yaml",
@@ -168,12 +167,8 @@ describe("manifest schema", () => {
         "      playbook: ansible/deploy.yml",
         "    remove:",
         "      playbook: ansible/remove.yml",
-        "    purge:",
-        "      playbook: ansible/purge.yml",
         "    update:",
         "      playbook: ansible/update.yml",
-        "    upgrade:",
-        "      playbook: ansible/upgrade.yml",
         ""
       ].join("\n")
     );

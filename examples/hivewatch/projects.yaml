@@ -3,11 +3,11 @@ projects:
     name: HiveWatch Local Fixture
     source: local-git
     repository: file:///home/sepa/HiveForge/tmp/hivewatch-fixture.git
-    allowedRefs:
+    approvedRefs:
       - main
   - id: hivewatch
     name: HiveWatch
     source: github
     repository: https://github.com/sepa79/HiveWatch.git
-    allowedRefs:
+    approvedRefs:
       - main

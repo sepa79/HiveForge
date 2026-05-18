@@ -20,7 +20,7 @@ afterEach(async () => {
 });
 
 describe("REST API", () => {
-  it("lists allowlisted projects", async () => {
+  it("lists registered projects", async () => {
     const baseUrl = await startServer();
 
     const response = await fetch(`${baseUrl}/projects`);
@@ -33,7 +33,7 @@ describe("REST API", () => {
           name: "HiveWatch",
           source: "github",
           repository: "https://github.com/sepa79/HiveWatch.git",
-          allowedRefs: ["main"]
+          approvedRefs: ["main"]
         }
       ]
     });
@@ -197,6 +197,34 @@ describe("REST API", () => {
     });
   });
 
+  it("registers deployable repositories through the configured registrar", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/register`, {
+      method: "POST",
+      body: JSON.stringify({ repository: "https://github.com/sepa79/HiveWatch.git", gitRef: "main" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      deployable: true,
+      project: {
+        id: "hivewatch",
+        name: "hivewatch",
+        source: "github",
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        approvedRefs: ["main"]
+      }
+    });
+    expect(calls).toContainEqual({
+      register: {
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main"
+      }
+    });
+  });
+
   it("returns 400 for unsupported lifecycle actions", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -265,14 +293,14 @@ describe("REST API", () => {
 async function startServer(options: { calls?: unknown[]; authToken?: string } = {}): Promise<string> {
   const server = createHttpServer(
     createRestRoutes({
-      allowlist: {
+      projectRegistry: {
         projects: [
           {
             id: "hivewatch",
             name: "HiveWatch",
             source: "github",
             repository: "https://github.com/sepa79/HiveWatch.git",
-            allowedRefs: ["main"]
+            approvedRefs: ["main"]
           }
         ]
       },
@@ -343,6 +371,21 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
             ...request,
             deployable: true,
             components: []
+          };
+        }
+      },
+      projectRegistration: {
+        async register(request: { repository: string; gitRef: string }) {
+          options.calls?.push({ register: request });
+          return {
+            deployable: true,
+            project: {
+              id: "hivewatch",
+              name: "hivewatch",
+              source: "github",
+              repository: request.repository,
+              approvedRefs: [request.gitRef]
+            }
           };
         }
       },
@@ -445,7 +488,8 @@ function registry(): ProjectRegistry {
   return {
     project: {
       name: "hivewatch",
-      repository: "https://github.com/sepa79/HiveWatch.git"
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      actions: ["deploy"]
     },
     components: [
       {

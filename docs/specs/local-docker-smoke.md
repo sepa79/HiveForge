@@ -6,7 +6,7 @@ Development-only POC workflow.
 
 ## Rule
 
-Local Docker smoke tests use an explicitly allowlisted local git repository:
+Local Docker smoke tests use an explicitly registered local git repository:
 `hivewatch-local`. This is not a fallback for the real HiveWatch repository.
 
 The setup script creates:
@@ -18,7 +18,7 @@ The setup script creates:
 
 The deploy command still follows the normal flow:
 
-1. checkout allowlisted git ref,
+1. checkout registered git ref,
 2. inspect manifests,
 3. validate local Docker resources,
 4. run the declared Ansible playbook,

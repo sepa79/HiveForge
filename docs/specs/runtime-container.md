@@ -10,7 +10,7 @@ The HiveForge deploy container is self-contained for the first POC runtime. It
 contains:
 
 - Node.js runtime for HiveForge,
-- git for allowlisted repository checkout,
+- git for registered repository checkout,
 - Ansible for declared `ansible` adapter actions,
 - Docker CLI for target Docker/Swarm requirement checks,
 - SSH client and CA certificates for repository access.
@@ -24,9 +24,25 @@ The container uses explicit directories:
 
 - `HIVEFORGE_WORKSPACE_DIR` for checked-out repositories,
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
+- a future `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files.
 
 Both paths must be configured or use the image defaults. Missing writable
 directories are deployment configuration errors.
+
+For the current POC, HiveForge manages only paths mounted into its own
+container. It does not create or repair host mount points outside those mounted
+paths.
+
+## Future Per-Node Agent
+
+A later architecture may run a lightweight HiveForge agent on selected Docker or
+Swarm nodes. That agent could expose additional node-local managed roots, for
+example a dedicated `HF_EBS` mount on `Master 2` for ClickHouse data.
+
+In that future model, node-local roots are treated like the main HiveForge root:
+explicitly configured, named, validated, and referenced by manifests. HiveForge
+still must not invent paths, create arbitrary host mounts, or become a second
+container runtime.
 
 ## Non-goals
 
@@ -34,3 +50,4 @@ directories are deployment configuration errors.
   dynamically.
 - The image does not guess host tools.
 - The image does not run undeclared playbooks.
+- The image does not create unmanaged host mount points.

@@ -36,6 +36,7 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
       );
     }
 
+    assertComponentActionSet(rootManifest.project.actions, componentRef.name, componentManifest);
     await assertActionFilesExist(path.dirname(componentPath), componentManifest);
 
     components.push({
@@ -49,6 +50,25 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
     project: rootManifest.project,
     components
   };
+}
+
+function assertComponentActionSet(
+  projectActions: string[],
+  componentName: string,
+  manifest: ComponentManifest
+): void {
+  const expected = new Set(projectActions);
+  const declared = new Set(Object.keys(manifest.deployment.actions));
+  const missing = projectActions.filter((action) => !declared.has(action));
+  const extra = [...declared].filter((action) => !expected.has(action));
+
+  if (missing.length > 0) {
+    throw new Error(`Component ${componentName} is missing project action(s): ${missing.join(", ")}`);
+  }
+
+  if (extra.length > 0) {
+    throw new Error(`Component ${componentName} declares action(s) outside the project contract: ${extra.join(", ")}`);
+  }
 }
 
 async function loadAndValidateManifest<T>(manifestPath: string, missingMessage: string): Promise<T> {

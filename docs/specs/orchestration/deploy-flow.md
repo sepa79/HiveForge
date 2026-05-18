@@ -8,7 +8,7 @@ Draft POC contract.
 
 The POC deploy flow is:
 
-1. checkout allowlisted project ref,
+1. checkout registered project ref,
 2. inspect root and component manifests,
 3. validate declared runtime requirements,
 4. run the declared component lifecycle action.

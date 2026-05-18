@@ -36,7 +36,7 @@ Human / AI Agent
       v
 HiveForge container on target env
       |
-      | checkout explicit git ref from allowlist
+      | checkout explicit git ref from project registry
       v
 Project workspace cache
       |
@@ -62,7 +62,7 @@ HiveForge journal records every operation.
 | Environment registry | Loads known deployment environment metadata and capabilities. | Environment policy is explicit config. |
 | MCP server | AI-facing tool surface over the same application services as REST. | Tool names stay explicit. |
 | UI | Human-facing environment, project, component, and action workflow. | First POC can be minimal. |
-| Git workspace manager | Checks out allowlisted repositories at explicit refs. | No arbitrary repository execution. |
+| Git workspace manager | Checks out registered repositories at explicit refs. | No arbitrary repository execution. |
 | Manifest loader | Reads root and component `hiveforge.yaml` files. | Root manifest controls component list. |
 | Registry | In-memory view of checked-out projects and managed components. | Built from manifests only. |
 | Validator | Checks requirements before actions run. | Missing requirement is a hard failure. |
@@ -95,7 +95,7 @@ Canonical specs live under `docs/specs/`.
 - `docs/specs/hiveforge-poc.md` defines the current POC behavior.
 - `docs/specs/manifest.schema.json` is the SSOT for root and component
   `hiveforge.yaml`.
-- `docs/specs/config/allowlist.schema.json` is the SSOT for allowed project
+- `docs/specs/config/project-registry.schema.json` is the SSOT for registered project
   repositories and refs.
 - `docs/specs/config/environments.schema.json` is the SSOT for known
   environments.
@@ -119,7 +119,7 @@ environment with access to:
 
 - a configured workspace directory,
 - a configured journal directory,
-- git network access for allowlisted repositories,
+- git network access for registered repositories,
 - the target Docker/Swarm control surface required by project playbooks.
 
 The deploy container is self-contained for HiveForge runtime dependencies:
@@ -135,7 +135,7 @@ debugging, but the journal is the product contract for operation history.
 
 ## Failure modes
 
-- Repository not allowlisted: reject before checkout.
+- Repository not registered: reject before checkout.
 - Git ref missing: reject before manifest loading.
 - Root manifest missing or invalid: reject project activation.
 - Listed component manifest missing: reject component registry build.
@@ -148,3 +148,5 @@ debugging, but the journal is the product contract for operation history.
 
 - Exact HiveWatch component list for the POC.
 - Whether the UI remains bundled after the POC or moves to a separate build.
+- Whether a future per-node HiveForge agent should manage explicitly configured
+  node-local roots, such as a dedicated ClickHouse mount on one Swarm node.

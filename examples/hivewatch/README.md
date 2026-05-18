@@ -12,5 +12,5 @@ Lifecycle actions require the environment declared by the component manifest:
 HIVEWATCH_API_PORT=3000
 ```
 
-The allowlist also contains the real HiveWatch repository URL for read-only
+The project registry also contains the real HiveWatch repository URL for read-only
 inspection experiments, but the local fixture is the deployable POC target.

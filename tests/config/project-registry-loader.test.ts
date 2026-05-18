@@ -2,12 +2,15 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadAllowlist, selectAllowedProject } from "../../src/config/allowlist-loader.js";
+import {
+  loadProjectRegistryConfig,
+  selectRegisteredProject
+} from "../../src/config/project-registry-loader.js";
 
-describe("allowlist loader", () => {
-  it("loads explicit allowed HiveWatch refs", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-allowlist-"));
-    const filePath = path.join(dir, "allowlist.yaml");
+describe("project registry loader", () => {
+  it("loads explicit HiveWatch project refs", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-project-registry-"));
+    const filePath = path.join(dir, "projects.yaml");
     await writeFile(
       filePath,
       [
@@ -16,22 +19,22 @@ describe("allowlist loader", () => {
         "    name: HiveWatch",
         "    source: github",
         "    repository: https://github.com/sepa79/HiveWatch.git",
-        "    allowedRefs:",
+        "    approvedRefs:",
         "      - main",
         ""
       ].join("\n")
     );
 
-    const allowlist = await loadAllowlist(filePath);
+    const registry = await loadProjectRegistryConfig(filePath);
 
-    expect(selectAllowedProject(allowlist, "hivewatch", "main").repository).toBe(
+    expect(selectRegisteredProject(registry, "hivewatch", "main").repository).toBe(
       "https://github.com/sepa79/HiveWatch.git"
     );
   });
 
   it("rejects unknown projects before checkout", () => {
     expect(() =>
-      selectAllowedProject(
+      selectRegisteredProject(
         {
           projects: [
             {
@@ -39,19 +42,19 @@ describe("allowlist loader", () => {
               name: "HiveWatch",
               source: "github",
               repository: "https://github.com/sepa79/HiveWatch.git",
-              allowedRefs: ["main"]
+              approvedRefs: ["main"]
             }
           ]
         },
         "pockethive",
         "main"
       )
-    ).toThrow("Project is not allowlisted: pockethive");
+    ).toThrow("Project is not registered: pockethive");
   });
 
-  it("rejects refs that are not explicitly allowlisted", () => {
+  it("rejects refs that are not explicitly approved", () => {
     expect(() =>
-      selectAllowedProject(
+      selectRegisteredProject(
         {
           projects: [
             {
@@ -59,13 +62,13 @@ describe("allowlist loader", () => {
               name: "HiveWatch",
               source: "github",
               repository: "https://github.com/sepa79/HiveWatch.git",
-              allowedRefs: ["main"]
+              approvedRefs: ["main"]
             }
           ]
         },
         "hivewatch",
         "feature/test"
       )
-    ).toThrow("Git ref is not allowlisted for hivewatch: feature/test");
+    ).toThrow("Git ref is not approved for hivewatch: feature/test");
   });
 });

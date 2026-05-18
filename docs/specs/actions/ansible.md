@@ -33,6 +33,24 @@ ansible-playbook <declared playbook>
 The working directory is the component manifest directory. The playbook path is
 the exact relative path declared by the component manifest.
 
+## Variable Contract
+
+The POC runner currently passes only the process environment plus
+`HIVEFORGE_PROFILE` when a profile is selected. This is not enough for real
+Docker/Proxmox deployment actions.
+
+Before HiveMind or another production project is deployed through HiveForge,
+the Ansible adapter contract needs an explicit, typed variable surface for:
+
+- image tag or release ref,
+- stack name,
+- Compose or stack file path,
+- target host or Docker socket,
+- public URLs and externally visible service names.
+
+HiveForge must not infer these values from file names, branch names, Compose
+content, or environment-specific conventions.
+
 ## Journal
 
 Action outcomes are recorded as `run_action` journal events with component,

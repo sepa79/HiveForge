@@ -18,9 +18,7 @@ environments:
           actions:
             - deploy
             - remove
-            - purge
             - update
-            - upgrade
         - id: hivewatch
           profiles:
             - normal
@@ -28,6 +26,4 @@ environments:
           actions:
             - deploy
             - remove
-            - purge
             - update
-            - upgrade

@@ -3,6 +3,7 @@ export interface RootManifest {
   project: {
     name: string;
     repository: string;
+    actions: string[];
     profiles?: string[];
   };
   components: Array<{

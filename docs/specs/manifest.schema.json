@@ -39,12 +39,18 @@
         "project": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "repository"],
+          "required": ["name", "repository", "actions"],
           "properties": {
             "name": { "$ref": "#/$defs/identifier" },
             "repository": {
               "type": "string",
               "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+            },
+            "actions": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/lifecycleActionName" },
+              "uniqueItems": true
             },
             "profiles": {
               "type": "array",
@@ -92,7 +98,7 @@
             "adapter": { "const": "ansible" },
             "actions": {
               "type": "object",
-              "required": ["deploy", "remove", "purge", "update", "upgrade"],
+              "minProperties": 1,
               "additionalProperties": false,
               "properties": {
                 "deploy": { "$ref": "#/$defs/lifecycleActionDeclaration" },
@@ -129,6 +135,10 @@
           }
         }
       }
+    },
+    "lifecycleActionName": {
+      "type": "string",
+      "enum": ["deploy", "remove", "purge", "update", "upgrade"]
     }
   }
 }

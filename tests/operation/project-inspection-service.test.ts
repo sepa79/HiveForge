@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { RepositoryAllowlist } from "../../src/config/allowlist-types.js";
+import type { ProjectRegistryConfig } from "../../src/config/project-registry-types.js";
 import type { Clock } from "../../src/operation/clock.js";
 import type { IdGenerator } from "../../src/operation/id-generator.js";
 import { ProjectInspectionService } from "../../src/operation/project-inspection-service.js";
@@ -104,7 +104,7 @@ describe("project inspection service", () => {
     const service = buildService(fixture, workspaceRoot, journalDir);
 
     await expect(service.inspect({ projectId: "pockethive", gitRef: "main" })).rejects.toThrow(
-      "Project is not allowlisted: pockethive"
+      "Project is not registered: pockethive"
     );
     await expect(new JsonlJournal(journalDir).readAll()).resolves.toEqual([
       {
@@ -116,27 +116,27 @@ describe("project inspection service", () => {
         status: "failed",
         startedAt: "2026-05-17T10:00:00.000Z",
         endedAt: "2026-05-17T10:00:00.000Z",
-        reason: "Project is not allowlisted: pockethive"
+        reason: "Project is not registered: pockethive"
       }
     ]);
   });
 });
 
 function buildService(fixtureRoot: string, workspaceRoot: string, journalDir: string): ProjectInspectionService {
-  const allowlist: RepositoryAllowlist = {
+  const projectRegistry: ProjectRegistryConfig = {
     projects: [
       {
         id: "hivewatch",
         name: "HiveWatch",
         source: "github",
         repository: "https://github.com/sepa79/HiveWatch.git",
-        allowedRefs: ["main"]
+        approvedRefs: ["main"]
       }
     ]
   };
 
   return new ProjectInspectionService(
-    new WorkspaceManager(workspaceRoot, allowlist, new FixtureCheckoutRunner(fixtureRoot)),
+    new WorkspaceManager(workspaceRoot, projectRegistry, new FixtureCheckoutRunner(fixtureRoot)),
     new JsonlJournal(journalDir),
     new SequenceIds(),
     new FixedClock()
@@ -150,10 +150,14 @@ async function createHiveWatchFixture(includePlaybook: boolean): Promise<string>
     path.join(fixture, "hiveforge.yaml"),
     [
       "kind: project",
-      "project:",
-      "  name: hivewatch",
-      "  repository: https://github.com/sepa79/HiveWatch.git",
-      "components:",
+        "project:",
+        "  name: hivewatch",
+        "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "    - remove",
+        "    - update",
+        "components:",
       "  - name: api",
       "    manifest: components/api/hiveforge.yaml",
       ""
@@ -173,18 +177,14 @@ async function createHiveWatchFixture(includePlaybook: boolean): Promise<string>
       "      playbook: ansible/deploy.yml",
       "    remove:",
       "      playbook: ansible/remove.yml",
-      "    purge:",
-      "      playbook: ansible/purge.yml",
       "    update:",
       "      playbook: ansible/update.yml",
-      "    upgrade:",
-      "      playbook: ansible/upgrade.yml",
       ""
     ].join("\n")
   );
 
   if (includePlaybook) {
-    for (const action of ["deploy", "remove", "purge", "update", "upgrade"]) {
+    for (const action of ["deploy", "remove", "update"]) {
       await writeFile(path.join(fixture, `components/api/ansible/${action}.yml`), "---\n- hosts: localhost\n");
     }
   }
@@ -202,7 +202,7 @@ async function copyHiveForgeFixture(source: string, target: string): Promise<voi
     await readText(path.join(source, "components/api/hiveforge.yaml"))
   );
 
-  for (const action of ["deploy", "remove", "purge", "update", "upgrade"]) {
+  for (const action of ["deploy", "remove", "update"]) {
     try {
       await writeFile(
         path.join(target, `components/api/ansible/${action}.yml`),

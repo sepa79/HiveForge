@@ -28,7 +28,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     "list_projects",
     {
       title: "List HiveForge projects",
-      description: "List allowlisted project IDs, names, repositories, and allowed refs.",
+      description: "List registered project IDs, names, repositories, and approved refs.",
       inputSchema: {}
     },
     runtime.listProjects
@@ -68,10 +68,23 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "register_project",
+    {
+      title: "Register a deployable project",
+      description: "Inspect a repository/ref and register it when it is deployable by HiveForge.",
+      inputSchema: {
+        repository: z.string().min(1),
+        gitRef: z.string().min(1)
+      }
+    },
+    runtime.registerProject
+  );
+
+  server.registerTool(
     "inspect_project",
     {
-      title: "Inspect an allowlisted project",
-      description: "Checkout an allowlisted project ref and load root/component manifests.",
+      title: "Inspect a registered project",
+      description: "Checkout a registered project ref and load root/component manifests.",
       inputSchema: {
         projectId: z.string().min(1),
         gitRef: z.string().min(1)

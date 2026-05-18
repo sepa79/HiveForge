@@ -140,7 +140,8 @@ function registry(): ProjectRegistry {
   return {
     project: {
       name: "hivewatch",
-      repository: "https://github.com/sepa79/HiveWatch.git"
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      actions: ["deploy"]
     },
     components: [
       {

@@ -21,13 +21,11 @@ POC flow:
 
 1. HiveForge runs as a container on a target Docker/Swarm environment.
 2. User connects to that environment through UI or MCP.
-3. User selects a project from an allowlisted git repository, initially
-   HiveWatch.
+3. User selects a registered project, initially HiveWatch.
 4. HiveForge checks out an explicit git ref.
 5. HiveForge reads the project `hiveforge.yaml`.
 6. HiveForge reads only component manifests listed by the project manifest.
-7. User chooses a component lifecycle action: `deploy`, `remove`, `purge`,
-   `update`, or `upgrade`.
+7. User chooses a component lifecycle action exposed by the project.
 8. HiveForge checks the current environment policy for the project, profile, and
    action.
 9. HiveForge validates requirements.
@@ -65,9 +63,11 @@ npm run check
 The REST server requires an explicit bearer token:
 
 ```bash
-HIVEFORGE_ALLOWLIST_PATH=examples/hivewatch/allowlist.yaml \
+HIVEFORGE_PROJECT_REGISTRY_PATH=examples/hivewatch/projects.yaml \
 HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml \
 HIVEFORGE_AUTH_TOKEN=local-dev-token \
+HIVEFORGE_WORKSPACE_DIR=tmp/workspace \
+HIVEFORGE_JOURNAL_DIR=tmp/journal \
 HIVEWATCH_API_PORT=3000 \
 npm run serve
 ```

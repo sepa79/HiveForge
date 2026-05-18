@@ -2,16 +2,20 @@ openapi: 3.1.0
 info:
   title: HiveForge POC API
   version: 0.1.0
+  description: >
+    POC API. A future HiveMind-ready contract needs an explicit upgrade
+    deployed project to release/tag flow; generic lifecycle start_action is not
+    enough for release promotion semantics.
 servers:
   - url: http://localhost:3000
 paths:
   /projects:
     get:
-      summary: List allowlisted projects
+      summary: List registered projects
       operationId: listProjects
       responses:
         "200":
-          description: Allowlisted projects
+          description: Registered projects
           content:
             application/json:
               schema:
@@ -58,6 +62,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RepositoryInspectionResult"
+  /projects/register:
+    post:
+      summary: Inspect and register a deployable project repository/ref
+      operationId: registerProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepositoryInspectionRequest"
+      responses:
+        "200":
+          description: Registered project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRegistrationResult"
   /deployments:
     get:
       summary: List deployment inventory for the current environment
@@ -244,7 +265,7 @@ components:
       enum: [deploy, remove, purge, update, upgrade]
     Project:
       type: object
-      required: [id, name, source, repository, allowedRefs]
+      required: [id, name, source, repository, approvedRefs]
       properties:
         id:
           $ref: "#/components/schemas/Identifier"
@@ -255,7 +276,7 @@ components:
           enum: [github, local-git]
         repository:
           type: string
-        allowedRefs:
+        approvedRefs:
           type: array
           items:
             type: string
@@ -342,6 +363,15 @@ components:
             type: object
         reason:
           type: string
+    ProjectRegistrationResult:
+      type: object
+      required: [project, deployable]
+      properties:
+        project:
+          $ref: "#/components/schemas/Project"
+        deployable:
+          type: boolean
+          const: true
     InspectionResult:
       type: object
       required: [operationId, projectId, repository, gitRef, components]

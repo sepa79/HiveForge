@@ -70,7 +70,7 @@ describe("journal event schema", () => {
       status: "failed",
       startedAt: "2026-05-17T10:00:00.000Z",
       endedAt: "2026-05-17T10:00:03.000Z",
-      reason: "Project is not allowlisted: pockethive"
+      reason: "Project is not registered: pockethive"
     };
 
     await expect(validateContract(schemaPaths.journalEvent, event)).resolves.toBeUndefined();

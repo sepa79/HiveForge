@@ -29,7 +29,7 @@ Use it for:
 | `control-plane-vision.md` | Direction for environments, bootstrap, UI, MCP, and deployments. | Draft |
 | `hiveforge-poc.md` | Initial HiveForge/HiveWatch POC contract. | Draft |
 | `manifest.schema.json` | Root and component `hiveforge.yaml` contract. | Draft |
-| `config/allowlist.schema.json` | Repository allowlist config contract. | Draft |
+| `config/project-registry.schema.json` | Registered project registry contract. | Draft |
 | `config/environments.schema.json` | Known environments config contract. | Draft |
 | `environments.md` | Known deployment environment contract. | Draft |
 | `repository-inspection.md` | Read-only repository bootstrap inspection contract. | Draft |
@@ -55,7 +55,7 @@ docs/specs/
   manifest.schema.json
   api/
   config/
-    allowlist.schema.json
+    project-registry.schema.json
   integrations/
   journal/
     event.schema.json

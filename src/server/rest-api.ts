@@ -1,4 +1,4 @@
-import type { RepositoryAllowlist } from "../config/allowlist-types.js";
+import type { ProjectRegistryConfig } from "../config/project-registry-types.js";
 import type { EnvironmentPolicyService } from "../config/environment-policy.js";
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
@@ -12,7 +12,7 @@ import type { HttpRoute } from "./http-types.js";
 const LIFECYCLE_ACTIONS = new Set(["deploy", "remove", "purge", "update", "upgrade"]);
 
 export interface RestApiServices {
-  allowlist: RepositoryAllowlist;
+  projectRegistry: ProjectRegistryConfig;
   journal: Journal;
   inspection: ProjectInspectionService;
   validation: ProjectValidationService;
@@ -23,6 +23,9 @@ export interface RestApiServices {
   operations?: OperationLogService;
   repositoryInspection?: {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
+  };
+  projectRegistration?: {
+    register(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
   environments?: {
     current: unknown;
@@ -37,12 +40,12 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       pattern: /^\/projects$/,
       async handle() {
         return {
-          projects: services.allowlist.projects.map((project) => ({
+          projects: services.projectRegistry.projects.map((project) => ({
             id: project.id,
             name: project.name,
             source: project.source,
             repository: project.repository,
-            allowedRefs: project.allowedRefs
+            approvedRefs: project.approvedRefs
           }))
         };
       }
@@ -97,6 +100,21 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
         }
         const body = await readRepositoryInspectionRequest(request);
         return services.repositoryInspection.inspect(body);
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/projects\/register$/,
+      async handle({ request }) {
+        if (!services.projectRegistration) {
+          throw new HttpError(501, "Project registration is not configured");
+        }
+        const body = await readRepositoryInspectionRequest(request);
+        try {
+          return await services.projectRegistration.register(body);
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Project registration failed");
+        }
       }
     },
     {

@@ -1,25 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { ContractValidationError, schemaPaths, validateContract } from "../../src/contracts/schema-loader.js";
 
-describe("allowlist schema", () => {
+describe("project registry schema", () => {
   it("accepts explicit HiveWatch repository refs", async () => {
-    const allowlist = {
+    const registry = {
       projects: [
         {
           id: "hivewatch",
           name: "HiveWatch",
           source: "github",
           repository: "https://github.com/sepa79/HiveWatch.git",
-          allowedRefs: ["main"]
+          approvedRefs: ["main"]
         }
       ]
     };
 
-    await expect(validateContract(schemaPaths.allowlist, allowlist)).resolves.toBeUndefined();
+    await expect(validateContract(schemaPaths.projectRegistry, registry)).resolves.toBeUndefined();
   });
 
-  it("rejects an allowlist entry without explicit refs", async () => {
-    const allowlist = {
+  it("rejects a project registry entry without explicit refs", async () => {
+    const registry = {
       projects: [
         {
           id: "hivewatch",
@@ -30,22 +30,22 @@ describe("allowlist schema", () => {
       ]
     };
 
-    await expect(validateContract(schemaPaths.allowlist, allowlist)).rejects.toBeInstanceOf(ContractValidationError);
+    await expect(validateContract(schemaPaths.projectRegistry, registry)).rejects.toBeInstanceOf(ContractValidationError);
   });
 
   it("accepts explicit local git repositories for local Docker smoke tests", async () => {
-    const allowlist = {
+    const registry = {
       projects: [
         {
           id: "hivewatch-local",
           name: "HiveWatch Local Fixture",
           source: "local-git",
           repository: "file:///home/sepa/HiveForge/tmp/hivewatch-fixture.git",
-          allowedRefs: ["main"]
+          approvedRefs: ["main"]
         }
       ]
     };
 
-    await expect(validateContract(schemaPaths.allowlist, allowlist)).resolves.toBeUndefined();
+    await expect(validateContract(schemaPaths.projectRegistry, registry)).resolves.toBeUndefined();
   });
 });

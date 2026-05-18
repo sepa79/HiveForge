@@ -461,7 +461,7 @@ function renderProjects() {
       return \`<tr>
         <td><strong>\${escapeHtml(project.name)}</strong><div class="muted mono">\${escapeHtml(project.id)}</div></td>
         <td class="mono">\${escapeHtml(project.repository)}</td>
-        <td>\${escapeHtml((project.allowedRefs || []).join(", "))}</td>
+        <td>\${escapeHtml((project.approvedRefs || []).join(", "))}</td>
         <td>\${escapeHtml((policy?.profiles || []).join(", ") || "—")}</td>
         <td>\${escapeHtml((policy?.actions || []).join(", ") || "—")}</td>
       </tr>\`;

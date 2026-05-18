@@ -33,7 +33,7 @@ Operators and AI agents connect to that environment through:
 
 HiveForge then:
 
-1. accepts a project selection from an allowlist,
+1. accepts a project selection from a project registry,
 2. checks out an explicit git ref,
 3. reads the root `hiveforge.yaml`,
 4. reads component manifests listed by the root manifest,
@@ -130,7 +130,7 @@ derive component manifest locations from names.
 - No action fallback.
 - No implicit deploy command generation.
 - No automatic Compose service adoption.
-- No checkout of arbitrary repositories outside the allowlist.
+- No checkout of arbitrary repositories outside the project registry.
 - No secret values in logs, API responses, UI, or MCP output.
 - Missing requirement means explicit validation failure.
 
@@ -138,7 +138,7 @@ derive component manifest locations from names.
 
 REST:
 
-- register or select project from allowlist
+- register or select project from project registry
 - checkout explicit git ref
 - inspect project manifest
 - list managed components
@@ -172,7 +172,7 @@ UI:
 ## Acceptance Criteria
 
 1. HiveForge starts as a container on a target Docker/Swarm host.
-2. HiveForge can checkout HiveWatch from an allowlisted repository at an explicit
+2. HiveForge can checkout HiveWatch from a registered repository at an explicit
    branch, tag, or SHA.
 3. HiveForge reads the HiveWatch root manifest.
 4. HiveForge lists only components declared in the root manifest.

@@ -11,7 +11,7 @@ configuration is explicit and loaded from `HIVEFORGE_ENVIRONMENTS_PATH`.
 
 The current POC exposes environments through REST so UI and MCP clients can
 discover where operations are running. Deployment authorization comes from the
-repository allowlist plus environment-scoped project policy.
+project registry plus environment-scoped project policy.
 
 ## Shape
 
@@ -30,9 +30,9 @@ Each environment declares:
 Policy is required for configured environments and is enforced before lifecycle
 actions run. The first POC policy supports:
 
-- allowed project ids,
+- registered project ids,
 - allowed profiles per project,
 - allowed lifecycle actions per project.
 
-Repository refs remain controlled by the allowlist. Repository inspection is
+Repository refs remain controlled by the project registry. Repository inspection is
 read-only and does not authorize deployment.

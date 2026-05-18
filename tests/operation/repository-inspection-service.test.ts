@@ -18,7 +18,7 @@ class FixtureGitRunner implements CommandRunner {
 }
 
 describe("repository inspection service", () => {
-  it("reports deployable repositories without requiring deployment allowlist", async () => {
+  it("reports deployable repositories without requiring project registration", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
     const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
 
@@ -38,7 +38,7 @@ describe("repository inspection service", () => {
       components: [
         {
           name: "service",
-          actions: ["deploy", "remove", "purge", "update", "upgrade"]
+          actions: ["deploy", "remove", "update"]
         }
       ]
     });
@@ -68,6 +68,10 @@ async function writeDeployableProject(workspace: string): Promise<void> {
       "  repository: https://github.com/sepa79/HiveWatch.git",
       "  profiles:",
       "    - normal",
+      "  actions:",
+      "    - deploy",
+      "    - remove",
+      "    - update",
       "components:",
       "  - name: service",
       "    manifest: service.hiveforge.yaml",
@@ -88,16 +92,12 @@ async function writeDeployableProject(workspace: string): Promise<void> {
       "      playbook: deploy/deploy.yml",
       "    remove:",
       "      playbook: deploy/remove.yml",
-      "    purge:",
-      "      playbook: deploy/purge.yml",
       "    update:",
       "      playbook: deploy/update.yml",
-      "    upgrade:",
-      "      playbook: deploy/upgrade.yml",
       ""
     ].join("\n")
   );
-  for (const action of ["deploy", "remove", "purge", "update", "upgrade"]) {
+  for (const action of ["deploy", "remove", "update"]) {
     await writeFile(path.join(workspace, `deploy/${action}.yml`), "---\n- hosts: localhost\n");
   }
 }

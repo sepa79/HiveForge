@@ -16,7 +16,7 @@ const addFormats = require("ajv-formats") as (ajv: unknown) => void;
 
 export const schemaPaths = {
   manifest: path.join(SCHEMA_ROOT, "manifest.schema.json"),
-  allowlist: path.join(SCHEMA_ROOT, "config/allowlist.schema.json"),
+  projectRegistry: path.join(SCHEMA_ROOT, "config/project-registry.schema.json"),
   environments: path.join(SCHEMA_ROOT, "config/environments.schema.json"),
   journalEvent: path.join(SCHEMA_ROOT, "journal/event.schema.json")
 } as const;

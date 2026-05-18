@@ -20,7 +20,7 @@ deployment assets needed by its managed components.
 - Do not manage components without manifests.
 - Do not act as a secrets engine.
 - Do not act as a scheduler or container runtime.
-- Do not deploy arbitrary repositories outside an allowlist.
+- Do not deploy repositories that are not registered.
 - Do not add fallback chains between adapters or actions.
 
 ## Main users / operators
@@ -38,7 +38,7 @@ Planned modules:
 | API | REST control surface. | Contract to be defined. |
 | MCP server | AI-facing tool surface. | Reuses application services. |
 | UI | Human-facing project/component/action workflow. | Minimal for POC. |
-| Workspace manager | Git checkout and workspace cache. | Allowlist required. |
+| Workspace manager | Git checkout and workspace cache. | Project registry required. |
 | Manifest loader | Load root and component manifests. | Uses schema once defined. |
 | Validator | Check requirements before actions. | Explicit failure only. |
 | Action runner | Run declared adapter actions. | Initial adapter: Ansible. |
@@ -67,19 +67,19 @@ Ansible playbooks stored in the consumer repository.
 - git,
 - Ansible for the first adapter,
 - target Docker/Swarm environment,
-- allowlisted project repositories.
+- registered project repositories.
 
 ## Important risks
 
-- Running repo-provided deployment actions on the target host is powerful; use an
-  allowlist and explicit refs.
+- Running repo-provided deployment actions on the target host is powerful; use a
+  project registry and explicit refs.
 - Secret values must never appear in logs, UI, MCP output, REST responses, or the
   journal.
 - Adapter behavior must be explicit; no fallback to alternate deployment modes.
 
 ## Things AI agents must not guess
 
-- Do not guess project repositories; use the allowlist.
+- Do not guess project repositories; use the project registry.
 - Do not guess components from Compose.
 - Do not guess action commands.
 - Do not invent fallback adapters.
