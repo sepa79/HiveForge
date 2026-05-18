@@ -3,6 +3,7 @@ import { DeployOrchestrator } from "../../src/operation/deploy-orchestrator.js";
 import type { ProjectActionService } from "../../src/operation/project-action-service.js";
 import type { ProjectInspectionService } from "../../src/operation/project-inspection-service.js";
 import type { ProjectValidationService } from "../../src/operation/project-validation-service.js";
+import type { ManagedFilesService } from "../../src/operation/managed-files-service.js";
 import type { ProjectRegistry } from "../../src/manifest/manifest-types.js";
 
 describe("deploy orchestrator", () => {
@@ -11,7 +12,8 @@ describe("deploy orchestrator", () => {
     const orchestrator = new DeployOrchestrator(
       inspectionService(calls),
       validationService(calls),
-      actionService(calls)
+      actionService(calls),
+      managedFilesService(calls)
     );
 
     const result = await orchestrator.deploy({
@@ -21,7 +23,7 @@ describe("deploy orchestrator", () => {
       action: "deploy"
     });
 
-    expect(calls).toEqual(["inspect", "validate", "run_action"]);
+    expect(calls).toEqual(["inspect", "validate", "managed_files", "run_action"]);
     expect(result.inspection.operationId).toBe("inspect-op");
     expect(result.validation.operationId).toBe("validate-op");
     expect(result.action.operationId).toBe("action-op");
@@ -108,6 +110,20 @@ function actionService(calls: string[]): ProjectActionService {
       };
     }
   } as unknown as ProjectActionService;
+}
+
+function managedFilesService(calls: string[]): ManagedFilesService {
+  return {
+    async prepare() {
+      calls.push("managed_files");
+      return {
+        projectDir: "/data/deployed/hivewatch",
+        stackDir: "/data/deployed/hivewatch/stacks",
+        artifactsDir: "/data/deployed/hivewatch/artifacts",
+        prepared: []
+      };
+    }
+  } as unknown as ManagedFilesService;
 }
 
 function registry(): ProjectRegistry {

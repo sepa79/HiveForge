@@ -15,7 +15,10 @@ describe("manifest schema", () => {
         actions: ["deploy", "remove", "update"],
         profiles: ["normal", "test"]
       },
-      components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }]
+      components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }],
+      artifacts: {
+        managedPaths: [{ name: "api-config", source: "deploy/config", target: "artifacts/config", mode: "replace" }]
+      }
     };
 
     const componentManifest = {
@@ -101,6 +104,12 @@ describe("manifest schema", () => {
         "components:",
         "  - name: api",
         "    manifest: components/api/hiveforge.yaml",
+        "artifacts:",
+        "  managedPaths:",
+        "    - name: api-config",
+        "      source: deploy/config",
+        "      target: artifacts/config",
+        "      mode: replace",
         ""
       ].join("\n")
     );
@@ -130,6 +139,7 @@ describe("manifest schema", () => {
     const registry = await loadProjectRegistry(workspace);
 
     expect(registry.project.name).toBe("hivewatch");
+    expect(registry.artifacts?.managedPaths?.map((managedPath) => managedPath.name)).toEqual(["api-config"]);
     expect(registry.components.map((component) => component.name)).toEqual(["api"]);
   });
 

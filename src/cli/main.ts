@@ -2,6 +2,7 @@ import { AnsibleRunner } from "../action/ansible-runner.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
+import { managedFilesEnvironment, ManagedFilesService } from "../operation/managed-files-service.js";
 import { SystemClock } from "../operation/clock.js";
 import { UuidGenerator } from "../operation/id-generator.js";
 import { ProjectActionService } from "../operation/project-action-service.js";
@@ -16,6 +17,7 @@ interface CliOptions {
   registry?: string;
   workspace?: string;
   journal?: string;
+  dataRoot?: string;
   project?: string;
   ref?: string;
   component?: string;
@@ -60,6 +62,11 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       gitRef: inspection.gitRef,
       registry: inspection.registry
     });
+    const managedFiles = await context.managedFiles.prepare({
+      projectId: inspection.projectId,
+      workspacePath: inspection.workspacePath,
+      registry: inspection.registry
+    });
     const result = await context.action.run({
       projectId: inspection.projectId,
       repository: inspection.repository,
@@ -68,7 +75,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       registry: inspection.registry,
       component: required(options.component, "--component"),
       action: required(options.action, "--action"),
-      profile: options.profile
+      profile: options.profile,
+      environment: managedFilesEnvironment(managedFiles)
     });
     writeJson(result);
     return;
@@ -113,6 +121,9 @@ function parseOptions(args: string[]): CliOptions {
       case "--journal":
         options.journal = value;
         break;
+      case "--data-root":
+        options.dataRoot = value;
+        break;
       case "--project":
         options.project = value;
         break;
@@ -140,6 +151,7 @@ async function buildContext(options: CliOptions) {
   const projectRegistry = await loadProjectRegistryConfig(required(options.registry, "--registry"));
   const workspaceRoot = required(options.workspace, "--workspace");
   const journal = new JsonlJournal(required(options.journal, "--journal"));
+  const dataRoot = required(options.dataRoot, "--data-root");
   const ids = new UuidGenerator();
   const clock = new SystemClock();
   const commandRunner = new NodeCommandRunner();
@@ -152,13 +164,15 @@ async function buildContext(options: CliOptions) {
     clock
   );
   const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
+  const managedFiles = new ManagedFilesService(dataRoot);
 
   return {
     journal,
     inspection,
     validation,
     action,
-    deploy: new DeployOrchestrator(inspection, validation, action)
+    managedFiles,
+    deploy: new DeployOrchestrator(inspection, validation, action, managedFiles)
   };
 }
 

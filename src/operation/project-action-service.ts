@@ -15,6 +15,7 @@ export interface ProjectActionRequest {
   action: string;
   environmentId?: string;
   profile?: string;
+  environment?: NodeJS.ProcessEnv;
 }
 
 export interface ProjectActionResult {
@@ -113,10 +114,8 @@ function journalScope(request: ProjectActionRequest): { environment?: string; pr
 }
 
 function actionEnvironment(request: ProjectActionRequest): NodeJS.ProcessEnv {
-  if (!request.profile) {
-    return {};
-  }
   return {
-    HIVEFORGE_PROFILE: request.profile
+    ...(request.environment ?? {}),
+    ...(request.profile ? { HIVEFORGE_PROFILE: request.profile } : {})
   };
 }

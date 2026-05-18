@@ -9,7 +9,7 @@ restore_tmp_owner() {
   docker run --rm \
     -v "$ROOT_DIR:$ROOT_DIR" \
     hiveforge:local \
-    chown -R "$HOST_UID:$HOST_GID" "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal" >/dev/null 2>&1 || true
+    chown -R "$HOST_UID:$HOST_GID" "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal" "$ROOT_DIR/tmp/data" >/dev/null 2>&1 || true
 }
 
 trap restore_tmp_owner EXIT
@@ -21,9 +21,9 @@ docker build -t hiveforge:local "$ROOT_DIR" >/dev/null
 docker run --rm \
   -v "$ROOT_DIR:$ROOT_DIR" \
   hiveforge:local \
-  rm -rf "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal"
+  rm -rf "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal" "$ROOT_DIR/tmp/data"
 
-mkdir -p "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal"
+mkdir -p "$ROOT_DIR/tmp/workspace" "$ROOT_DIR/tmp/journal" "$ROOT_DIR/tmp/data"
 
 docker run --rm \
   -e HIVEWATCH_API_PORT=3000 \
@@ -34,6 +34,7 @@ docker run --rm \
   --registry \"$ROOT_DIR/examples/hivewatch/projects.yaml\" \
   --workspace \"$ROOT_DIR/tmp/workspace\" \
   --journal \"$ROOT_DIR/tmp/journal\" \
+  --data-root \"$ROOT_DIR/tmp/data\" \
   --project hivewatch-local \
   --ref main \
   --component api \
@@ -45,4 +46,5 @@ docker run --rm \
   node /app/dist/src/cli/main.js read-journal \
   --registry "$ROOT_DIR/examples/hivewatch/projects.yaml" \
   --workspace "$ROOT_DIR/tmp/workspace" \
-  --journal "$ROOT_DIR/tmp/journal"
+  --journal "$ROOT_DIR/tmp/journal" \
+  --data-root "$ROOT_DIR/tmp/data"

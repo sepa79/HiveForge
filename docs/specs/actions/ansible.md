@@ -39,6 +39,12 @@ The POC runner currently passes only the process environment plus
 `HIVEFORGE_PROFILE` when a profile is selected. This is not enough for real
 Docker/Proxmox deployment actions.
 
+When managed files are configured, HiveForge also passes:
+
+- `HIVEFORGE_PROJECT_DIR` - project managed tree under `HIVEFORGE_DATA_ROOT`,
+- `HIVEFORGE_STACK_DIR` - `<HIVEFORGE_PROJECT_DIR>/stacks`,
+- `HIVEFORGE_ARTIFACTS_DIR` - `<HIVEFORGE_PROJECT_DIR>/artifacts`.
+
 Before HiveMind or another production project is deployed through HiveForge,
 the Ansible adapter contract needs an explicit, typed variable surface for:
 

@@ -1,6 +1,7 @@
 import type { ProjectActionResult, ProjectActionService } from "./project-action-service.js";
 import type { ProjectInspectionResult, ProjectInspectionService } from "./project-inspection-service.js";
 import type { ProjectValidationResult, ProjectValidationService } from "./project-validation-service.js";
+import { managedFilesEnvironment, type ManagedFilesResult, type ManagedFilesService } from "./managed-files-service.js";
 
 export interface DeployRequest {
   projectId: string;
@@ -12,7 +13,7 @@ export interface DeployRequest {
   progress?: DeployProgressReporter;
 }
 
-export type DeployProgressStage = "inspect" | "validate" | "action";
+export type DeployProgressStage = "inspect" | "validate" | "managed_files" | "action";
 export type DeployProgressStatus = "running" | "succeeded";
 export type DeployProgressReporter = (event: {
   stage: DeployProgressStage;
@@ -23,6 +24,7 @@ export type DeployProgressReporter = (event: {
 export interface DeployResult {
   inspection: ProjectInspectionResult;
   validation: ProjectValidationResult;
+  managedFiles?: ManagedFilesResult;
   action: ProjectActionResult;
 }
 
@@ -30,7 +32,8 @@ export class DeployOrchestrator {
   constructor(
     private readonly inspectionService: ProjectInspectionService,
     private readonly validationService: ProjectValidationService,
-    private readonly actionService: ProjectActionService
+    private readonly actionService: ProjectActionService,
+    private readonly managedFilesService?: ManagedFilesService
   ) {}
 
   async deploy(request: DeployRequest): Promise<DeployResult> {
@@ -68,6 +71,24 @@ export class DeployOrchestrator {
     });
 
     request.progress?.({
+      stage: "managed_files",
+      status: "running",
+      message: "Preparing managed files"
+    });
+    const managedFiles = this.managedFilesService
+      ? await this.managedFilesService.prepare({
+          projectId: inspection.projectId,
+          workspacePath: inspection.workspacePath,
+          registry: inspection.registry
+        })
+      : undefined;
+    request.progress?.({
+      stage: "managed_files",
+      status: "succeeded",
+      message: managedFiles ? `Prepared ${managedFiles.prepared.length} managed path(s)` : "No managed files configured"
+    });
+
+    request.progress?.({
       stage: "action",
       status: "running",
       message: `Running ${request.action} for ${request.component}`
@@ -81,7 +102,8 @@ export class DeployOrchestrator {
       component: request.component,
       action: request.action,
       environmentId: request.environmentId,
-      profile: request.profile
+      profile: request.profile,
+      environment: managedFiles ? managedFilesEnvironment(managedFiles) : {}
     });
     request.progress?.({
       stage: "action",
@@ -89,6 +111,6 @@ export class DeployOrchestrator {
       message: `${request.action} completed: ${action.operationId}`
     });
 
-    return { inspection, validation, action };
+    return { inspection, validation, managedFiles, action };
   }
 }

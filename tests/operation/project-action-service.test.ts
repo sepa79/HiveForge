@@ -26,11 +26,13 @@ class FixedClock implements Clock {
 
 class FakeActionRunner implements ActionRunner {
   public readonly actions: ResolvedAction[] = [];
+  public readonly environments: NodeJS.ProcessEnv[] = [];
 
   constructor(private readonly failure?: Error) {}
 
-  async run(action: ResolvedAction) {
+  async run(action: ResolvedAction, environment: NodeJS.ProcessEnv = {}) {
     this.actions.push(action);
+    this.environments.push(environment);
     if (this.failure) {
       throw this.failure;
     }
@@ -115,6 +117,31 @@ describe("project action service", () => {
         adapter: "ansible",
         status: "failed",
         reason: "ansible exited 2"
+      }
+    ]);
+  });
+
+  it("passes managed file environment to the action runner", async () => {
+    const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
+    const runner = new FakeActionRunner();
+    const service = serviceWith(journalDir, runner);
+
+    await service.run({
+      ...request("api", "deploy"),
+      profile: "test",
+      environment: {
+        HIVEFORGE_PROJECT_DIR: "/data/deployed/hivewatch",
+        HIVEFORGE_STACK_DIR: "/data/deployed/hivewatch/stacks",
+        HIVEFORGE_ARTIFACTS_DIR: "/data/deployed/hivewatch/artifacts"
+      }
+    });
+
+    expect(runner.environments).toEqual([
+      {
+        HIVEFORGE_PROJECT_DIR: "/data/deployed/hivewatch",
+        HIVEFORGE_STACK_DIR: "/data/deployed/hivewatch/stacks",
+        HIVEFORGE_ARTIFACTS_DIR: "/data/deployed/hivewatch/artifacts",
+        HIVEFORGE_PROFILE: "test"
       }
     ]);
   });

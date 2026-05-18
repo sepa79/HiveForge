@@ -48,6 +48,7 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
 
   return {
     project: rootManifest.project,
+    artifacts: rootManifest.artifacts,
     components
   };
 }

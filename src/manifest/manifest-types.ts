@@ -10,6 +10,16 @@ export interface RootManifest {
     name: string;
     manifest: string;
   }>;
+  artifacts?: {
+    managedPaths?: ManagedPathDeclaration[];
+  };
+}
+
+export interface ManagedPathDeclaration {
+  name: string;
+  source: string;
+  target: string;
+  mode: "replace";
 }
 
 export interface ComponentManifest {
@@ -31,6 +41,7 @@ export interface ComponentManifest {
 
 export interface ProjectRegistry {
   project: RootManifest["project"];
+  artifacts?: RootManifest["artifacts"];
   components: Array<{
     name: string;
     manifestPath: string;

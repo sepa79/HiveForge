@@ -24,14 +24,21 @@ The container uses explicit directories:
 
 - `HIVEFORGE_WORKSPACE_DIR` for checked-out repositories,
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
-- a future `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files.
+- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files.
 
 Both paths must be configured or use the image defaults. Missing writable
 directories are deployment configuration errors.
 
-For the current POC, HiveForge manages only paths mounted into its own
-container. It does not create or repair host mount points outside those mounted
-paths.
+For the current POC, HiveForge manages only files under its own data root. The
+project managed tree is:
+
+```text
+<HIVEFORGE_DATA_ROOT>/deployed/<projectId>/
+```
+
+Managed artifact targets are always relative to that project directory.
+HiveForge does not create or repair host mount points outside its configured
+data root.
 
 ## Future Per-Node Agent
 

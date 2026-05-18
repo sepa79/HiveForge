@@ -30,6 +30,17 @@
         "playbook": { "$ref": "#/$defs/relativePath" }
       }
     },
+    "managedPathDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "source", "target", "mode"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/relativePath" },
+        "target": { "$ref": "#/$defs/relativePath" },
+        "mode": { "const": "replace" }
+      }
+    },
     "rootManifest": {
       "type": "object",
       "additionalProperties": false,
@@ -70,6 +81,17 @@
             "properties": {
               "name": { "$ref": "#/$defs/identifier" },
               "manifest": { "$ref": "#/$defs/relativePath" }
+            }
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "managedPaths": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/managedPathDeclaration" },
+              "uniqueItems": true
             }
           }
         }

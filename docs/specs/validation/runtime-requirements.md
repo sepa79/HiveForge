@@ -53,3 +53,18 @@ External host mounts are validation-only unless they are exposed as an explicit
 HiveForge-managed root. HiveForge must not create those mounts. A future
 per-node agent may expose a node-local managed root, but it must be configured
 explicitly and validated like the main HiveForge root.
+
+## Managed Files
+
+Root manifests may declare `artifacts.managedPaths`. Before running a lifecycle
+action, HiveForge prepares each managed path under:
+
+```text
+<HIVEFORGE_DATA_ROOT>/deployed/<projectId>/
+```
+
+For the current contract, each managed path uses `mode: replace`: HiveForge
+removes the target path inside the project managed tree and copies the declared
+source path from the checked-out repository. Sources and targets are explicit
+relative paths. Missing sources, path traversal, absolute paths, duplicate
+targets, and nested target collisions are hard failures.

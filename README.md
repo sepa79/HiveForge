@@ -68,6 +68,7 @@ HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml \
 HIVEFORGE_AUTH_TOKEN=local-dev-token \
 HIVEFORGE_WORKSPACE_DIR=tmp/workspace \
 HIVEFORGE_JOURNAL_DIR=tmp/journal \
+HIVEFORGE_DATA_ROOT=tmp/data \
 HIVEWATCH_API_PORT=3000 \
 npm run serve
 ```
