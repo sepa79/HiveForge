@@ -18,6 +18,16 @@ For the target managed-service contract, an environment is represented by an
 environment-local HiveForge service. That service reports capabilities for its
 own runtime/provider implementation. Project manifests stay portable.
 
+Client-side endpoint lists are not environment configuration. A CLI, UI, or MCP
+client may remember known HiveForge endpoints by friendly name and URL, but
+after connecting it must treat the environment-local HiveForge response as the
+source of truth for capabilities, policy, deployment inventory, and current
+environment identity.
+
+Users switch between a small Docker host and a larger Docker Swarm by choosing
+which HiveForge endpoint to connect to. They do not pass an environment id that
+makes one HiveForge instance deploy into another environment.
+
 ## Shape
 
 Environment config is validated by `docs/specs/config/environments.schema.json`.

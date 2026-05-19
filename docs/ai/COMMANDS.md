@@ -74,6 +74,22 @@ npm run build
 HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN=local-dev-token npm run hiveforge-mcp
 ```
 
+Select a known HiveForge target and run MCP over stdio using that active
+target:
+
+```bash
+npm run build
+npm run hf-target -- --config known-hiveforges.local.yaml use small
+HF_SMALL_TOKEN=local-dev-token npm run hiveforge-mcp-target
+```
+
+Inspect known and active targets:
+
+```bash
+npm run hf-target -- list
+npm run hf-target -- current
+```
+
 Inspect a project:
 
 ```bash

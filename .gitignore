@@ -22,5 +22,7 @@ journal/
 .env
 .env.*
 !.env.example
+.hiveforge-target
+known-hiveforges.local.yaml
 *.local.yaml
 *.local.yml

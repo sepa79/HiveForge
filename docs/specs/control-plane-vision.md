@@ -52,9 +52,22 @@ Implemented now:
 - explicit REST bearer token,
 - POC MCP stdio server backed by the REST API.
 
+Client and MCP endpoint selection:
+
+- a HiveForge service instance is environment-local,
+- clients may keep a friendly list of known HiveForge URLs,
+- after connection, the selected HiveForge reports the actual environment and
+  capabilities,
+- deployment actions run in that selected HiveForge environment only,
+- client-side friendly names and cached endpoint metadata never infer runtime,
+  placement, root sharing, registry mirrors, or eligibility.
+
 Still pending:
 
-- MCP client smoke coverage and repository bootstrap tools,
+- durable client-side known-HiveForge endpoint configuration,
+- MCP client UX for selecting one known HiveForge endpoint and then displaying
+  the reported environment/capabilities,
+- repository bootstrap tools,
 - richer UI action history and repository bootstrap workflows.
 
 ## Future Direction: Per-Node Agent

@@ -16,6 +16,61 @@ The MCP process fails fast unless both variables are set:
 - `HIVEFORGE_BASE_URL`
 - `HIVEFORGE_AUTH_TOKEN`
 
+The optional client-side target launcher reads the selected endpoint from a
+local known-targets file instead of requiring those variables directly:
+
+```bash
+npm run hf-target -- use small
+npm run hiveforge-mcp-target
+```
+
+`hiveforge-mcp-target` resolves the active target, reads the token from the
+target's configured environment variable, and then starts the same MCP tool
+server against that one HiveForge endpoint.
+
+## Endpoint Selection
+
+HiveForge MCP connects to one HiveForge REST endpoint. That endpoint is the
+operator for one concrete environment. The MCP client may keep a local list of
+known HiveForge endpoints, but that list is only connection metadata:
+
+```yaml
+knownHiveForges:
+  - id: small
+    name: Small Docker
+    baseUrl: http://192.0.2.10:3100
+    authTokenEnv: HF_SMALL_TOKEN
+  - id: big
+    name: Big Swarm
+    baseUrl: http://192.0.2.20:3100
+    authTokenEnv: HF_BIG_TOKEN
+```
+
+The client-side `id` and `name` are not deployment facts and must not be used
+to infer runtime, placement, storage, registry mirrors, or project eligibility.
+After connecting, clients must ask the selected HiveForge endpoint for its
+current environment and capabilities with `list_environments`.
+
+The HiveForge service response is the source of truth for:
+
+- reported environment id and kind,
+- runtime capabilities,
+- managed root availability and whether it is shared,
+- placement capabilities and node vocabulary,
+- environment policy,
+- current deployment inventory.
+
+To operate another Docker host or Swarm, the user connects to another
+environment-local HiveForge endpoint. Deployment tools do not accept a Docker
+target, `DOCKER_HOST`, or environment id that redirects execution to another
+environment. Any implementation detail such as Docker context, SSH target, or
+provider credentials belongs to the environment-local HiveForge service.
+
+If the friendly name or cached client metadata disagrees with the reported
+environment, the reported environment wins. Clients should display both the
+friendly connection name and the reported environment before destructive or
+state-changing actions.
+
 ## Tools
 
 ### `list_projects`

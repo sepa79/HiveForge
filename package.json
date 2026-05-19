@@ -8,11 +8,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run build && npm run test",
+    "hf-target": "node dist/src/client/hf-target.js",
     "hiveforge": "node dist/src/cli/main.js",
+    "hiveforge-mcp-target": "node dist/src/client/hiveforge-mcp-target.js",
     "serve": "node dist/src/server/main.js",
     "hiveforge-mcp": "node dist/src/mcp/server.js"
   },
   "bin": {
+    "hf-target": "dist/src/client/hf-target.js",
+    "hiveforge-mcp-target": "dist/src/client/hiveforge-mcp-target.js",
     "hiveforge-mcp": "dist/src/mcp/server.js"
   },
   "dependencies": {
