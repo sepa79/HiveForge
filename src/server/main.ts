@@ -47,13 +47,13 @@ const validation = new ProjectValidationService(
 );
 const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
 const managedFiles = new ManagedFilesService(dataRoot);
-const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles);
 const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner);
 const projectRegistration = new ProjectRegistrationService(projectRegistryPath, projectRegistry, repositoryInspection);
 const currentEnvironment = environmentConfig.environments.find((environment) => environment.id === environmentConfig.current);
 if (!currentEnvironment) {
   throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
 }
+const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
 const operations = new OperationLogService(deploy, ids, clock);

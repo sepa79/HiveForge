@@ -8,10 +8,11 @@ describe("profile eligibility", () => {
       runtime: "docker-swarm",
       serviceSet: "reduced",
       requires: {
-        registry: true,
-        ingress: true,
-        managedRoots: ["scenarios-runtime"],
-        capabilities: ["placement", "shared-runtime-root"]
+        managedRoot: {
+          required: true,
+          shared: true
+        },
+        capabilities: ["placement"]
       }
     });
 
@@ -24,11 +25,11 @@ describe("profile eligibility", () => {
         ...environment(),
         capabilities: {
           runtime: ["docker-single"],
-          registry: false,
-          ingress: false,
-          managedRoots: [],
-          placement: false,
-          sharedRuntimeRoot: false
+          managedRoot: {
+            shared: false,
+            nodes: ["docker-swarm-mgr-1"]
+          },
+          placement: false
         }
       },
       {
@@ -36,10 +37,11 @@ describe("profile eligibility", () => {
         runtime: "docker-swarm",
         serviceSet: "reduced",
         requires: {
-          registry: true,
-          ingress: true,
-          managedRoots: ["scenarios-runtime"],
-          capabilities: ["placement", "shared-runtime-root"]
+          managedRoot: {
+            required: true,
+            shared: true
+          },
+          capabilities: ["placement"]
         }
       }
     );
@@ -53,29 +55,78 @@ describe("profile eligibility", () => {
           requirement: "runtime.docker-swarm"
         },
         {
-          code: "registry-missing",
-          message: "Environment proxmox-swarm does not provide required registry access",
-          requirement: "registry"
-        },
-        {
-          code: "ingress-missing",
-          message: "Environment proxmox-swarm does not provide required ingress",
-          requirement: "ingress"
-        },
-        {
-          code: "managed-root-missing",
-          message: "Environment proxmox-swarm does not provide required managed root scenarios-runtime",
-          requirement: "managedRoots.scenarios-runtime"
+          code: "managed-root-shared-missing",
+          message: "Environment proxmox-swarm does not provide required shared HiveForge managed root",
+          requirement: "managedRoot.shared"
         },
         {
           code: "capability-missing",
           message: "Environment proxmox-swarm does not provide required capability placement",
           requirement: "capabilities.placement"
-        },
+        }
+      ]
+    });
+  });
+
+  it("requires explicit node placement for non-shared managed roots", () => {
+    const result = evaluateProfileEligibility(environment(), {
+      id: "swarm-pinned",
+      runtime: "docker-swarm",
+      serviceSet: "reduced",
+      requires: {
+        managedRoot: {
+          required: true,
+          shared: false
+        }
+      }
+    });
+
+    expect(result).toEqual({
+      eligible: false,
+      issues: [
         {
-          code: "capability-missing",
-          message: "Environment proxmox-swarm does not provide required capability shared-runtime-root",
-          requirement: "capabilities.shared-runtime-root"
+          code: "managed-root-placement-missing",
+          message: "Profile swarm-pinned requires a non-shared HiveForge managed root but does not declare a node",
+          requirement: "managedRoot.node"
+        }
+      ]
+    });
+  });
+
+  it("rejects non-shared managed root placement on nodes without that root", () => {
+    const result = evaluateProfileEligibility(
+      {
+        ...environment(),
+        capabilities: {
+          runtime: ["docker-swarm"],
+          managedRoot: {
+            shared: false,
+            nodes: ["docker-swarm-mgr-1"]
+          },
+          placement: true
+        }
+      },
+      {
+        id: "swarm-pinned",
+        runtime: "docker-swarm",
+        serviceSet: "reduced",
+        requires: {
+          managedRoot: {
+            required: true,
+            shared: false,
+            node: "docker-swarm-wrk-1"
+          }
+        }
+      }
+    );
+
+    expect(result).toEqual({
+      eligible: false,
+      issues: [
+        {
+          code: "managed-root-node-missing",
+          message: "Environment proxmox-swarm does not provide HiveForge managed root on node docker-swarm-wrk-1",
+          requirement: "managedRoot.nodes.docker-swarm-wrk-1"
         }
       ]
     });
@@ -89,11 +140,10 @@ function environment() {
     kind: "swarm" as const,
     capabilities: {
       runtime: ["docker-swarm" as const],
-      registry: true,
-      ingress: true,
-      managedRoots: ["scenarios-runtime", "stack-root"],
-      placement: true,
-      sharedRuntimeRoot: true
+      managedRoot: {
+        shared: true
+      },
+      placement: true
     },
     policy: {
       projects: []

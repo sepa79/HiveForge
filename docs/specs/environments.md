@@ -38,18 +38,52 @@ Example:
 capabilities:
   runtime:
     - docker-swarm
-  registry: true
-  ingress: true
-  managedRoots:
-    - scenarios-runtime
-    - stack-root
+  managedRoot:
+    shared: false
+    nodes:
+      - docker-swarm-mgr-1
   placement: true
-  sharedRuntimeRoot: true
 ```
 
-`managedRoots` are logical names, not host paths. HiveForge manages only roots
-reported by the environment-local service. It does not create arbitrary host
-mount points.
+`managedRoot` means the environment-local HiveForge service has one configured
+`HIVEFORGE_DATA_ROOT`. The real path is not part of the project contract.
+HiveForge does not create arbitrary host mount points.
+
+`managedRoot.shared: true` means the root is available to every node that may
+run the selected profile. `managedRoot.shared: false` means only listed nodes
+have that root. HiveForge does not pick a node automatically; profiles that use
+a non-shared root must declare the target node explicitly.
+
+Environment config may also declare deployment var overrides:
+
+```yaml
+vars:
+  imageRepository.project: registry.lan:5000/pockethive
+  extRepository.docker: company-cache.example.com/dockerhub
+  extRepository.ghcr: company-cache.example.com/ghcr
+```
+
+Vars are not capabilities. They are explicit inputs for rendering release
+artifacts and image references.
+
+## Private Environment Files
+
+Operator-specific environment files may contain private node names, registry
+aliases, project policies, and local paths. Keep those files outside the
+repository or use ignored `*.local.yaml` / `*.local.yml` files.
+
+Public examples should use placeholder-safe values only. Do not commit private
+IP addresses, hostnames, registry mirrors, storage paths, or credentials.
+
+Example local workflow:
+
+```bash
+cp examples/hivewatch/environments.yaml tmp/environments.local.yaml
+HIVEFORGE_ENVIRONMENTS_PATH=tmp/environments.local.yaml \
+  HIVEFORGE_PROJECT_REGISTRY_PATH=examples/hivewatch/projects.yaml \
+  HIVEFORGE_AUTH_TOKEN=local-dev-token \
+  npm run serve
+```
 
 ## Policy
 
@@ -65,7 +99,7 @@ read-only and does not authorize deployment.
 
 ## Eligibility
 
-Profile eligibility is computed before policy authorization:
+Profile eligibility is computed before lifecycle action execution:
 
 ```text
 profile requirements subset-of environment capabilities

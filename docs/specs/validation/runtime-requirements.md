@@ -39,11 +39,11 @@ long-running production service. Before HiveForge is used for that class of
 deployment, the validation contract needs explicit checks for:
 
 - image tag shape and presence,
+- resolved image references after deployment var rendering,
 - referenced Compose or stack files,
 - Docker networks,
 - published port conflicts or policy,
 - bind mounts and required host paths,
-- registry reachability for declared images.
 
 These checks must be declared in the manifest contract before implementation.
 HiveForge must fail explicitly when a declared requirement is missing or cannot

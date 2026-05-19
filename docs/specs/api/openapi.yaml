@@ -312,6 +312,10 @@ components:
           enum: [local-docker, docker, swarm]
         capabilities:
           $ref: "#/components/schemas/EnvironmentCapabilities"
+        vars:
+          type: object
+          additionalProperties:
+            type: string
         policy:
           type: object
           required: [projects]
@@ -335,7 +339,7 @@ components:
     EnvironmentCapabilities:
       type: object
       additionalProperties: false
-      required: [runtime, registry, ingress, managedRoots]
+      required: [runtime, managedRoot]
       properties:
         runtime:
           type: array
@@ -344,19 +348,22 @@ components:
             type: string
             enum: [docker-single, docker-swarm]
           uniqueItems: true
-        registry:
-          type: boolean
-        ingress:
-          type: boolean
-        managedRoots:
-          type: array
-          items:
-            $ref: "#/components/schemas/Identifier"
-          uniqueItems: true
+        managedRoot:
+          $ref: "#/components/schemas/ManagedRootCapability"
         placement:
           type: boolean
-        sharedRuntimeRoot:
+    ManagedRootCapability:
+      type: object
+      additionalProperties: false
+      required: [shared]
+      properties:
+        shared:
           type: boolean
+        nodes:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
     RepositoryInspectionRequest:
       type: object
       additionalProperties: false

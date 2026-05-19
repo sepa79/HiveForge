@@ -163,9 +163,10 @@ describe("REST API", () => {
         kind: "local-docker",
         capabilities: {
           runtime: ["docker-single"],
-          registry: true,
-          ingress: true,
-          managedRoots: ["stack-root"]
+          managedRoot: {
+            shared: false,
+            nodes: ["local-docker"]
+          }
         },
         policy: {
           projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
@@ -178,9 +179,10 @@ describe("REST API", () => {
           kind: "local-docker",
           capabilities: {
             runtime: ["docker-single"],
-            registry: true,
-            ingress: true,
-            managedRoots: ["stack-root"]
+            managedRoot: {
+              shared: false,
+              nodes: ["local-docker"]
+            }
           },
           policy: {
             projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
@@ -406,9 +408,10 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
           kind: "local-docker",
           capabilities: {
             runtime: ["docker-single"],
-            registry: true,
-            ingress: true,
-            managedRoots: ["stack-root"]
+            managedRoot: {
+              shared: false,
+              nodes: ["local-docker"]
+            }
           },
           policy: {
             projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
@@ -421,9 +424,10 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
             kind: "local-docker",
             capabilities: {
               runtime: ["docker-single"],
-              registry: true,
-              ingress: true,
-              managedRoots: ["stack-root"]
+              managedRoot: {
+                shared: false,
+                nodes: ["local-docker"]
+              }
             },
             policy: {
               projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]

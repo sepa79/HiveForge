@@ -2,6 +2,9 @@ import type { ProjectActionResult, ProjectActionService } from "./project-action
 import type { ProjectInspectionResult, ProjectInspectionService } from "./project-inspection-service.js";
 import type { ProjectValidationResult, ProjectValidationService } from "./project-validation-service.js";
 import { managedFilesEnvironment, type ManagedFilesResult, type ManagedFilesService } from "./managed-files-service.js";
+import type { EnvironmentDefinition } from "../config/environment-types.js";
+import { assertProfileEligible } from "../config/profile-eligibility.js";
+import type { ProjectProfile } from "../manifest/manifest-types.js";
 
 export interface DeployRequest {
   projectId: string;
@@ -33,7 +36,8 @@ export class DeployOrchestrator {
     private readonly inspectionService: ProjectInspectionService,
     private readonly validationService: ProjectValidationService,
     private readonly actionService: ProjectActionService,
-    private readonly managedFilesService?: ManagedFilesService
+    private readonly managedFilesService?: ManagedFilesService,
+    private readonly environment?: EnvironmentDefinition
   ) {}
 
   async deploy(request: DeployRequest): Promise<DeployResult> {
@@ -51,6 +55,10 @@ export class DeployOrchestrator {
       status: "succeeded",
       message: `Loaded ${inspection.registry.components.length} component(s)`
     });
+    const profile = selectProfile(inspection.registry.project.profiles, request.profile, this.environment);
+    if (profile && this.environment) {
+      assertProfileEligible(this.environment, profile);
+    }
 
     request.progress?.({
       stage: "validate",
@@ -113,4 +121,26 @@ export class DeployOrchestrator {
 
     return { inspection, validation, managedFiles, action };
   }
+}
+
+function selectProfile(
+  profiles: ProjectProfile[] | undefined,
+  profileId: string | undefined,
+  environment: EnvironmentDefinition | undefined
+): ProjectProfile | undefined {
+  if (!profiles?.length) {
+    return undefined;
+  }
+  if (!profileId) {
+    if (!environment) {
+      return undefined;
+    }
+    throw new Error("Missing required profile for profile eligibility validation");
+  }
+
+  const profile = profiles.find((candidate) => candidate.id === profileId);
+  if (!profile) {
+    throw new Error(`Project manifest does not declare profile: ${profileId}`);
+  }
+  return profile;
 }

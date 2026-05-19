@@ -50,22 +50,20 @@ profiles:
     runtime: docker-single
     serviceSet: reduced
     requires:
-      registry: true
-      ingress: true
-      managedRoots:
-        - scenarios-runtime
+      managedRoot:
+        required: true
+        shared: false
+        node: docker-single-1
 
   - id: swarm-reduced
     runtime: docker-swarm
     serviceSet: reduced
     requires:
-      registry: true
-      ingress: true
-      managedRoots:
-        - scenarios-runtime
+      managedRoot:
+        required: true
+        shared: true
       capabilities:
         - placement
-        - shared-runtime-root
 ```
 
 Profiles must not include:
@@ -87,11 +85,10 @@ Example:
   "environmentId": "ProxmoxSwarm",
   "capabilities": {
     "runtime": ["docker-swarm"],
-    "registry": true,
-    "ingress": true,
-    "managedRoots": ["scenarios-runtime", "stack-root"],
-    "placement": true,
-    "sharedRuntimeRoot": true
+    "managedRoot": {
+      "shared": true
+    },
+    "placement": true
   }
 }
 ```
@@ -104,11 +101,10 @@ keeping the project contract unchanged:
   "environmentId": "NFT_TOOLS_AWS",
   "capabilities": {
     "runtime": ["docker-swarm"],
-    "registry": true,
-    "ingress": true,
-    "managedRoots": ["scenarios-runtime"],
-    "placement": true,
-    "sharedRuntimeRoot": true
+    "managedRoot": {
+      "shared": true
+    },
+    "placement": true
   }
 }
 ```
@@ -132,10 +128,14 @@ ProxmoxSwarm -> swarm-reduced
 Instead match:
 
 ```text
-swarm-reduced requires docker-swarm + registry + ingress + shared-runtime-root
+swarm-reduced requires docker-swarm + shared managedRoot + placement
 environment reports those capabilities
 therefore deployment is eligible
 ```
+
+For the current v1 contract, registry and ingress are not profile capabilities.
+Registry locations are deployment vars. Service exposure is handled by the
+selected Compose/template/runtime shape.
 
 If a capability is missing, return structured validation issues explaining
 exactly what is missing.
@@ -164,8 +164,7 @@ HiveForge validates:
 
 - image tag shape,
 - registry-qualified image refs,
-- registry reachability,
-- image presence for selected release,
+- resolved image references after variable rendering,
 - profile requirements against environment capabilities,
 - environment policy for project/profile/action/release.
 
@@ -176,6 +175,61 @@ HiveForge must not:
 - use local images as fallback,
 - infer tags from branch names,
 - silently switch environment, runtime, or profile.
+
+## Registry Variable Overlay
+
+Release artifact templates may use registry aliases instead of hardcoded image
+prefixes.
+
+Project defaults:
+
+```yaml
+project:
+  vars:
+    imageRepository.project: ghcr.io/pockethive
+    extRepository.docker: docker.io
+    extRepository.ghcr: ghcr.io
+```
+
+Example template usage:
+
+```yaml
+services:
+  rabbitmq:
+    image: "{{ extRepository.docker }}/library/rabbitmq:3.13-management-alpine"
+
+  toxiproxy:
+    image: "{{ extRepository.ghcr }}/shopify/toxiproxy:2.11.0"
+
+  orchestrator:
+    image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}"
+```
+
+Environment override for a local Proxmox lab:
+
+```yaml
+vars:
+  imageRepository.project: registry.lan:5000/pockethive
+```
+
+Environment override for a corporate proxy registry:
+
+```yaml
+vars:
+  imageRepository.project: company-cache.example.com/pockethive
+  extRepository.docker: company-cache.example.com/dockerhub
+  extRepository.ghcr: company-cache.example.com/ghcr
+```
+
+Merge order:
+
+```text
+project vars + environment vars + release vars
+```
+
+Later sources override earlier sources. A template variable with no resolved
+value is a hard failure. HiveForge must not silently fall back to `docker.io`,
+`ghcr.io`, local images, or any other registry source.
 
 ## API And MCP Contract Direction
 
@@ -240,8 +294,7 @@ PocketHive should declare portable profiles such as:
 - `single-reduced`: reduced single-node runtime shape,
 - `single-full`: full single-node runtime shape,
 - `swarm-reduced`: reduced Swarm runtime,
-- `swarm-full`: full Swarm runtime with shared scenario runtime root and
-  placement.
+- `swarm-full`: full Swarm runtime with managed root and placement.
 
 In one dev lab, environment-local HiveForge services may be named
 `ProxmoxSingle` and `ProxmoxSwarm`. In another operator setup, they may be
@@ -250,12 +303,33 @@ In one dev lab, environment-local HiveForge services may be named
 PocketHive must not change. HiveForge matches PocketHive profiles to whichever
 environments report compatible capabilities.
 
+## Test Slice Assumptions
+
+The next Proxmox smoke slice should test the simplified contract:
+
+- one HiveForge-managed root from `HIVEFORGE_DATA_ROOT`,
+- portable profile matching on `runtime`, `managedRoot.shared`,
+  `managedRoot.nodes`, and optionally `placement`,
+- registry aliases as deployment vars, not capabilities,
+- explicit release/image tag input,
+- managed file preparation under the HiveForge data root,
+- action execution and journal recording.
+
+The smoke slice should not test:
+
+- multiple managed roots,
+- per-node agents,
+- automatic image build or push,
+- implicit `latest`,
+- fallback from missing registry aliases to public registries,
+- provider-specific profile names.
+
 ## Future Agent Per Node
 
-A future per-node HiveForge agent may report additional node-local managed
-roots, such as a dedicated ClickHouse root mounted on one Swarm node. Those
-roots are still named capabilities and policy-controlled environment resources.
-They are not project-declared host paths.
+A future per-node HiveForge agent may report additional node-local roots, such
+as a dedicated ClickHouse root mounted on one Swarm node. Those roots are still
+policy-controlled environment resources. They are not project-declared host
+paths.
 
 This is not part of the current slice.
 

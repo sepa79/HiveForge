@@ -5,6 +5,7 @@ export interface RootManifest {
     repository: string;
     actions: string[];
     profiles?: ProjectProfile[];
+    vars?: Record<string, string>;
   };
   components: Array<{
     name: string;
@@ -16,18 +17,22 @@ export interface RootManifest {
 }
 
 export type RuntimeCapability = "docker-single" | "docker-swarm";
-export type ProfileCapabilityName = "placement" | "shared-runtime-root";
+export type ProfileCapabilityName = "placement";
 
 export interface ProjectProfile {
   id: string;
   runtime: RuntimeCapability;
   serviceSet: string;
   requires?: {
-    registry?: boolean;
-    ingress?: boolean;
-    managedRoots?: string[];
+    managedRoot?: ManagedRootRequirement;
     capabilities?: ProfileCapabilityName[];
   };
+}
+
+export interface ManagedRootRequirement {
+  required: true;
+  shared: boolean;
+  node?: string;
 }
 
 export interface ManagedPathDeclaration {

@@ -15,7 +15,8 @@ against reported capabilities.
 
 Do not encode provider details in this vocabulary. `ProxmoxSwarm`,
 `NFT_TOOLS_AWS`, host paths, SSH users, node names, and registry URLs belong to
-environment-local configuration and policy, not to project manifests.
+environment-local configuration, deployment vars, and policy, not to
+profile requirements.
 
 ## Runtime Capabilities
 
@@ -27,39 +28,87 @@ more than one runtime.
 | `docker-single` | Single Docker engine runtime. |
 | `docker-swarm` | Docker Swarm runtime. |
 
-## Boolean Capabilities
+## Capability Fields
 
 | Value | Meaning |
 |---|---|
-| `registry` | The environment can reach the registry source required by release artifacts. Registry URL and auth remain environment-local. |
-| `ingress` | The environment can expose service endpoints through its configured ingress model. |
+| `managedRoot.shared` | Whether the configured HiveForge managed data root is shared across every runtime node that may run the selected profile. The real path comes from `HIVEFORGE_DATA_ROOT`, not from project profiles. |
+| `managedRoot.nodes` | Explicit node names where a non-shared managed root is available. Required when `managedRoot.shared` is `false`. |
 | `placement` | The environment supports explicit runtime placement constraints. |
-| `shared-runtime-root` | The environment exposes a HiveForge-managed root that is shared across the selected runtime nodes. |
 
-## Managed Roots
+## Managed Root
 
-`managedRoots` is a list of logical root names available to HiveForge in that
-environment.
+The current contract has exactly one HiveForge-managed root per environment. The
+root is configured as `HIVEFORGE_DATA_ROOT` for the HiveForge service.
 
-Managed root names are not paths. The environment-local HiveForge service maps a
-logical root name to the actual mounted path. Projects may require roots such as
-`scenarios-runtime` or `stack-root`, but must not declare `/mnt/...`,
-`/opt/...`, EBS names, Proxmox storage names, or host-specific layouts.
+Projects may require a shared root:
 
-HiveForge manages only roots that are explicitly reported by the environment.
-It does not create arbitrary host directories or host mount points.
+```yaml
+requires:
+  managedRoot:
+    required: true
+    shared: true
+```
+
+Projects may also require a non-shared root on an explicit node:
+
+```yaml
+requires:
+  managedRoot:
+    required: true
+    shared: false
+    node: docker-swarm-mgr-1
+```
+
+Profiles must not declare `/mnt/...`, `/opt/...`, EBS names, Proxmox storage
+names, or host-specific layouts. HiveForge manages only its configured root. It
+does not create arbitrary host directories or host mount points.
+
+HiveForge must not silently pin a profile to a node. If a profile requires a
+non-shared managed root, the profile must declare the node explicitly and the
+environment must report that root on the same node.
+
+Future per-node agents may introduce additional named roots. That is outside the
+current contract.
+
+## Registry Vars
+
+Registry locations are not capabilities. They are deployment vars used when
+rendering release artifacts such as Compose templates.
+
+Project manifests may provide defaults:
+
+```yaml
+vars:
+  imageRepository.project: ghcr.io/pockethive
+  extRepository.docker: docker.io
+  extRepository.ghcr: ghcr.io
+```
+
+Environment config may override them:
+
+```yaml
+vars:
+  imageRepository.project: registry.lan:5000/pockethive
+  extRepository.docker: company-cache.example.com/dockerhub
+  extRepository.ghcr: company-cache.example.com/ghcr
+```
+
+Template rendering uses the merged vars. Missing vars are explicit
+errors. HiveForge must not fall back to original registries when an environment
+override is configured.
 
 ## Missing Capability Failure
 
 Missing capabilities are explicit validation issues. HiveForge must not silently
-switch profile, runtime, environment, registry source, or managed root.
+switch profile, runtime, environment, or managed root.
 
 Example issue:
 
 ```json
 {
   "code": "managed-root-missing",
-  "message": "Environment ProxmoxSwarm does not provide required managed root scenarios-runtime",
-  "requirement": "managedRoots.scenarios-runtime"
+  "message": "Environment ProxmoxSwarm does not provide required HiveForge managed root",
+  "requirement": "managedRoot"
 }
 ```

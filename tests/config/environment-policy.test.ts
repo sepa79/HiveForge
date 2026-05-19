@@ -34,9 +34,10 @@ function environment() {
     kind: "local-docker" as const,
     capabilities: {
       runtime: ["docker-single" as const],
-      registry: true,
-      ingress: true,
-      managedRoots: ["stack-root"]
+      managedRoot: {
+        shared: false,
+        nodes: ["local-docker"]
+      }
     },
     policy: {
       projects: [

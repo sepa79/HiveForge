@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -29,6 +29,28 @@ describe("managed files service", () => {
       HIVEFORGE_STACK_DIR: path.join(dataRoot, "deployed/hivewatch/stacks"),
       HIVEFORGE_ARTIFACTS_DIR: path.join(dataRoot, "deployed/hivewatch/artifacts")
     });
+  });
+
+  it("preserves managed directory inodes when replacing directory contents", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-managed-workspace-"));
+    const dataRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-managed-data-"));
+    const target = path.join(dataRoot, "deployed/hivewatch/artifacts/www");
+    await mkdir(path.join(workspace, "deploy/www"), { recursive: true });
+    await writeFile(path.join(workspace, "deploy/www/health.txt"), "ok\n");
+    await mkdir(target, { recursive: true });
+    await writeFile(path.join(target, "old.txt"), "old\n");
+    const before = await stat(target);
+
+    await new ManagedFilesService(dataRoot).prepare({
+      projectId: "hivewatch",
+      workspacePath: workspace,
+      registry: registry([{ name: "www", source: "deploy/www", target: "artifacts/www", mode: "replace" }])
+    });
+
+    const after = await stat(target);
+    expect(after.ino).toBe(before.ino);
+    await expect(readFile(path.join(target, "health.txt"), "utf8")).resolves.toBe("ok\n");
+    await expect(readFile(path.join(target, "old.txt"), "utf8")).rejects.toThrow();
   });
 
   it("rejects missing managed path sources", async () => {

@@ -40,8 +40,7 @@ HiveForge validates:
 
 - image tag shape,
 - registry-qualified image references,
-- registry reachability,
-- image presence for the selected release,
+- resolved image references after deployment var rendering,
 - profile requirements against environment capabilities,
 - environment policy for the selected project/profile/action/release.
 
@@ -79,17 +78,50 @@ the PocketHive/HiveMind v1 managed service deployment contract.
 
 ## Profile Eligibility
 
-Release deployment uses portable profiles from `docs/specs/profiles.md` and
-capability reports from `docs/specs/environments.md`.
+Release deployment uses portable profiles from `docs/specs/profiles.md`,
+capability reports from `docs/specs/environments.md`, and deployment vars
+from project defaults, environment overrides, and release inputs.
 
 HiveForge must reject a release deployment when the selected environment does
 not report every capability required by the selected profile. The rejection must
-identify missing runtime, registry, ingress, managed root, or named capability
-requirements.
+identify missing runtime, managed root, or named capability requirements.
 
 Capability eligibility does not replace policy. Environment policy still decides
 which project/profile/action/release combinations are allowed after capability
 matching succeeds.
+
+## Registry Aliases
+
+Registry locations are explicit deployment vars, not profile capabilities.
+
+Projects may define defaults:
+
+```yaml
+vars:
+  imageRepository.project: ghcr.io/pockethive
+  extRepository.docker: docker.io
+  extRepository.ghcr: ghcr.io
+```
+
+Environments may override them:
+
+```yaml
+vars:
+  imageRepository.project: registry.lan:5000/pockethive
+  extRepository.docker: company-cache.example.com/dockerhub
+  extRepository.ghcr: company-cache.example.com/ghcr
+```
+
+Release inputs add release-specific values such as `release.imageTag`.
+
+Template vars are resolved in this order:
+
+```text
+project vars + environment vars + release vars
+```
+
+Missing vars are hard failures. HiveForge must not silently fall back to
+original external registries, local images, or `latest`.
 
 ## Non-Goals
 

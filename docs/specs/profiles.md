@@ -25,13 +25,11 @@ profiles:
     runtime: docker-swarm
     serviceSet: reduced
     requires:
-      registry: true
-      ingress: true
-      managedRoots:
-        - scenarios-runtime
+      managedRoot:
+        required: true
+        shared: true
       capabilities:
         - placement
-        - shared-runtime-root
 ```
 
 Fields:
@@ -39,10 +37,11 @@ Fields:
 - `id` - portable profile name used in REST, CLI, MCP, UI, and policy.
 - `runtime` - runtime requirement from `docs/specs/capabilities.md`.
 - `serviceSet` - project-defined service shape, such as `reduced` or `full`.
-- `requires.registry` - whether registry access is required.
-- `requires.ingress` - whether ingress is required.
-- `requires.managedRoots` - logical HiveForge-managed roots required by the
-  profile.
+- `requires.managedRoot.required` - whether the profile requires the configured
+  HiveForge data root.
+- `requires.managedRoot.shared` - when `true`, the profile requires a shared
+  root. When `false`, the profile must also declare `node`.
+- `requires.managedRoot.node` - explicit runtime node for a non-shared root.
 - `requires.capabilities` - additional named capabilities from the capability
   vocabulary.
 
@@ -59,7 +58,11 @@ profile requirements subset-of environment capabilities
 ```
 
 Missing requirements are structured validation issues. HiveForge must not
-silently select another profile, runtime, registry, or environment.
+silently select another profile, runtime, or environment.
+
+HiveForge must not silently choose placement for a non-shared root. If a profile
+requires `managedRoot.shared: false`, it must declare `managedRoot.node`, and
+the environment must report that node under `managedRoot.nodes`.
 
 Eligibility is separate from policy. Deployment is allowed only when the profile
 matches environment capabilities and the environment policy allows the selected

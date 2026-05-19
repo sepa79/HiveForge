@@ -6,10 +6,10 @@ environments:
     capabilities:
       runtime:
         - docker-single
-      registry: true
-      ingress: true
-      managedRoots:
-        - stack-root
+      managedRoot:
+        shared: false
+        nodes:
+          - local-docker
     policy:
       projects:
         - id: hivewatch-local

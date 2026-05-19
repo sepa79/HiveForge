@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import type { ManagedPathDeclaration, ProjectRegistry } from "../manifest/manifest-types.js";
 
@@ -33,10 +33,7 @@ export class ManagedFilesService {
       }
       const source = safeJoin(request.workspacePath, managedPath.source, "managed path source");
       const target = safeJoin(projectDir, managedPath.target, "managed path target");
-      await assertSourceExists(source, managedPath);
-      await rm(target, { recursive: true, force: true });
-      await mkdir(path.dirname(target), { recursive: true });
-      await cp(source, target, { recursive: true, errorOnExist: false, force: true });
+      await replaceManagedPath(source, target, managedPath);
       prepared.push({
         name: managedPath.name,
         source,
@@ -46,6 +43,30 @@ export class ManagedFilesService {
 
     return { projectDir, stackDir, artifactsDir, prepared };
   }
+}
+
+async function replaceManagedPath(
+  source: string,
+  target: string,
+  managedPath: ManagedPathDeclaration
+): Promise<void> {
+  const sourceStat = await assertSourceExists(source, managedPath);
+  await mkdir(path.dirname(target), { recursive: true });
+
+  if (sourceStat.isDirectory()) {
+    await replaceDirectoryContents(source, target);
+    return;
+  }
+
+  await rm(target, { recursive: true, force: true });
+  await cp(source, target, { recursive: true, errorOnExist: false, force: true });
+}
+
+async function replaceDirectoryContents(source: string, target: string): Promise<void> {
+  await mkdir(target, { recursive: true });
+  const entries = await readdir(target);
+  await Promise.all(entries.map((entry) => rm(path.join(target, entry), { recursive: true, force: true })));
+  await cp(source, target, { recursive: true, errorOnExist: false, force: true });
 }
 
 export function managedFilesEnvironment(result: ManagedFilesResult): NodeJS.ProcessEnv {
@@ -75,9 +96,12 @@ function assertManagedPathTargets(managedPaths: ManagedPathDeclaration[]): void 
   }
 }
 
-async function assertSourceExists(source: string, managedPath: ManagedPathDeclaration): Promise<void> {
+async function assertSourceExists(
+  source: string,
+  managedPath: ManagedPathDeclaration
+): Promise<Awaited<ReturnType<typeof stat>>> {
   try {
-    await stat(source);
+    return await stat(source);
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       throw new Error(`Managed path source missing for ${managedPath.name}: ${managedPath.source}`);

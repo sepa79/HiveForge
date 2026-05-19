@@ -15,10 +15,10 @@ describe("environment loader", () => {
       "    capabilities:",
       "      runtime:",
       "        - docker-single",
-      "      registry: true",
-      "      ingress: true",
-      "      managedRoots:",
-      "        - stack-root",
+      "      managedRoot:",
+      "        shared: false",
+      "        nodes:",
+      "          - local-docker",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -36,9 +36,10 @@ describe("environment loader", () => {
           kind: "local-docker",
           capabilities: {
             runtime: ["docker-single"],
-            registry: true,
-            ingress: true,
-            managedRoots: ["stack-root"]
+            managedRoot: {
+              shared: false,
+              nodes: ["local-docker"]
+            }
           },
           policy: {
             projects: [
@@ -63,9 +64,13 @@ describe("environment loader", () => {
       "    capabilities:",
       "      runtime:",
       "        - docker-single",
-      "      registry: true",
-      "      ingress: false",
-      "      managedRoots: []",
+      "      managedRoot:",
+      "        shared: false",
+      "        nodes:",
+      "          - local-docker",
+      "    vars:",
+      "      extRepository.docker: company-cache.example.com/dockerhub",
+      "      extRepository.ghcr: company-cache.example.com/ghcr",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -87,9 +92,14 @@ describe("environment loader", () => {
           kind: "local-docker",
           capabilities: {
             runtime: ["docker-single"],
-            registry: true,
-            ingress: false,
-            managedRoots: []
+            managedRoot: {
+              shared: false,
+              nodes: ["local-docker"]
+            }
+          },
+          vars: {
+            "extRepository.docker": "company-cache.example.com/dockerhub",
+            "extRepository.ghcr": "company-cache.example.com/ghcr"
           },
           policy: {
             projects: [
@@ -115,9 +125,10 @@ describe("environment loader", () => {
       "    capabilities:",
       "      runtime:",
       "        - docker-single",
-      "      registry: true",
-      "      ingress: true",
-      "      managedRoots: []",
+      "      managedRoot:",
+      "        shared: false",
+      "        nodes:",
+      "          - local-docker",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -139,9 +150,10 @@ describe("environment loader", () => {
       "    capabilities:",
       "      runtime:",
       "        - docker-single",
-      "      registry: true",
-      "      ingress: true",
-      "      managedRoots: []",
+      "      managedRoot:",
+      "        shared: false",
+      "        nodes:",
+      "          - local-docker",
       "    policy:",
       "      projects:",
       "        - id: hivewatch",
@@ -156,6 +168,29 @@ describe("environment loader", () => {
     await expect(loadEnvironmentConfig(filePath)).rejects.toThrow(
       "Duplicate project policy for environment local: hivewatch"
     );
+  });
+
+  it("rejects non-shared managed roots without explicit nodes", async () => {
+    const filePath = await writeConfig([
+      "current: local",
+      "environments:",
+      "  - id: local",
+      "    name: Local Docker",
+      "    kind: local-docker",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-single",
+      "      managedRoot:",
+      "        shared: false",
+      "    policy:",
+      "      projects:",
+      "        - id: hivewatch",
+      "          actions:",
+      "            - deploy",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).rejects.toThrow("Contract validation failed");
   });
 });
 

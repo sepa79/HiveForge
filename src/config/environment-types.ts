@@ -10,16 +10,19 @@ export interface EnvironmentDefinition {
   name: string;
   kind: "local-docker" | "docker" | "swarm";
   capabilities: EnvironmentCapabilities;
+  vars?: Record<string, string>;
   policy: EnvironmentPolicy;
 }
 
 export interface EnvironmentCapabilities {
   runtime: RuntimeCapability[];
-  registry: boolean;
-  ingress: boolean;
-  managedRoots: string[];
+  managedRoot: ManagedRootCapability;
   placement?: boolean;
-  sharedRuntimeRoot?: boolean;
+}
+
+export interface ManagedRootCapability {
+  shared: boolean;
+  nodes?: string[];
 }
 
 export interface EnvironmentPolicy {

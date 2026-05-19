@@ -13,15 +13,22 @@ describe("manifest schema", () => {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
         actions: ["deploy", "remove", "update"],
+        vars: {
+          "imageRepository.project": "ghcr.io/sepa79/hivewatch",
+          "extRepository.docker": "docker.io",
+          "extRepository.ghcr": "ghcr.io"
+        },
         profiles: [
           {
             id: "normal",
             runtime: "docker-single",
             serviceSet: "normal",
             requires: {
-              registry: true,
-              ingress: true,
-              managedRoots: ["stack-root"]
+              managedRoot: {
+                required: true,
+                shared: false,
+                node: "local-docker"
+              }
             }
           },
           {
@@ -29,9 +36,11 @@ describe("manifest schema", () => {
             runtime: "docker-single",
             serviceSet: "test",
             requires: {
-              registry: true,
-              ingress: true,
-              managedRoots: ["stack-root"]
+              managedRoot: {
+                required: true,
+                shared: false,
+                node: "local-docker"
+              }
             }
           }
         ]
@@ -108,6 +117,61 @@ describe("manifest schema", () => {
     );
   });
 
+  it("rejects non-shared managed root requirements without an explicit node", async () => {
+    const rootManifest = {
+      kind: "project",
+      project: {
+        name: "hivewatch",
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        actions: ["deploy"],
+        profiles: [
+          {
+            id: "normal",
+            runtime: "docker-single",
+            serviceSet: "normal",
+            requires: {
+              managedRoot: {
+                required: true,
+                shared: false
+              }
+            }
+          }
+        ]
+      },
+      components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }]
+    };
+
+    await expect(validateContract(schemaPaths.manifest, rootManifest)).rejects.toBeInstanceOf(ContractValidationError);
+  });
+
+  it("rejects shared managed root requirements with node placement", async () => {
+    const rootManifest = {
+      kind: "project",
+      project: {
+        name: "hivewatch",
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        actions: ["deploy"],
+        profiles: [
+          {
+            id: "normal",
+            runtime: "docker-swarm",
+            serviceSet: "normal",
+            requires: {
+              managedRoot: {
+                required: true,
+                shared: true,
+                node: "docker-swarm-mgr-1"
+              }
+            }
+          }
+        ]
+      },
+      components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }]
+    };
+
+    await expect(validateContract(schemaPaths.manifest, rootManifest)).rejects.toBeInstanceOf(ContractValidationError);
+  });
+
   it("builds a registry only from listed component manifests and declared action files", async () => {
     const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
     await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });
@@ -122,15 +186,19 @@ describe("manifest schema", () => {
         "    - deploy",
         "    - remove",
         "    - update",
+        "  vars:",
+        "    imageRepository.project: ghcr.io/sepa79/hivewatch",
+        "    extRepository.docker: docker.io",
+        "    extRepository.ghcr: ghcr.io",
         "  profiles:",
         "    - id: normal",
         "      runtime: docker-single",
         "      serviceSet: normal",
         "      requires:",
-        "        registry: true",
-        "        ingress: true",
-        "        managedRoots:",
-        "          - stack-root",
+        "        managedRoot:",
+        "          required: true",
+        "          shared: false",
+        "          node: local-docker",
         "components:",
         "  - name: api",
         "    manifest: components/api/hiveforge.yaml",

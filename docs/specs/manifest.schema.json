@@ -18,18 +18,66 @@
     },
     "profileCapabilityName": {
       "type": "string",
-      "enum": ["placement", "shared-runtime-root"]
+      "enum": ["placement"]
+    },
+    "variableName": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+$"
+    },
+    "vars": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/variableName" },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "profileRequirements": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "registry": { "type": "boolean" },
-        "ingress": { "type": "boolean" },
-        "managedRoots": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/identifier" },
-          "uniqueItems": true
+        "managedRoot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "shared"],
+          "properties": {
+            "required": { "const": true },
+            "shared": { "type": "boolean" },
+            "node": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+$"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "shared": { "const": false } },
+                "required": ["shared"]
+              },
+              "then": {
+                "required": ["node"],
+                "properties": {
+                  "node": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": { "shared": { "const": true } },
+                "required": ["shared"]
+              },
+              "then": {
+                "properties": {
+                  "node": true
+                },
+                "not": {
+                  "required": ["node"]
+                }
+              }
+            }
+          ]
         },
         "capabilities": {
           "type": "array",
@@ -105,6 +153,9 @@
               "minItems": 1,
               "items": { "$ref": "#/$defs/projectProfile" },
               "uniqueItems": true
+            },
+            "vars": {
+              "$ref": "#/$defs/vars"
             }
           }
         },

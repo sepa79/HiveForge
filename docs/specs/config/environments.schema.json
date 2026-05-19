@@ -34,7 +34,7 @@
           "capabilities": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["runtime", "registry", "ingress", "managedRoots"],
+            "required": ["runtime", "managedRoot"],
             "properties": {
               "runtime": {
                 "type": "array",
@@ -45,26 +45,55 @@
                 },
                 "uniqueItems": true
               },
-              "registry": {
-                "type": "boolean"
-              },
-              "ingress": {
-                "type": "boolean"
-              },
-              "managedRoots": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "pattern": "^[a-z][a-z0-9-]*$"
+              "managedRoot": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["shared"],
+                "properties": {
+                  "shared": {
+                    "type": "boolean"
+                  },
+                  "nodes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.-]+$"
+                    },
+                    "uniqueItems": true
+                  }
                 },
-                "uniqueItems": true
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": { "shared": { "const": false } },
+                      "required": ["shared"]
+                    },
+                    "then": {
+                      "required": ["nodes"],
+                      "properties": {
+                        "nodes": {
+                          "type": "array",
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  }
+                ]
               },
               "placement": {
                 "type": "boolean"
-              },
-              "sharedRuntimeRoot": {
-                "type": "boolean"
               }
+            }
+          },
+          "vars": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
             }
           },
           "policy": {

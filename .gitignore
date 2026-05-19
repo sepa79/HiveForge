@@ -22,3 +22,5 @@ journal/
 .env
 .env.*
 !.env.example
+*.local.yaml
+*.local.yml

@@ -5,6 +5,7 @@ import type { ProjectInspectionService } from "../../src/operation/project-inspe
 import type { ProjectValidationService } from "../../src/operation/project-validation-service.js";
 import type { ManagedFilesService } from "../../src/operation/managed-files-service.js";
 import type { ProjectRegistry } from "../../src/manifest/manifest-types.js";
+import type { EnvironmentDefinition } from "../../src/config/environment-types.js";
 
 describe("deploy orchestrator", () => {
   it("runs checkout/inspect, validation, and declared action in order", async () => {
@@ -66,9 +67,60 @@ describe("deploy orchestrator", () => {
     ).rejects.toThrow("Missing Docker secret for api: hivewatch-api-token");
     expect(calls).toEqual(["inspect", "validate"]);
   });
+
+  it("rejects profiles that do not match the current environment capabilities", async () => {
+    const calls: string[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls, registryWithProfiles()),
+      validationService(calls),
+      actionService(calls),
+      managedFilesService(calls),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: false,
+          nodes: ["docker-swarm-mgr-1"]
+        },
+        placement: true
+      })
+    );
+
+    await expect(
+      orchestrator.deploy({
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        profile: "swarm"
+      })
+    ).rejects.toThrow("Profile swarm is not eligible for environment local");
+    expect(calls).toEqual(["inspect"]);
+  });
+
+  it("requires an explicit profile when environment eligibility validation is configured", async () => {
+    const calls: string[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls, registryWithProfiles()),
+      validationService(calls),
+      actionService(calls),
+      managedFilesService(calls),
+      environment({
+        runtime: ["docker-single"],
+        managedRoot: {
+          shared: false,
+          nodes: ["local-docker"]
+        }
+      })
+    );
+
+    await expect(
+      orchestrator.deploy({ projectId: "hivewatch", gitRef: "main", component: "api", action: "deploy" })
+    ).rejects.toThrow("Missing required profile for profile eligibility validation");
+    expect(calls).toEqual(["inspect"]);
+  });
 });
 
-function inspectionService(calls: string[]): ProjectInspectionService {
+function inspectionService(calls: string[], projectRegistry = registry()): ProjectInspectionService {
   return {
     async inspect() {
       calls.push("inspect");
@@ -78,7 +130,7 @@ function inspectionService(calls: string[]): ProjectInspectionService {
         repository: "https://github.com/sepa79/HiveWatch.git",
         gitRef: "main",
         workspacePath: "/workspace",
-        registry: registry()
+        registry: projectRegistry
       };
     }
   } as unknown as ProjectInspectionService;
@@ -154,5 +206,42 @@ function registry(): ProjectRegistry {
         }
       }
     ]
+  };
+}
+
+function registryWithProfiles(): ProjectRegistry {
+  return {
+    ...registry(),
+    project: {
+      name: "hivewatch",
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      actions: ["deploy"],
+      profiles: [
+        {
+          id: "swarm",
+          runtime: "docker-swarm",
+          serviceSet: "normal",
+          requires: {
+            managedRoot: {
+              required: true,
+              shared: true
+            },
+            capabilities: ["placement"]
+          }
+        }
+      ]
+    }
+  };
+}
+
+function environment(capabilities: EnvironmentDefinition["capabilities"]): EnvironmentDefinition {
+  return {
+    id: "local",
+    name: "Local",
+    kind: "local-docker",
+    capabilities,
+    policy: {
+      projects: []
+    }
   };
 }
