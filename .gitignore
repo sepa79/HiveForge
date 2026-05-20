@@ -17,8 +17,8 @@ node_modules/
 target/
 
 # HiveForge local state
-workspace/
-journal/
+/workspace/
+/journal/
 .env
 .env.*
 !.env.example

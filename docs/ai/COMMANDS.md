@@ -32,6 +32,15 @@ Build the deploy container:
 docker build -t hiveforge:local .
 ```
 
+Validate the Docker Compose install template:
+
+```bash
+HIVEFORGE_AUTH_TOKEN=local-dev-token \
+HIVEFORGE_PROJECTS_FILE="$PWD/deploy/projects.example.yaml" \
+HIVEFORGE_ENVIRONMENTS_FILE="$PWD/deploy/environments.example.yaml" \
+docker compose -f deploy/docker-compose.hiveforge.yml config
+```
+
 ## Test
 
 ```bash
@@ -131,7 +140,20 @@ No package or release command exists yet.
 
 ## Deployment
 
-No deployment command exists yet.
+Run HiveForge with Docker Compose on a Docker host:
+
+```bash
+cp deploy/docker-compose.hiveforge.yml docker-compose.yml
+cp deploy/projects.example.yaml projects.yaml
+cp deploy/environments.example.yaml environments.yaml
+export HIVEFORGE_AUTH_TOKEN='replace-me'
+docker compose up -d
+```
+
+See `docs/install/docker-compose.md`.
+
+CI runs `npm run check` and Docker image build through GitHub Actions.
+Tagged releases publish `ghcr.io/<owner>/hiveforge:<tag>` and `latest`.
 
 ## Known command caveats
 

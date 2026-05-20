@@ -4,8 +4,8 @@ dist
 .cache
 .tmp
 tmp
-workspace
-journal
+/workspace
+/journal
 .env
 .env.*
 !.env.example

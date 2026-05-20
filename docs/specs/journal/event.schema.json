@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hiveforge.local/specs/journal/event.schema.json",
+  "title": "HiveForge journal event",
+  "description": "Canonical schema for append-only operation journal events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "operationId",
+    "operationType",
+    "project",
+    "gitRef",
+    "status",
+    "startedAt",
+    "endedAt",
+    "reason"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operationType": {
+      "enum": ["checkout_project", "inspect_project", "validate_requirements", "run_action"]
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "repository": {
+      "type": "string",
+      "anyOf": [
+        { "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$" },
+        { "pattern": "^file:///.+" }
+      ]
+    },
+    "gitRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "profile": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "component": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "action": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "adapter": {
+      "const": "ansible"
+    },
+    "status": {
+      "enum": ["succeeded", "failed"]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "endedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "succeeded" } },
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["repository"],
+        "properties": {
+          "repository": true
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operationType": { "const": "run_action" } },
+        "required": ["operationType"]
+      },
+      "then": {
+        "required": ["component", "action", "adapter"],
+        "properties": {
+          "component": true,
+          "action": true,
+          "adapter": true
+        }
+      }
+    }
+  ]
+}

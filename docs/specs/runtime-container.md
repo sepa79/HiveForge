@@ -22,9 +22,21 @@ checked-out playbooks, but it must not be required to provide Ansible.
 
 The container uses explicit directories:
 
+- `HIVEFORGE_PROJECT_REGISTRY_PATH` for registered project config,
+- `HIVEFORGE_ENVIRONMENTS_PATH` for environment policy config,
 - `HIVEFORGE_WORKSPACE_DIR` for checked-out repositories,
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
 - `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files.
+
+The published runtime image starts the REST/UI server by default:
+
+```text
+npm run serve
+```
+
+It binds to `HIVEFORGE_BIND_HOST` and `HIVEFORGE_PORT`; the Docker image
+defaults are `0.0.0.0` and `3000` so Compose or a reverse proxy can expose the
+service explicitly.
 
 Both paths must be configured or use the image defaults. Missing writable
 directories are deployment configuration errors.

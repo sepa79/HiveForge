@@ -1,0 +1,27 @@
+services:
+  hiveforge:
+    image: ${HIVEFORGE_IMAGE:-ghcr.io/sepa79/hiveforge:latest}
+    restart: unless-stopped
+    ports:
+      - "${HIVEFORGE_HTTP_BIND:-0.0.0.0:3000}:3000"
+    environment:
+      HIVEFORGE_PROJECT_REGISTRY_PATH: /config/projects.yaml
+      HIVEFORGE_ENVIRONMENTS_PATH: /config/environments.yaml
+      HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:?Set HIVEFORGE_AUTH_TOKEN before starting HiveForge}
+      HIVEFORGE_WORKSPACE_DIR: /var/lib/hiveforge/workspace
+      HIVEFORGE_JOURNAL_DIR: /var/lib/hiveforge/journal
+      HIVEFORGE_DATA_ROOT: /var/lib/hiveforge/data
+      HIVEFORGE_BIND_HOST: 0.0.0.0
+      HIVEFORGE_PORT: "3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - hiveforge-workspace:/var/lib/hiveforge/workspace
+      - hiveforge-journal:/var/lib/hiveforge/journal
+      - hiveforge-data:/var/lib/hiveforge/data
+      - ${HIVEFORGE_PROJECTS_FILE:-./projects.yaml}:/config/projects.yaml:ro
+      - ${HIVEFORGE_ENVIRONMENTS_FILE:-./environments.yaml}:/config/environments.yaml:ro
+
+volumes:
+  hiveforge-workspace:
+  hiveforge-journal:
+  hiveforge-data:

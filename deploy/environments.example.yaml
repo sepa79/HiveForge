@@ -1,0 +1,22 @@
+current: docker
+environments:
+  - id: docker
+    name: Docker host
+    kind: docker
+    capabilities:
+      runtime:
+        - docker-single
+      managedRoot:
+        shared: false
+        nodes:
+          - docker
+    policy:
+      projects:
+        - id: hivewatch
+          profiles:
+            - normal
+            - test
+          actions:
+            - deploy
+            - remove
+            - update

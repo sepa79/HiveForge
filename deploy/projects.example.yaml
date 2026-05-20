@@ -1,0 +1,7 @@
+projects:
+  - id: hivewatch
+    name: HiveWatch
+    source: github
+    repository: https://github.com/sepa79/HiveWatch.git
+    approvedRefs:
+      - main
