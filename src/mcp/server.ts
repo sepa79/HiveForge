@@ -8,6 +8,33 @@ import { HiveForgeApiClient } from "./api-client.js";
 import { createHiveForgeMcpRuntime } from "./runtime.js";
 
 const lifecycleAction = z.enum(["deploy", "remove", "purge", "update", "upgrade"]);
+const releaseVarsSchema = z.record(z.string().min(1), z.string());
+const releaseImageSchema = z.object({
+  name: z.string().min(1),
+  image: z.string().min(1),
+  application: z.boolean()
+});
+const releaseArtifactSchema = z.object({
+  env: releaseVarsSchema.optional(),
+  images: z.array(releaseImageSchema).min(1)
+});
+const releaseProfileSchema = z.object({
+  id: z.string().min(1),
+  runtime: z.enum(["docker-single", "docker-swarm"]),
+  serviceSet: z.string().min(1),
+  requires: z
+    .object({
+      managedRoot: z
+        .object({
+          required: z.literal(true),
+          shared: z.boolean(),
+          node: z.string().min(1).optional()
+        })
+        .optional(),
+      capabilities: z.array(z.enum(["placement"])).optional()
+    })
+    .optional()
+});
 const appInfo = getHiveForgeInfo();
 
 export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: string }): McpServer {
@@ -129,6 +156,33 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
       }
     },
     runtime.startAction
+  );
+
+  server.registerTool(
+    "deploy_release",
+    {
+      title: "Prepare a release deployment",
+      description:
+        "Validate and prepare a release/image-tag deployment plan. This does not build, push, or execute deployment actions.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        gitRef: z.string().min(1).optional(),
+        component: z.string().min(1),
+        action: lifecycleAction,
+        profile: z.string().min(1).optional(),
+        project: z.object({
+          id: z.string().min(1),
+          vars: releaseVarsSchema.optional(),
+          profiles: z.array(releaseProfileSchema).optional()
+        }).optional(),
+        vars: releaseVarsSchema.optional(),
+        releaseVars: releaseVarsSchema,
+        images: z.array(releaseImageSchema).min(1).optional(),
+        artifact: releaseArtifactSchema.optional(),
+        requiredFiles: z.array(z.string().min(1)).optional()
+      }
+    },
+    runtime.deployRelease
   );
 
   server.registerTool(

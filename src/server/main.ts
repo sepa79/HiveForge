@@ -15,6 +15,7 @@ import { ProjectInspectionService } from "../operation/project-inspection-servic
 import { ProjectRegistrationService } from "../operation/project-registration-service.js";
 import { RepositoryInspectionService } from "../operation/repository-inspection-service.js";
 import { ProjectValidationService } from "../operation/project-validation-service.js";
+import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
@@ -57,6 +58,12 @@ if (!currentEnvironment) {
 }
 const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
+const releaseDeploy = new ReleaseDeployService({
+  environment: currentEnvironment,
+  environmentPolicy,
+  inspection,
+  managedFiles
+});
 const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
 const operations = new OperationLogService(deploy, ids, clock);
 
@@ -70,6 +77,7 @@ createHttpServer(
       inspection,
       validation,
       deploy,
+      releaseDeploy,
       currentEnvironmentId: currentEnvironment.id,
       environmentPolicy,
       deploymentInventory,

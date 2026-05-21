@@ -44,9 +44,16 @@ Use MCP tools in this order:
 6. `register_project` only after inspection succeeds and the operator approves
 7. `inspect_project`
 8. `validate_requirements`
-9. `start_action`
+9. `deploy_release` for release/image-tag prepare checks, or `start_action` for
+   the current repo/ref POC lifecycle path
 10. `get_operation`
 11. `read_journal`
+
+`deploy_release` currently prepares and validates a release plan only. It does
+not build images, push images, or execute deployment actions. With `gitRef`, it
+also checks out the project, prepares declared `artifacts.managedPaths`, writes
+`HIVEFORGE_ARTIFACTS_DIR/release-vars.json`, and validates explicit
+`requiredFiles`.
 
 ## Required Inputs
 
@@ -58,6 +65,13 @@ Before starting an action, confirm:
 - component,
 - action,
 - profile,
+- git ref when using checkout-backed `deploy_release`,
+- release vars such as `release.imageTag` when using `deploy_release`,
+- registry vars such as `imageRepository.project` when using `deploy_release`,
+- release image templates or a release artifact template when using
+  `deploy_release`,
+- required runtime files under `HIVEFORGE_PROJECT_DIR` when the release deploy
+  depends on copied files,
 - expected health/evidence check.
 
 Missing inputs are blockers. Do not guess project ids, refs, components,

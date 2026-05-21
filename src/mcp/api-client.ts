@@ -17,6 +17,35 @@ export interface HiveForgeApiClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+export interface ReleaseDeployApiInput {
+  projectId: string;
+  gitRef?: string;
+  component: string;
+  action: string;
+  profile?: string;
+  project?: {
+    id: string;
+    vars?: Record<string, string>;
+    profiles?: unknown[];
+  };
+  vars?: Record<string, string>;
+  releaseVars: Record<string, string>;
+  images?: Array<{
+    name: string;
+    image: string;
+    application: boolean;
+  }>;
+  artifact?: {
+    env?: Record<string, string>;
+    images: Array<{
+      name: string;
+      image: string;
+      application: boolean;
+    }>;
+  };
+  requiredFiles?: string[];
+}
+
 export class HiveForgeApiClient {
   private readonly baseUrl: string;
   private readonly authToken: string;
@@ -104,6 +133,25 @@ export class HiveForgeApiClient {
       body: {
         gitRef: input.gitRef,
         ...(input.profile ? { profile: input.profile } : {})
+      }
+    });
+  }
+
+  deployRelease(input: ReleaseDeployApiInput): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: `/operations/projects/${encodeURIComponent(input.projectId)}/releases/${encodeURIComponent(
+        input.component
+      )}/${encodeURIComponent(input.action)}`,
+      body: {
+        ...(input.gitRef ? { gitRef: input.gitRef } : {}),
+        ...(input.profile ? { profile: input.profile } : {}),
+        ...(input.project ? { project: input.project } : {}),
+        ...(input.vars ? { vars: input.vars } : {}),
+        releaseVars: input.releaseVars,
+        ...(input.images ? { images: input.images } : {}),
+        ...(input.artifact ? { artifact: input.artifact } : {}),
+        ...(input.requiredFiles ? { requiredFiles: input.requiredFiles } : {})
       }
     });
   }

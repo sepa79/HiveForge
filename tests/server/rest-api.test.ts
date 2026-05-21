@@ -164,6 +164,147 @@ describe("REST API", () => {
     });
   });
 
+  it("prepares release deployments through the internal release endpoint", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/operations/projects/hivewatch/releases/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify(releaseRequest())
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      prepared: true,
+      request: {
+        projectId: "hivewatch",
+        component: "api",
+        action: "deploy",
+        profile: "test",
+        project: {
+          id: "hivewatch",
+          vars: {
+            "imageRepository.project": "ghcr.io/sepa79/hivewatch"
+          },
+          profiles: []
+        },
+        environmentVars: {
+          "imageRepository.project": "registry.lan:5000/hivewatch"
+        },
+        releaseVars: {
+          "release.imageTag": "dev-20260521-1415-gabc1234"
+        },
+        images: [
+          {
+            name: "api",
+            image: "{{ imageRepository.project }}/api:{{ release.imageTag }}",
+            application: true
+          }
+        ]
+      }
+    });
+  });
+
+  it("rejects malformed release deployment requests before the service runs", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/operations/projects/hivewatch/releases/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify({
+        project: { id: "hivewatch" },
+        releaseVars: {}
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Missing required field: images or artifact"
+    });
+  });
+
+  it("accepts release artifact templates through the internal release endpoint", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/operations/projects/hivewatch/releases/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify({
+        profile: "test",
+        project: { id: "hivewatch" },
+        releaseVars: { "release.imageTag": "dev-1" },
+        vars: { "imageRepository.project": "registry.lan:5000/hivewatch" },
+        artifact: {
+          env: {
+            DOCKER_REGISTRY: "{{ imageRepository.project }}/",
+            POCKETHIVE_VERSION: "{{ release.imageTag }}"
+          },
+          images: [
+            {
+              name: "api",
+              image: "{{ imageRepository.project }}/api:{{ release.imageTag }}",
+              application: true
+            }
+          ]
+        }
+      })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      prepared: true,
+      request: {
+        artifact: {
+          env: {
+            DOCKER_REGISTRY: "{{ imageRepository.project }}/",
+            POCKETHIVE_VERSION: "{{ release.imageTag }}"
+          },
+          images: [
+            {
+              name: "api",
+              image: "{{ imageRepository.project }}/api:{{ release.imageTag }}",
+              application: true
+            }
+          ]
+        }
+      }
+    });
+  });
+
+  it("accepts checkout-backed release deployment requests", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/operations/projects/hivewatch/releases/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify({
+        gitRef: "v1.2.3",
+        profile: "test",
+        releaseVars: { "release.imageTag": "dev-1" },
+        vars: { "imageRepository.project": "registry.lan:5000/hivewatch" },
+        requiredFiles: ["artifacts/hivewatch-runtime/compose/docker-compose.yml"],
+        artifact: {
+          images: [
+            {
+              name: "api",
+              image: "{{ imageRepository.project }}/api:{{ release.imageTag }}",
+              application: true
+            }
+          ]
+        }
+      })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      prepared: true,
+      request: {
+        gitRef: "v1.2.3",
+        requiredFiles: ["artifacts/hivewatch-runtime/compose/docker-compose.yml"]
+      }
+    });
+  });
+
   it("lists configured environments", async () => {
     const baseUrl = await startServer();
 
@@ -372,6 +513,15 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
           };
         }
       } as never,
+      releaseDeploy: {
+        async prepare(request: unknown) {
+          options.calls?.push({ releaseDeploy: request });
+          return {
+            prepared: true,
+            request
+          };
+        }
+      } as never,
       currentEnvironmentId: "local",
       environmentPolicy: {
         assertActionAllowed(request: { profile?: string }) {
@@ -462,6 +612,32 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+function releaseRequest() {
+  return {
+    profile: "test",
+    project: {
+      id: "hivewatch",
+      vars: {
+        "imageRepository.project": "ghcr.io/sepa79/hivewatch"
+      },
+      profiles: []
+    },
+    vars: {
+      "imageRepository.project": "registry.lan:5000/hivewatch"
+    },
+    releaseVars: {
+      "release.imageTag": "dev-20260521-1415-gabc1234"
+    },
+    images: [
+      {
+        name: "api",
+        image: "{{ imageRepository.project }}/api:{{ release.imageTag }}",
+        application: true
+      }
+    ]
+  };
 }
 
 function operationService(calls?: unknown[]) {

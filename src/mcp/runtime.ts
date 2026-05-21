@@ -1,5 +1,5 @@
 import { HiveForgeApiClientError } from "./api-client.js";
-import type { HiveForgeApiClient } from "./api-client.js";
+import type { HiveForgeApiClient, ReleaseDeployApiInput } from "./api-client.js";
 
 export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
   return {
@@ -16,7 +16,8 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     validateRequirements: (input: { projectId: string; gitRef: string; profile?: string }) =>
       call(() => apiClient.validateRequirements(input)),
     startAction: (input: { projectId: string; gitRef: string; component: string; action: string; profile?: string }) =>
-      call(() => apiClient.startAction(input))
+      call(() => apiClient.startAction(input)),
+    deployRelease: (input: ReleaseDeployApiInput) => call(() => apiClient.deployRelease(input))
   };
 }
 

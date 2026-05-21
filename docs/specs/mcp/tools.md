@@ -214,6 +214,55 @@ profiles.
 Output: operation ID, status, and current logs. Use `get_operation` to poll live
 logs and final stdout/stderr.
 
+### `deploy_release`
+
+Input:
+
+```json
+{
+  "projectId": "pockethive",
+  "gitRef": "v1.2.3",
+  "component": "stack",
+  "action": "deploy",
+  "profile": "swarm-reduced",
+  "vars": {
+    "imageRepository.project": "192.168.88.54:5000/pockethive"
+  },
+  "releaseVars": {
+    "release.imageTag": "dev-20260521-1415-gabc1234"
+  },
+  "artifact": {
+    "env": {
+      "DOCKER_REGISTRY": "{{ imageRepository.project }}/",
+      "POCKETHIVE_VERSION": "{{ release.imageTag }}"
+    },
+    "images": [
+      {
+        "name": "orchestrator",
+        "image": "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+        "application": true
+      }
+    ]
+  },
+  "requiredFiles": [
+    "artifacts/pockethive-runtime/compose/docker-compose.yml"
+  ]
+}
+```
+
+Behavior: validate and prepare a release/image-tag deployment plan. This tool
+does not build images, push images, infer `latest`, infer tags from branches, or
+execute deployment actions. When `gitRef` is supplied, HiveForge checks out the
+project, prepares declared `artifacts.managedPaths` into the managed project
+root, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`, and validates
+`requiredFiles` before returning the plan. When `gitRef` is omitted, callers must
+provide explicit `project` metadata for pure plan preparation.
+
+Output: resolved release deployment plan, including merged vars and rendered
+image refs. When `artifact.env` is supplied, output also includes rendered env
+values such as `DOCKER_REGISTRY` and `POCKETHIVE_VERSION`. Checkout-backed
+output also includes managed root env values and `HIVEFORGE_RELEASE_VARS_FILE`.
+
 ### `read_journal`
 
 Input: none.
@@ -241,6 +290,7 @@ Target MCP additions:
   using the structured capability contract.
 - `match_project_profiles` - return eligible and ineligible profile/environment
   pairs with explicit missing capability issues.
-- `deploy_release` - deploy or upgrade a component/action to an explicit
-  release ref or image tag set. This tool must not build, push, infer `latest`,
-  infer tags from branches, or select fallback profiles.
+- `deploy_release` - currently validates and prepares an explicit release/image
+  tag set. Action execution is intentionally deferred until release artifact
+  rendering is explicit. This tool must not build, push, infer `latest`, infer
+  tags from branches, or select fallback profiles.

@@ -18,6 +18,7 @@ describe("HiveForge MCP runtime", () => {
       "inspect_project",
       "validate_requirements",
       "start_action",
+      "deploy_release",
       "get_operation",
       "list_operations",
       "read_journal"
@@ -55,5 +56,26 @@ describe("HiveForge MCP runtime", () => {
     const result = await runtime.getHiveForgeInfo();
 
     expect(result.structuredContent).toEqual({ hiveforge: { name: "hiveforge", version: "0.1.0-test" } });
+  });
+
+  it("returns release deployment prepare results through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async deployRelease() {
+        return { plan: { projectId: "pockethive", images: [] } };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.deployRelease({
+      projectId: "pockethive",
+      component: "stack",
+      action: "deploy",
+      project: { id: "pockethive" },
+      releaseVars: { "release.imageTag": "dev-1" },
+      artifact: {
+        images: [{ name: "orchestrator", image: "registry/pockethive/orchestrator:dev-1", application: true }]
+      }
+    });
+
+    expect(result.structuredContent).toEqual({ plan: { projectId: "pockethive", images: [] } });
   });
 });

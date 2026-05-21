@@ -94,6 +94,181 @@ describe("HiveForge MCP API client", () => {
       }
     });
   });
+
+  it("prepares release deployments through the internal release endpoint", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { plan: { projectId: "pockethive" } });
+      }
+    });
+
+    await client.deployRelease({
+      projectId: "pockethive",
+      component: "stack",
+      action: "deploy",
+      profile: "swarm-reduced",
+      project: {
+        id: "pockethive",
+        vars: {
+          "imageRepository.project": "ghcr.io/sepa79/pockethive"
+        },
+        profiles: []
+      },
+      vars: {
+        "imageRepository.project": "192.168.88.54:5000/pockethive"
+      },
+      releaseVars: {
+        "release.imageTag": "dev-20260521-1415-gabc1234"
+      },
+      images: [
+        {
+          name: "orchestrator",
+          image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+          application: true
+        }
+      ]
+    });
+
+    expect(calls[0]).toMatchObject({
+      url: "http://127.0.0.1:3000/operations/projects/pockethive/releases/stack/deploy",
+      init: {
+        method: "POST",
+        body: JSON.stringify({
+          profile: "swarm-reduced",
+          project: {
+            id: "pockethive",
+            vars: {
+              "imageRepository.project": "ghcr.io/sepa79/pockethive"
+            },
+            profiles: []
+          },
+          vars: {
+            "imageRepository.project": "192.168.88.54:5000/pockethive"
+          },
+          releaseVars: {
+            "release.imageTag": "dev-20260521-1415-gabc1234"
+          },
+          images: [
+            {
+              name: "orchestrator",
+              image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+              application: true
+            }
+          ]
+        })
+      }
+    });
+  });
+
+  it("can prepare release deployments from an artifact template", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { plan: { env: {} } });
+      }
+    });
+
+    await client.deployRelease({
+      projectId: "pockethive",
+      component: "stack",
+      action: "deploy",
+      project: { id: "pockethive" },
+      releaseVars: { "release.imageTag": "dev-1" },
+      vars: { "imageRepository.project": "registry.lan:5000/pockethive" },
+      artifact: {
+        env: {
+          DOCKER_REGISTRY: "{{ imageRepository.project }}/",
+          POCKETHIVE_VERSION: "{{ release.imageTag }}"
+        },
+        images: [
+          {
+            name: "orchestrator",
+            image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+            application: true
+          }
+        ]
+      }
+    });
+
+    expect(calls[0]?.init.body).toBe(
+      JSON.stringify({
+        project: { id: "pockethive" },
+        vars: { "imageRepository.project": "registry.lan:5000/pockethive" },
+        releaseVars: { "release.imageTag": "dev-1" },
+        artifact: {
+          env: {
+            DOCKER_REGISTRY: "{{ imageRepository.project }}/",
+            POCKETHIVE_VERSION: "{{ release.imageTag }}"
+          },
+          images: [
+            {
+              name: "orchestrator",
+              image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+              application: true
+            }
+          ]
+        }
+      })
+    );
+  });
+
+  it("can prepare checkout-backed release deployments", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { plan: { env: {} } });
+      }
+    });
+
+    await client.deployRelease({
+      projectId: "pockethive",
+      gitRef: "v1.2.3",
+      component: "stack",
+      action: "deploy",
+      profile: "swarm-reduced",
+      releaseVars: { "release.imageTag": "dev-1" },
+      vars: { "imageRepository.project": "registry.lan:5000/pockethive" },
+      requiredFiles: ["artifacts/pockethive-runtime/compose/docker-compose.yml"],
+      artifact: {
+        images: [
+          {
+            name: "orchestrator",
+            image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+            application: true
+          }
+        ]
+      }
+    });
+
+    expect(calls[0]?.init.body).toBe(
+      JSON.stringify({
+        gitRef: "v1.2.3",
+        profile: "swarm-reduced",
+        vars: { "imageRepository.project": "registry.lan:5000/pockethive" },
+        releaseVars: { "release.imageTag": "dev-1" },
+        artifact: {
+          images: [
+            {
+              name: "orchestrator",
+              image: "{{ imageRepository.project }}/orchestrator:{{ release.imageTag }}",
+              application: true
+            }
+          ]
+        },
+        requiredFiles: ["artifacts/pockethive-runtime/compose/docker-compose.yml"]
+      })
+    );
+  });
 });
 
 function jsonResponse(status: number, body: unknown): Response {

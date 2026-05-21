@@ -175,6 +175,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Operation"
+  /operations/projects/{projectId}/releases/{component}/{action}:
+    post:
+      summary: Prepare a release/image-tag deployment plan
+      description: Internal transport for MCP deploy_release. This validates and resolves release inputs but does not execute deployment actions.
+      operationId: prepareReleaseDeployment
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+        - name: component
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+        - name: action
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/LifecycleAction"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReleaseDeployRequest"
+      responses:
+        "200":
+          description: Prepared release deployment plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseDeployResult"
   /projects/{projectId}/inspect:
     post:
       summary: Checkout and inspect project manifests
@@ -322,6 +352,123 @@ components:
           minLength: 1
         profile:
           $ref: "#/components/schemas/Identifier"
+    ReleaseDeployRequest:
+      type: object
+      additionalProperties: false
+      required: [releaseVars]
+      description: Provide either explicit images or an artifact with image templates. Provide either project metadata for pure preparation or gitRef for checkout-backed managed file preparation.
+      anyOf:
+        - required: [images]
+        - required: [artifact]
+      oneOf:
+        - required: [project]
+        - required: [gitRef]
+      properties:
+        gitRef:
+          type: string
+          minLength: 1
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        project:
+          type: object
+          additionalProperties: false
+          required: [id]
+          properties:
+            id:
+              $ref: "#/components/schemas/Identifier"
+            vars:
+              type: object
+              additionalProperties:
+                type: string
+            profiles:
+              type: array
+              items:
+                type: object
+        vars:
+          type: object
+          description: Operator/environment deployment var overrides.
+          additionalProperties:
+            type: string
+        releaseVars:
+          type: object
+          additionalProperties:
+            type: string
+        images:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReleaseImageTemplate"
+        artifact:
+          $ref: "#/components/schemas/ReleaseArtifactTemplate"
+        requiredFiles:
+          type: array
+          description: Runtime files that must exist under HIVEFORGE_PROJECT_DIR after managedPaths preparation.
+          items:
+            type: string
+            minLength: 1
+    ReleaseArtifactTemplate:
+      type: object
+      additionalProperties: false
+      required: [images]
+      properties:
+        env:
+          type: object
+          additionalProperties:
+            type: string
+        images:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReleaseImageTemplate"
+    ReleaseImageTemplate:
+      type: object
+      additionalProperties: false
+      required: [name, image, application]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        image:
+          type: string
+          minLength: 1
+        application:
+          type: boolean
+    ReleaseDeployResult:
+      type: object
+      required: [plan]
+      properties:
+        environmentId:
+          $ref: "#/components/schemas/Identifier"
+        inspection:
+          type: object
+        managedFiles:
+          type: object
+        releaseVarsFile:
+          type: string
+        plan:
+          type: object
+          required: [projectId, component, action, vars, images]
+          properties:
+            projectId:
+              $ref: "#/components/schemas/Identifier"
+            component:
+              $ref: "#/components/schemas/Identifier"
+            action:
+              $ref: "#/components/schemas/LifecycleAction"
+            profile:
+              $ref: "#/components/schemas/Identifier"
+            vars:
+              type: object
+              additionalProperties:
+                type: string
+            images:
+              type: array
+              items:
+                type: object
+            env:
+              type: object
+              additionalProperties:
+                type: string
     Environment:
       type: object
       required: [id, name, kind, capabilities, policy]
