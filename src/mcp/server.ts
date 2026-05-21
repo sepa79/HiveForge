@@ -1,27 +1,35 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { getHiveForgeInfo } from "../app-info.js";
 import { HiveForgeApiClient } from "./api-client.js";
 import { createHiveForgeMcpRuntime } from "./runtime.js";
 
 const lifecycleAction = z.enum(["deploy", "remove", "purge", "update", "upgrade"]);
-const packageJson = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as {
-  version: string;
-};
+const appInfo = getHiveForgeInfo();
 
 export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: string }): McpServer {
   const server = new McpServer({
-    name: "hiveforge",
-    version: packageJson.version
+    name: appInfo.name,
+    version: appInfo.version
   });
   const runtime = createHiveForgeMcpRuntime(
     new HiveForgeApiClient({
       baseUrl: options.baseUrl,
       authToken: options.authToken
     })
+  );
+
+  server.registerTool(
+    "get_hiveforge_info",
+    {
+      title: "Get HiveForge info",
+      description: "Read HiveForge name and version for the connected target.",
+      inputSchema: {}
+    },
+    runtime.getHiveForgeInfo
   );
 
   server.registerTool(

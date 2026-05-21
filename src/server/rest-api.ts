@@ -6,12 +6,14 @@ import type { DeploymentInventoryService } from "../operation/deployment-invento
 import type { OperationLogService } from "../operation/operation-log-service.js";
 import type { ProjectInspectionService } from "../operation/project-inspection-service.js";
 import type { ProjectValidationService } from "../operation/project-validation-service.js";
+import type { HiveForgeInfo } from "../app-info.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
 const LIFECYCLE_ACTIONS = new Set(["deploy", "remove", "purge", "update", "upgrade"]);
 
 export interface RestApiServices {
+  appInfo: HiveForgeInfo;
   projectRegistry: ProjectRegistryConfig;
   journal: Journal;
   inspection: ProjectInspectionService;
@@ -35,6 +37,15 @@ export interface RestApiServices {
 
 export function createRestRoutes(services: RestApiServices): HttpRoute[] {
   return [
+    {
+      method: "GET",
+      pattern: /^\/info$/,
+      async handle() {
+        return {
+          hiveforge: services.appInfo
+        };
+      }
+    },
     {
       method: "GET",
       pattern: /^\/projects$/,

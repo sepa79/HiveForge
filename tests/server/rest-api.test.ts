@@ -20,6 +20,20 @@ afterEach(async () => {
 });
 
 describe("REST API", () => {
+  it("returns HiveForge info", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/info`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      hiveforge: {
+        name: "hiveforge",
+        version: "0.1.0-test"
+      }
+    });
+  });
+
   it("lists registered projects", async () => {
     const baseUrl = await startServer();
 
@@ -305,6 +319,10 @@ describe("REST API", () => {
 async function startServer(options: { calls?: unknown[]; authToken?: string } = {}): Promise<string> {
   const server = createHttpServer(
     createRestRoutes({
+      appInfo: {
+        name: "hiveforge",
+        version: "0.1.0-test"
+      },
       projectRegistry: {
         projects: [
           {

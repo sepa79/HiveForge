@@ -9,6 +9,7 @@ describe("HiveForge MCP runtime", () => {
     const toolNames = [...source.matchAll(/server\.registerTool\(\s*\n\s*"([^"]+)"/g)].map((match) => match[1]);
 
     expect(toolNames).toEqual([
+      "get_hiveforge_info",
       "list_projects",
       "list_environments",
       "list_deployments",
@@ -42,5 +43,17 @@ describe("HiveForge MCP runtime", () => {
     expect("isError" in result).toBe(false);
     expect(result.structuredContent).toEqual({ projects: [{ id: "hivewatch-local" }] });
     expect(result.content[0].text).toContain("hivewatch-local");
+  });
+
+  it("returns HiveForge info through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async getInfo() {
+        return { hiveforge: { name: "hiveforge", version: "0.1.0-test" } };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.getHiveForgeInfo();
+
+    expect(result.structuredContent).toEqual({ hiveforge: { name: "hiveforge", version: "0.1.0-test" } });
   });
 });

@@ -1,0 +1,37 @@
+# HiveForge assisted Docker Compose template.
+#
+# Copy this file to docker-compose.yml on the target Docker host and replace the
+# TODO values. This template is intentionally explicit so an AI assistant can
+# adapt it to a concrete host without inventing secrets or deployment policy.
+
+services:
+  hiveforge:
+    # TODO: pin a published image tag for repeatable installs.
+    # Example: ghcr.io/sepa79/hiveforge:v0.1.0
+    image: ghcr.io/sepa79/hiveforge:latest
+    restart: unless-stopped
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      # TODO: provide this from an operator-owned .env file or shell export.
+      # Do not commit real token values.
+      HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:?Set HIVEFORGE_AUTH_TOKEN}
+
+    volumes:
+      # Required for current Docker/Swarm validation and declared Docker actions.
+      # This gives HiveForge Docker control on the host.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # TODO: choose durable host paths. These should survive container replace.
+      - /opt/hiveforge/workspace:/var/lib/hiveforge/workspace
+      - /opt/hiveforge/journal:/var/lib/hiveforge/journal
+
+      # TODO: choose the HiveForge managed data root. Deployment actions copy
+      # explicitly declared managed artifacts under this directory.
+      - /opt/hiveforge/data:/var/lib/hiveforge/data
+
+      # TODO: create these files from the project/environment contracts.
+      - ./projects.yaml:/config/projects.yaml:ro
+      - ./environments.yaml:/config/environments.yaml:ro

@@ -94,9 +94,10 @@ npm run hiveforge-mcp
 
 HiveForge can run as a Docker Compose service on a target Docker host.
 
-Use [Docker Compose install](docs/install/docker-compose.md) and
-[deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml) as the
-installation source of truth.
+Use [Docker Compose install](docs/install/docker-compose.md),
+[deploy/docker-compose.assisted.example.yml](deploy/docker-compose.assisted.example.yml),
+and [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml)
+as the installation source of truth.
 
 The runtime requires explicit project registry, environment policy, and bearer
 token configuration. Do not deploy with invented defaults.

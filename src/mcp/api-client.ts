@@ -38,6 +38,10 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/projects" });
   }
 
+  getInfo(): Promise<unknown> {
+    return this.request({ method: "GET", path: "/info" });
+  }
+
   listEnvironments(): Promise<unknown> {
     return this.request({ method: "GET", path: "/environments" });
   }

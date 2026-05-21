@@ -42,10 +42,22 @@ describe("UI routes", () => {
     expect(favicon.status).toBe(200);
     expect(favicon.headers.get("content-type")).toContain("image/svg+xml");
   });
+
+  it("embeds the HiveForge version in the UI script", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+
+    expect(script.status).toBe(200);
+    await expect(script.text()).resolves.toContain('"version":"0.1.0-test"');
+  });
 });
 
 async function startServer(): Promise<string> {
-  const server = createHttpServer(createUiRoutes(), { authToken: "secret", publicPaths: uiPublicPaths });
+  const server = createHttpServer(createUiRoutes({ name: "hiveforge", version: "0.1.0-test" }), {
+    authToken: "secret",
+    publicPaths: uiPublicPaths
+  });
   servers.push(server);
 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

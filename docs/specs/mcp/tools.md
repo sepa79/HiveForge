@@ -9,6 +9,10 @@ Draft POC contract.
 MCP tools call the HiveForge REST API with an explicit bearer token. MCP must
 not add alternate deployment logic, action fallbacks, or manifest discovery.
 
+For users and AI operators, MCP is the only supported HiveForge operation
+interface. REST is the internal transport behind MCP and a maintainer
+development/debug surface; it is not a user fallback.
+
 ## Configuration
 
 The MCP process fails fast unless both variables are set:
@@ -72,6 +76,12 @@ friendly connection name and the reported environment before destructive or
 state-changing actions.
 
 ## Tools
+
+### `get_hiveforge_info`
+
+Input: none.
+
+Output: HiveForge service name and version for the connected target.
 
 ### `list_projects`
 

@@ -1,9 +1,10 @@
 import { writeText } from "./json-http.js";
+import type { HiveForgeInfo } from "../app-info.js";
 import type { HttpRoute } from "./http-types.js";
 
 export const uiPublicPaths = [/^\/$/, /^\/favicon\.svg$/, /^\/ui\/app\.js$/, /^\/ui\/styles\.css$/];
 
-export function createUiRoutes(): HttpRoute[] {
+export function createUiRoutes(appInfo: HiveForgeInfo = { name: "hiveforge", version: "0.0.0-dev" }): HttpRoute[] {
   return [
     {
       method: "GET",
@@ -30,7 +31,7 @@ export function createUiRoutes(): HttpRoute[] {
       method: "GET",
       pattern: /^\/ui\/app\.js$/,
       async handle({ response }) {
-        writeText(response, 200, "text/javascript; charset=utf-8", renderAppScript());
+        writeText(response, 200, "text/javascript; charset=utf-8", renderAppScript(appInfo));
       }
     }
   ];
@@ -227,8 +228,9 @@ button { cursor: pointer; }
 `;
 }
 
-function renderAppScript(): string {
+function renderAppScript(appInfo: HiveForgeInfo): string {
   return `const TOKEN_KEY = "HIVEFORGE_UI_TOKEN";
+const HIVEFORGE_INFO = ${JSON.stringify(appInfo)};
 const ACTIONS = ["deploy", "update", "upgrade", "remove", "purge"];
 
 const state = {
@@ -572,6 +574,7 @@ function render() {
       </a>
       <div class="breadcrumb">\${current ? \`Environment / \${escapeHtml(current.name)}\` : "Environment / disconnected"}</div>
       <div class="topBarRight">
+        <span class="muted mono">v\${escapeHtml(HIVEFORGE_INFO.version)}</span>
         \${state.token ? pill("API token set", "ok") : pill("API token missing", "alert")}
         <button class="button" id="refreshButton" type="button">Refresh</button>
       </div>

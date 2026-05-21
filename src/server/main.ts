@@ -1,4 +1,5 @@
 import { AnsibleRunner } from "../action/ansible-runner.js";
+import { getHiveForgeInfo } from "../app-info.js";
 import { EnvironmentPolicyService } from "../config/environment-policy.js";
 import { loadEnvironmentConfig } from "../config/environment-loader.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
@@ -25,6 +26,7 @@ import { createUiRoutes, uiPublicPaths } from "./ui-routes.js";
 const projectRegistryPath = requiredEnv("HIVEFORGE_PROJECT_REGISTRY_PATH");
 const environmentsPath = requiredEnv("HIVEFORGE_ENVIRONMENTS_PATH");
 const authToken = requiredEnv("HIVEFORGE_AUTH_TOKEN");
+const appInfo = getHiveForgeInfo();
 const workspaceRoot = process.env.HIVEFORGE_WORKSPACE_DIR ?? "/var/lib/hiveforge/workspace";
 const journalDir = process.env.HIVEFORGE_JOURNAL_DIR ?? "/var/lib/hiveforge/journal";
 const dataRoot = process.env.HIVEFORGE_DATA_ROOT ?? "/var/lib/hiveforge/data";
@@ -60,8 +62,9 @@ const operations = new OperationLogService(deploy, ids, clock);
 
 createHttpServer(
   [
-    ...createUiRoutes(),
+    ...createUiRoutes(appInfo),
     ...createRestRoutes({
+      appInfo,
       projectRegistry,
       journal,
       inspection,

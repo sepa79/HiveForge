@@ -83,6 +83,9 @@ npm run build
 HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN=local-dev-token npm run hiveforge-mcp
 ```
 
+User-facing operation goes through MCP. REST and local CLI commands are
+development/debug surfaces for HiveForge maintainers, not user fallbacks.
+
 Select a known HiveForge target and run MCP over stdio using that active
 target:
 
@@ -143,7 +146,7 @@ No package or release command exists yet.
 Run HiveForge with Docker Compose on a Docker host:
 
 ```bash
-cp deploy/docker-compose.hiveforge.yml docker-compose.yml
+cp deploy/docker-compose.assisted.example.yml docker-compose.yml
 cp deploy/projects.example.yaml projects.yaml
 cp deploy/environments.example.yaml environments.yaml
 export HIVEFORGE_AUTH_TOKEN='replace-me'

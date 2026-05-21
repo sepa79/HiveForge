@@ -9,6 +9,21 @@ info:
 servers:
   - url: http://localhost:3000
 paths:
+  /info:
+    get:
+      summary: Read HiveForge service info
+      operationId: getHiveForgeInfo
+      responses:
+        "200":
+          description: HiveForge service info
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hiveforge]
+                properties:
+                  hiveforge:
+                    $ref: "#/components/schemas/HiveForgeInfo"
   /projects:
     get:
       summary: List registered projects
@@ -257,6 +272,14 @@ components:
       schema:
         $ref: "#/components/schemas/Identifier"
   schemas:
+    HiveForgeInfo:
+      type: object
+      required: [name, version]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
     Identifier:
       type: string
       pattern: "^[a-z][a-z0-9-]*$"
