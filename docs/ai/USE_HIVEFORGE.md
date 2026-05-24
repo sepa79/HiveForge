@@ -26,9 +26,13 @@ If no known target exists, start MCP explicitly against one HiveForge endpoint:
 
 ```bash
 HIVEFORGE_BASE_URL=http://<host>:3000 \
-HIVEFORGE_AUTH_TOKEN=<token> \
+HIVEFORGE_AUTH_TOKEN="$(cat /opt/hiveforge/auth-token)" \
 npm run hiveforge-mcp
 ```
+
+Use the installed host's `auth-token` file when HiveForge generated the token
+on first start. MCP connects to REST and does not use `HIVEFORGE_BASE_DIR` or
+read runtime files directly.
 
 Do not invent endpoints or tokens.
 

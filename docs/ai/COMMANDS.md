@@ -77,8 +77,10 @@ Run the MCP server over stdio:
 
 ```bash
 npm run build
-HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN=local-dev-token npm run hiveforge-mcp
+HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN="$(cat tmp/hf/auth-token)" npm run hiveforge-mcp
 ```
+
+MCP connects to the REST endpoint and does not use `HIVEFORGE_BASE_DIR`.
 
 User-facing operation goes through MCP. REST and local CLI commands are
 development/debug surfaces for HiveForge maintainers, not user fallbacks.

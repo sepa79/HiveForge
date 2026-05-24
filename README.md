@@ -81,9 +81,12 @@ Run the MCP server against the REST API over stdio:
 
 ```bash
 HIVEFORGE_BASE_URL=http://127.0.0.1:3000 \
-HIVEFORGE_AUTH_TOKEN=local-dev-token \
+HIVEFORGE_AUTH_TOKEN="$(cat tmp/hf/auth-token)" \
 npm run hiveforge-mcp
 ```
+
+MCP connects to the REST server. It does not read `HIVEFORGE_BASE_DIR` or
+runtime files directly.
 
 ## Install HiveForge
 

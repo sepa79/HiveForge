@@ -34,6 +34,18 @@ cat /opt/hiveforge/auth-token
 API and MCP clients use it as a bearer token. The UI shell loads without auth,
 but its API requests require the same token.
 
+Start MCP against the installed HiveForge endpoint with:
+
+```bash
+HIVEFORGE_BASE_URL=http://<host>:3000 \
+HIVEFORGE_AUTH_TOKEN="$(cat /opt/hiveforge/auth-token)" \
+npm run hiveforge-mcp
+```
+
+MCP connects to the HiveForge REST endpoint. It does not use
+`HIVEFORGE_BASE_DIR` and does not read `projects.yaml`, `environments.yaml`,
+`workspace/`, `journal/`, or `data/` directly.
+
 ## Operator-Provided Token
 
 To provide the token yourself, create `.env` before starting Compose:
