@@ -65,16 +65,11 @@ npm install
 npm run check
 ```
 
-The REST server requires an explicit bearer token:
+Run the REST server against one local base directory:
 
 ```bash
-HIVEFORGE_PROJECT_REGISTRY_PATH=examples/hivewatch/projects.yaml \
-HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml \
 HIVEFORGE_AUTH_TOKEN=local-dev-token \
-HIVEFORGE_WORKSPACE_DIR=tmp/workspace \
-HIVEFORGE_JOURNAL_DIR=tmp/journal \
-HIVEFORGE_DATA_ROOT=tmp/data \
-HIVEWATCH_API_PORT=3000 \
+HIVEFORGE_BASE_DIR=tmp/hf \
 npm run serve
 ```
 
@@ -99,5 +94,8 @@ Use [Docker Compose install](docs/install/docker-compose.md),
 and [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml)
 as the installation source of truth.
 
-The runtime requires explicit project registry, environment policy, and bearer
-token configuration. Do not deploy with invented defaults.
+The default Compose install uses one mounted base directory. HiveForge creates
+missing runtime files there on first start and generates `auth-token` when an
+operator-provided `HIVEFORGE_AUTH_TOKEN` is not set. Project deployment remains
+blocked until project registry and environment policy entries are explicitly
+configured.

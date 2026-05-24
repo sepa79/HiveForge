@@ -35,9 +35,6 @@ docker build -t hiveforge:local .
 Validate the Docker Compose install template:
 
 ```bash
-HIVEFORGE_AUTH_TOKEN=local-dev-token \
-HIVEFORGE_PROJECTS_FILE="$PWD/deploy/projects.example.yaml" \
-HIVEFORGE_ENVIRONMENTS_FILE="$PWD/deploy/environments.example.yaml" \
 docker compose -f deploy/docker-compose.hiveforge.yml config
 ```
 
@@ -67,7 +64,7 @@ Run the REST API:
 
 ```bash
 npm run build
-HIVEFORGE_PROJECT_REGISTRY_PATH=examples/hivewatch/projects.yaml HIVEFORGE_ENVIRONMENTS_PATH=examples/hivewatch/environments.yaml HIVEFORGE_AUTH_TOKEN=local-dev-token HIVEFORGE_WORKSPACE_DIR=tmp/workspace HIVEFORGE_JOURNAL_DIR=tmp/journal HIVEFORGE_DATA_ROOT=tmp/data HIVEWATCH_API_PORT=3000 npm run serve
+HIVEFORGE_BASE_DIR=tmp/hf HIVEFORGE_AUTH_TOKEN=local-dev-token npm run serve
 ```
 
 Open the bundled operator console:
@@ -156,11 +153,11 @@ No package or release command exists yet.
 Run HiveForge with Docker Compose on a Docker host:
 
 ```bash
-cp deploy/docker-compose.assisted.example.yml docker-compose.yml
-cp deploy/projects.example.yaml projects.yaml
-cp deploy/environments.example.yaml environments.yaml
-export HIVEFORGE_AUTH_TOKEN='replace-me'
-docker compose up -d
+mkdir -p /opt/hiveforge
+cd /opt/hiveforge
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
+docker compose -f docker-compose.hiveforge.yml up -d
+cat auth-token
 ```
 
 See `docs/install/docker-compose.md`.

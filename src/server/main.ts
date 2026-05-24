@@ -16,6 +16,8 @@ import { ProjectRegistrationService } from "../operation/project-registration-se
 import { RepositoryInspectionService } from "../operation/repository-inspection-service.js";
 import { ProjectValidationService } from "../operation/project-validation-service.js";
 import { ReleaseDeployService } from "../release/release-deploy-service.js";
+import { resolveAuthToken } from "../runtime/auth-token.js";
+import { resolveRuntimePaths } from "../runtime/runtime-paths.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
@@ -24,13 +26,39 @@ import { createHttpServer } from "./http-server.js";
 import { createRestRoutes } from "./rest-api.js";
 import { createUiRoutes, uiPublicPaths } from "./ui-routes.js";
 
-const projectRegistryPath = requiredEnv("HIVEFORGE_PROJECT_REGISTRY_PATH");
-const environmentsPath = requiredEnv("HIVEFORGE_ENVIRONMENTS_PATH");
-const authToken = requiredEnv("HIVEFORGE_AUTH_TOKEN");
+interface ServerOptions {
+  baseDir?: string;
+  registry?: string;
+  environments?: string;
+  workspace?: string;
+  journal?: string;
+  dataRoot?: string;
+}
+
+const serverOptions = parseServerOptions(process.argv.slice(2));
+const runtimePaths = await resolveRuntimePaths({
+  baseDir: serverOptions.baseDir ?? process.env.HIVEFORGE_BASE_DIR,
+  registry: serverOptions.registry ?? process.env.HIVEFORGE_PROJECT_REGISTRY_PATH,
+  environments: serverOptions.environments ?? process.env.HIVEFORGE_ENVIRONMENTS_PATH,
+  workspace: serverOptions.workspace ?? process.env.HIVEFORGE_WORKSPACE_DIR,
+  journal: serverOptions.journal ?? process.env.HIVEFORGE_JOURNAL_DIR,
+  dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT,
+  requireEnvironments: true
+});
+const auth = await resolveAuthToken({
+  authToken: process.env.HIVEFORGE_AUTH_TOKEN,
+  baseDir: runtimePaths.baseDir
+});
+if (auth.source === "generated" && auth.tokenPath) {
+  process.stdout.write(`HiveForge auth token created at ${auth.tokenPath}\n`);
+}
+
 const appInfo = getHiveForgeInfo();
-const workspaceRoot = process.env.HIVEFORGE_WORKSPACE_DIR ?? "/var/lib/hiveforge/workspace";
-const journalDir = process.env.HIVEFORGE_JOURNAL_DIR ?? "/var/lib/hiveforge/journal";
-const dataRoot = process.env.HIVEFORGE_DATA_ROOT ?? "/var/lib/hiveforge/data";
+const projectRegistryPath = runtimePaths.registry;
+const environmentsPath = required(runtimePaths.environments, "--environments");
+const workspaceRoot = runtimePaths.workspace;
+const journalDir = runtimePaths.journal;
+const dataRoot = runtimePaths.dataRoot;
 const port = Number.parseInt(process.env.HIVEFORGE_PORT ?? "3000", 10);
 const host = process.env.HIVEFORGE_BIND_HOST ?? "127.0.0.1";
 
@@ -90,15 +118,51 @@ createHttpServer(
       }
     })
   ],
-  { authToken, publicPaths: uiPublicPaths }
+  { authToken: auth.authToken, publicPaths: uiPublicPaths }
 ).listen(port, host, () => {
   process.stdout.write(`HiveForge REST API listening on ${host}:${port}\n`);
 });
 
-function requiredEnv(name: string): string {
-  const value = process.env[name];
+function parseServerOptions(args: string[]): ServerOptions {
+  const options: ServerOptions = {};
+
+  for (let index = 0; index < args.length; index += 2) {
+    const key = args[index];
+    const value = args[index + 1];
+    if (!key?.startsWith("--") || !value) {
+      throw new Error(`Invalid option near: ${key ?? ""}`);
+    }
+
+    switch (key) {
+      case "--base-dir":
+        options.baseDir = value;
+        break;
+      case "--registry":
+        options.registry = value;
+        break;
+      case "--environments":
+        options.environments = value;
+        break;
+      case "--workspace":
+        options.workspace = value;
+        break;
+      case "--journal":
+        options.journal = value;
+        break;
+      case "--data-root":
+        options.dataRoot = value;
+        break;
+      default:
+        throw new Error(`Unknown option: ${key}`);
+    }
+  }
+
+  return options;
+}
+
+function required(value: string | undefined, label: string): string {
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(`Missing required option: ${label}`);
   }
   return value;
 }

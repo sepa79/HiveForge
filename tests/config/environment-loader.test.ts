@@ -192,6 +192,44 @@ describe("environment loader", () => {
 
     await expect(loadEnvironmentConfig(filePath)).rejects.toThrow("Contract validation failed");
   });
+
+  it("allows empty project policy for first-start bootstrap", async () => {
+    const filePath = await writeConfig([
+      "current: docker",
+      "environments:",
+      "  - id: docker",
+      "    name: Docker host",
+      "    kind: docker",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-single",
+      "      managedRoot:",
+      "        shared: true",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).resolves.toEqual({
+      current: "docker",
+      environments: [
+        {
+          id: "docker",
+          name: "Docker host",
+          kind: "docker",
+          capabilities: {
+            runtime: ["docker-single"],
+            managedRoot: {
+              shared: true
+            }
+          },
+          policy: {
+            projects: []
+          }
+        }
+      ]
+    });
+  });
 });
 
 async function writeConfig(lines: string[]): Promise<string> {

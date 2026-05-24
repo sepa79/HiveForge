@@ -12,10 +12,17 @@ describe("CLI base dir runtime paths", () => {
 
     expect(JSON.parse(output)).toEqual([]);
     await expect(readFile(path.join(baseDir, "projects.yaml"), "utf8")).resolves.toBe("projects: []\n");
+    await expect(readFile(path.join(baseDir, "environments.yaml"), "utf8")).resolves.toContain("projects: []");
     expect((await stat(path.join(baseDir, "workspace"))).isDirectory()).toBe(true);
     await expect(readFile(path.join(baseDir, "journal", "operations.jsonl"), "utf8")).resolves.toBe("");
     expect((await stat(path.join(baseDir, "data"))).isDirectory()).toBe(true);
-    expect((await readdir(baseDir)).sort()).toEqual(["data", "journal", "projects.yaml", "workspace"]);
+    expect((await readdir(baseDir)).sort()).toEqual([
+      "data",
+      "environments.yaml",
+      "journal",
+      "projects.yaml",
+      "workspace"
+    ]);
   });
 
   it("uses an existing base dir structure without overwriting projects.yaml", async () => {
@@ -37,12 +44,12 @@ describe("CLI base dir runtime paths", () => {
 
     await expect(
       main(["read-journal", "--base-dir", baseDir, "--registry", path.join(baseDir, "projects.yaml")])
-    ).rejects.toThrow("Use either --base-dir or explicit --registry --workspace --journal --data-root, not both.");
+    ).rejects.toThrow("Use either --base-dir/HIVEFORGE_BASE_DIR or explicit runtime paths, not both.");
   });
 
   it("requires either base dir or all explicit runtime paths", async () => {
     await expect(main(["read-journal", "--registry", "projects.yaml"])).rejects.toThrow(
-      "Missing required runtime option(s): --workspace, --journal, --data-root. Use either --base-dir or all explicit --registry --workspace --journal --data-root."
+      "Missing required runtime option(s): --workspace, --journal, --data-root. Use either --base-dir/HIVEFORGE_BASE_DIR or all explicit runtime paths."
     );
   });
 });
