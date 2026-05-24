@@ -109,6 +109,16 @@ npm run build
 npm run hiveforge -- inspect --registry examples/hivewatch/projects.yaml --workspace tmp/workspace --journal tmp/journal --data-root tmp/data --project hivewatch --ref main
 ```
 
+Use one mounted HiveForge base directory for CLI commands:
+
+```bash
+npm run build
+npm run hiveforge -- read-journal --base-dir tmp/hf
+```
+
+`--base-dir` is mutually exclusive with explicit `--registry --workspace
+--journal --data-root`.
+
 Validate a project:
 
 ```bash

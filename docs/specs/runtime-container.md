@@ -28,6 +28,31 @@ The container uses explicit directories:
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
 - `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files.
 
+The CLI also supports a single mounted base directory through `--base-dir`.
+This mode is mutually exclusive with `--registry`, `--workspace`, `--journal`,
+and `--data-root`. When the base directory is empty, HiveForge initializes only
+this minimal structure:
+
+```text
+<base-dir>/
+  projects.yaml
+  workspace/
+  journal/
+    operations.jsonl
+  data/
+```
+
+The generated `projects.yaml` contains:
+
+```yaml
+projects: []
+```
+
+If the structure already exists, HiveForge derives those same paths and uses
+them. It must not overwrite an existing `projects.yaml`, create `.env`, create
+`secrets/`, or create runtime project data outside its own `data/` directory.
+A non-writable base directory is a deployment configuration error.
+
 The published runtime image starts the REST/UI server by default:
 
 ```text
@@ -38,8 +63,9 @@ It binds to `HIVEFORGE_BIND_HOST` and `HIVEFORGE_PORT`; the Docker image
 defaults are `0.0.0.0` and `3000` so Compose or a reverse proxy can expose the
 service explicitly.
 
-Both paths must be configured or use the image defaults. Missing writable
-directories are deployment configuration errors.
+Runtime paths must be configured through exactly one supported mode or use the
+image defaults. Missing writable directories are deployment configuration
+errors.
 
 For the current POC, HiveForge manages only files under its own data root. The
 project managed tree is:

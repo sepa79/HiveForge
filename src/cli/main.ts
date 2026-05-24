@@ -1,3 +1,6 @@
+import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import path from "node:path";
 import { AnsibleRunner } from "../action/ansible-runner.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
@@ -14,6 +17,7 @@ import { NodeCommandRunner } from "../workspace/node-command-runner.js";
 import { WorkspaceManager } from "../workspace/workspace-manager.js";
 
 interface CliOptions {
+  baseDir?: string;
   registry?: string;
   workspace?: string;
   journal?: string;
@@ -24,6 +28,19 @@ interface CliOptions {
   action?: string;
   profile?: string;
 }
+
+interface RuntimePaths {
+  registry: string;
+  workspace: string;
+  journal: string;
+  dataRoot: string;
+}
+
+const PROJECTS_FILE = "projects.yaml";
+const WORKSPACE_DIR = "workspace";
+const JOURNAL_DIR = "journal";
+const JOURNAL_FILE = "operations.jsonl";
+const DATA_DIR = "data";
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   const [command, ...rest] = argv;
@@ -112,6 +129,9 @@ function parseOptions(args: string[]): CliOptions {
     }
 
     switch (key) {
+      case "--base-dir":
+        options.baseDir = value;
+        break;
       case "--registry":
         options.registry = value;
         break;
@@ -148,10 +168,11 @@ function parseOptions(args: string[]): CliOptions {
 }
 
 async function buildContext(options: CliOptions) {
-  const projectRegistry = await loadProjectRegistryConfig(required(options.registry, "--registry"));
-  const workspaceRoot = required(options.workspace, "--workspace");
-  const journal = new JsonlJournal(required(options.journal, "--journal"));
-  const dataRoot = required(options.dataRoot, "--data-root");
+  const runtimePaths = await resolveRuntimePaths(options);
+  const projectRegistry = await loadProjectRegistryConfig(runtimePaths.registry);
+  const workspaceRoot = runtimePaths.workspace;
+  const journal = new JsonlJournal(runtimePaths.journal);
+  const dataRoot = runtimePaths.dataRoot;
   const ids = new UuidGenerator();
   const clock = new SystemClock();
   const commandRunner = new NodeCommandRunner();
@@ -174,6 +195,81 @@ async function buildContext(options: CliOptions) {
     managedFiles,
     deploy: new DeployOrchestrator(inspection, validation, action, managedFiles)
   };
+}
+
+async function resolveRuntimePaths(options: CliOptions): Promise<RuntimePaths> {
+  const explicitOptions = [
+    ["--registry", options.registry],
+    ["--workspace", options.workspace],
+    ["--journal", options.journal],
+    ["--data-root", options.dataRoot]
+  ] as const;
+  const providedExplicitOptions = explicitOptions.filter(([, value]) => value);
+
+  if (options.baseDir && providedExplicitOptions.length > 0) {
+    throw new Error("Use either --base-dir or explicit --registry --workspace --journal --data-root, not both.");
+  }
+
+  if (options.baseDir) {
+    return initializeBaseDir(options.baseDir);
+  }
+
+  const missingOptions = explicitOptions.filter(([, value]) => !value).map(([label]) => label);
+  if (missingOptions.length > 0) {
+    throw new Error(
+      `Missing required runtime option(s): ${missingOptions.join(
+        ", "
+      )}. Use either --base-dir or all explicit --registry --workspace --journal --data-root.`
+    );
+  }
+
+  return {
+    registry: required(options.registry, "--registry"),
+    workspace: required(options.workspace, "--workspace"),
+    journal: required(options.journal, "--journal"),
+    dataRoot: required(options.dataRoot, "--data-root")
+  };
+}
+
+async function initializeBaseDir(baseDir: string): Promise<RuntimePaths> {
+  const baseStat = await stat(baseDir).catch((error: unknown) => {
+    if (isNodeError(error, "ENOENT")) {
+      throw new Error(`Base dir does not exist: ${baseDir}`);
+    }
+    throw error;
+  });
+  if (!baseStat.isDirectory()) {
+    throw new Error(`Base dir is not a directory: ${baseDir}`);
+  }
+
+  await access(baseDir, constants.W_OK).catch((error: unknown) => {
+    if (isNodeError(error, "EACCES") || isNodeError(error, "EPERM")) {
+      throw new Error(`Base dir is not writable: ${baseDir}`);
+    }
+    throw error;
+  });
+
+  const runtimePaths = {
+    registry: path.join(baseDir, PROJECTS_FILE),
+    workspace: path.join(baseDir, WORKSPACE_DIR),
+    journal: path.join(baseDir, JOURNAL_DIR),
+    dataRoot: path.join(baseDir, DATA_DIR)
+  };
+
+  const entries = await readdir(baseDir);
+  if (entries.length === 0) {
+    await writeFile(runtimePaths.registry, "projects: []\n", { encoding: "utf8", flag: "wx" });
+    await mkdir(runtimePaths.workspace);
+    await mkdir(runtimePaths.journal);
+    await writeFile(path.join(runtimePaths.journal, JOURNAL_FILE), "", { encoding: "utf8", flag: "wx" });
+    await mkdir(runtimePaths.dataRoot);
+  }
+
+  return runtimePaths;
+}
+
+function isNodeError(error: unknown, code: string): boolean {
+  return error instanceof Error && "code" in error && error.code === code;
 }
 
 function requiredProjectRef(options: CliOptions) {
