@@ -20,6 +20,21 @@ afterEach(async () => {
 });
 
 describe("REST API", () => {
+  it("returns public process health", async () => {
+    const baseUrl = await startServer({ authToken: "secret" });
+
+    const response = await fetch(`${baseUrl}/health`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      status: "ok",
+      hiveforge: {
+        name: "hiveforge",
+        version: "0.1.0-test"
+      }
+    });
+  });
+
   it("returns HiveForge info", async () => {
     const baseUrl = await startServer();
 
@@ -604,7 +619,7 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
         ]
       }
     }),
-    { authToken: options.authToken }
+    { authToken: options.authToken, publicPaths: [/^\/health$/] }
   );
 
   servers.push(server);

@@ -34,6 +34,14 @@ cat /opt/hiveforge/auth-token
 API and MCP clients use it as a bearer token. The UI shell loads without auth,
 but its API requests require the same token.
 
+The public process health endpoint is:
+
+```text
+http://<host>:3000/health
+```
+
+It does not require the bearer token.
+
 Start MCP against the installed HiveForge endpoint with:
 
 ```bash

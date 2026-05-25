@@ -118,7 +118,7 @@ createHttpServer(
       }
     })
   ],
-  { authToken: auth.authToken, publicPaths: uiPublicPaths }
+  { authToken: auth.authToken, publicPaths: [...uiPublicPaths, /^\/health$/] }
 ).listen(port, host, () => {
   process.stdout.write(`HiveForge REST API listening on ${host}:${port}\n`);
 });

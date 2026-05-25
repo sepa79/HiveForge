@@ -44,6 +44,16 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
   return [
     {
       method: "GET",
+      pattern: /^\/health$/,
+      async handle() {
+        return {
+          status: "ok",
+          hiveforge: services.appInfo
+        };
+      }
+    },
+    {
+      method: "GET",
       pattern: /^\/info$/,
       async handle() {
         return {

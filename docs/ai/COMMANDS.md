@@ -73,6 +73,12 @@ Open the bundled operator console:
 http://127.0.0.1:3000/
 ```
 
+Check process health:
+
+```bash
+curl -fsS http://127.0.0.1:3000/health
+```
+
 Run the MCP server over stdio:
 
 ```bash

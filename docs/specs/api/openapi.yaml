@@ -9,6 +9,24 @@ info:
 servers:
   - url: http://localhost:3000
 paths:
+  /health:
+    get:
+      summary: Read public process health
+      operationId: getHealth
+      responses:
+        "200":
+          description: HiveForge process is serving HTTP
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, hiveforge]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  hiveforge:
+                    $ref: "#/components/schemas/HiveForgeInfo"
   /info:
     get:
       summary: Read HiveForge service info
