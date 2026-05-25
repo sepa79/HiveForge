@@ -67,6 +67,11 @@ to infer runtime, placement, storage, registry mirrors, or project eligibility.
 After connecting, clients must ask the selected HiveForge endpoint for its
 current environment and capabilities with `list_environments`.
 
+Use `check_health` to verify that the currently connected HiveForge endpoint is
+serving HTTP before running operator workflows. To check another configured
+target, switch the active target with `hf-target use <target-id>` and start MCP
+for that target.
+
 The HiveForge service response is the source of truth for:
 
 - reported environment id and kind,
@@ -88,6 +93,16 @@ friendly connection name and the reported environment before destructive or
 state-changing actions.
 
 ## Tools
+
+### `check_health`
+
+Input: none.
+
+Output: connected endpoint health from `GET /health`, including `status` and
+HiveForge service metadata.
+
+This checks only the currently connected HiveForge endpoint. It does not fan
+out to every client-side known target.
 
 ### `get_hiveforge_info`
 

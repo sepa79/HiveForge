@@ -40,18 +40,19 @@ Do not invent endpoints or tokens.
 
 Use MCP tools in this order:
 
-1. `get_hiveforge_info`
-2. `list_environments`
-3. `list_projects`
-4. `list_deployments`
-5. `inspect_repository` only for a candidate repository/ref not yet registered
-6. `register_project` only after inspection succeeds and the operator approves
-7. `inspect_project`
-8. `validate_requirements`
-9. `deploy_release` for release/image-tag prepare checks, or `start_action` for
+1. `check_health`
+2. `get_hiveforge_info`
+3. `list_environments`
+4. `list_projects`
+5. `list_deployments`
+6. `inspect_repository` only for a candidate repository/ref not yet registered
+7. `register_project` only after inspection succeeds and the operator approves
+8. `inspect_project`
+9. `validate_requirements`
+10. `deploy_release` for release/image-tag prepare checks, or `start_action` for
    the current repo/ref POC lifecycle path
-10. `get_operation`
-11. `read_journal`
+11. `get_operation`
+12. `read_journal`
 
 `deploy_release` currently prepares and validates a release plan only. It does
 not build images, push images, or execute deployment actions. With `gitRef`, it

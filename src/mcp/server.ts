@@ -50,6 +50,16 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "check_health",
+    {
+      title: "Check HiveForge health",
+      description: "Check the connected HiveForge REST endpoint process health.",
+      inputSchema: {}
+    },
+    runtime.checkHealth
+  );
+
+  server.registerTool(
     "get_hiveforge_info",
     {
       title: "Get HiveForge info",

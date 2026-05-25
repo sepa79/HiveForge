@@ -3,6 +3,7 @@ import type { HiveForgeApiClient, ReleaseDeployApiInput } from "./api-client.js"
 
 export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
   return {
+    checkHealth: () => call(() => apiClient.getHealth()),
     getHiveForgeInfo: () => call(() => apiClient.getInfo()),
     listProjects: () => call(() => apiClient.listProjects()),
     listEnvironments: () => call(() => apiClient.listEnvironments()),

@@ -87,6 +87,8 @@ HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN="$(cat tmp/hf/auth
 ```
 
 MCP connects to the REST endpoint and does not use `HIVEFORGE_BASE_DIR`.
+Use the MCP `check_health` tool after connecting to verify the selected
+HiveForge endpoint.
 
 User-facing operation goes through MCP. REST and local CLI commands are
 development/debug surfaces for HiveForge maintainers, not user fallbacks.

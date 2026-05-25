@@ -9,6 +9,7 @@ describe("HiveForge MCP runtime", () => {
     const toolNames = [...source.matchAll(/server\.registerTool\(\s*\n\s*"([^"]+)"/g)].map((match) => match[1]);
 
     expect(toolNames).toEqual([
+      "check_health",
       "get_hiveforge_info",
       "list_projects",
       "list_environments",
@@ -56,6 +57,21 @@ describe("HiveForge MCP runtime", () => {
     const result = await runtime.getHiveForgeInfo();
 
     expect(result.structuredContent).toEqual({ hiveforge: { name: "hiveforge", version: "0.1.0-test" } });
+  });
+
+  it("returns connected endpoint health through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async getHealth() {
+        return { status: "ok", hiveforge: { name: "hiveforge", version: "0.4.2" } };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.checkHealth();
+
+    expect(result.structuredContent).toEqual({
+      status: "ok",
+      hiveforge: { name: "hiveforge", version: "0.4.2" }
+    });
   });
 
   it("returns release deployment prepare results through the runtime", async () => {
