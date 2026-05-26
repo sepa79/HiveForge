@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.5 - 2026-05-27
+
+- Add non-secret project runtime environment storage with REST and MCP tools for
+  listing, setting, and unsetting profile-scoped values outside git.
+- Pass resolved runtime environment into requirement validation and lifecycle
+  actions so projects can keep deploy-time image tags and public config out of
+  repository manifests.
+- Add explicit host-visible HiveForge path handling for Swarm bind mounts,
+  including `HIVEFORGE_PROJECT_HOST_DIR` for deployment actions.
+- Improve Docker Compose and Swarm install templates with proxy environment
+  passthrough and host root configuration for Swarm targets.
+- Refresh the operator UI with the new HiveForge logo, home view, token flow,
+  and layout fixes.
+
 ## 0.4.4 - 2026-05-26
 
 - Add MCP/REST environment policy editing for explicitly allowing a registered

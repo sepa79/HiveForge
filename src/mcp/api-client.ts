@@ -121,6 +121,43 @@ export class HiveForgeApiClient {
     });
   }
 
+  listProjectRuntimeEnv(input: { projectId: string }): Promise<unknown> {
+    return this.request({
+      method: "GET",
+      path: `/projects/${encodeURIComponent(input.projectId)}/runtime-env`
+    });
+  }
+
+  setProjectRuntimeEnv(input: {
+    projectId: string;
+    profile?: string;
+    values: Record<string, string>;
+  }): Promise<unknown> {
+    return this.request({
+      method: "PUT",
+      path: `/projects/${encodeURIComponent(input.projectId)}/runtime-env`,
+      body: {
+        ...(input.profile ? { profile: input.profile } : {}),
+        values: input.values
+      }
+    });
+  }
+
+  unsetProjectRuntimeEnv(input: {
+    projectId: string;
+    profile?: string;
+    keys: string[];
+  }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: `/projects/${encodeURIComponent(input.projectId)}/runtime-env/unset`,
+      body: {
+        ...(input.profile ? { profile: input.profile } : {}),
+        keys: input.keys
+      }
+    });
+  }
+
   inspectProject(input: { projectId: string; gitRef: string }): Promise<unknown> {
     return this.request({
       method: "POST",

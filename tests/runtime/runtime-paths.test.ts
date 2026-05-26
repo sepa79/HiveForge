@@ -19,7 +19,8 @@ describe("runtime paths", () => {
       environments: path.join(baseDir, "environments.yaml"),
       workspace: path.join(baseDir, "workspace"),
       journal: path.join(baseDir, "journal"),
-      dataRoot: path.join(baseDir, "data")
+      dataRoot: path.join(baseDir, "data"),
+      runtimeEnv: path.join(baseDir, "data", "runtime-env.json")
     });
     await expect(loadProjectRegistryConfig(paths.registry)).resolves.toEqual({ projects: [] });
     await expect(loadEnvironmentConfig(paths.environments ?? "")).resolves.toMatchObject({
@@ -40,6 +41,7 @@ describe("runtime paths", () => {
       "workspace"
     ]);
     await expect(readFile(path.join(baseDir, "journal", "operations.jsonl"), "utf8")).resolves.toBe("");
+    await expect(readFile(path.join(baseDir, "data", "runtime-env.json"), "utf8")).resolves.toContain('"entries": []');
   });
 
   it("does not overwrite existing registry or environment config", async () => {
@@ -70,6 +72,29 @@ describe("runtime paths", () => {
 
     await expect(readFile(path.join(baseDir, "projects.yaml"), "utf8")).resolves.toBe("# keep projects\nprojects: []\n");
     await expect(readFile(path.join(baseDir, "environments.yaml"), "utf8")).resolves.toContain("# keep environments");
+  });
+
+  it("keeps an explicit host data root separate from the container data root", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
+
+    const paths = await resolveRuntimePaths({
+      baseDir,
+      hostDataRoot: "/srv/hiveforge/data",
+      requireEnvironments: true
+    });
+
+    expect(paths).toMatchObject({
+      dataRoot: path.join(baseDir, "data"),
+      hostDataRoot: "/srv/hiveforge/data"
+    });
+  });
+
+  it("rejects relative host data roots", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
+
+    await expect(resolveRuntimePaths({ baseDir, hostDataRoot: "data" })).rejects.toThrow(
+      "Host data root must be an absolute path: data"
+    );
   });
 
   it("rejects mixed base dir and explicit path modes", async () => {

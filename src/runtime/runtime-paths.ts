@@ -9,6 +9,7 @@ export interface RuntimePathOptions {
   workspace?: string;
   journal?: string;
   dataRoot?: string;
+  hostDataRoot?: string;
   requireEnvironments?: boolean;
 }
 
@@ -19,13 +20,16 @@ export interface RuntimePaths {
   workspace: string;
   journal: string;
   dataRoot: string;
+  hostDataRoot?: string;
+  runtimeEnv: string;
 }
 
 export const runtimeFileNames = {
   projects: "projects.yaml",
   environments: "environments.yaml",
   authToken: "auth-token",
-  operations: "operations.jsonl"
+  operations: "operations.jsonl",
+  runtimeEnv: "runtime-env.json"
 } as const;
 
 const WORKSPACE_DIR = "workspace";
@@ -50,6 +54,7 @@ const EMPTY_ENVIRONMENTS = [
 ].join("\n");
 
 export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<RuntimePaths> {
+  const hostDataRoot = normalizeHostDataRoot(options.hostDataRoot);
   const explicitOptions = [
     ["--registry", options.registry],
     ["--environments", options.environments],
@@ -66,7 +71,7 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
   }
 
   if (options.baseDir) {
-    return initializeBaseDir(options.baseDir);
+    return initializeBaseDir(options.baseDir, hostDataRoot);
   }
 
   const requiredExplicitOptions = explicitOptions.filter(
@@ -86,11 +91,13 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
     ...(options.environments ? { environments: options.environments } : {}),
     workspace: required(options.workspace, "--workspace"),
     journal: required(options.journal, "--journal"),
-    dataRoot: required(options.dataRoot, "--data-root")
+    dataRoot: required(options.dataRoot, "--data-root"),
+    ...(hostDataRoot ? { hostDataRoot } : {}),
+    runtimeEnv: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.runtimeEnv)
   };
 }
 
-async function initializeBaseDir(baseDir: string): Promise<RuntimePaths> {
+async function initializeBaseDir(baseDir: string, hostDataRoot?: string): Promise<RuntimePaths> {
   const baseStat = await stat(baseDir).catch((error: unknown) => {
     if (isNodeError(error, "ENOENT")) {
       throw new Error(`Base dir does not exist: ${baseDir}`);
@@ -114,7 +121,9 @@ async function initializeBaseDir(baseDir: string): Promise<RuntimePaths> {
     environments: path.join(baseDir, runtimeFileNames.environments),
     workspace: path.join(baseDir, WORKSPACE_DIR),
     journal: path.join(baseDir, JOURNAL_DIR),
-    dataRoot: path.join(baseDir, DATA_DIR)
+    dataRoot: path.join(baseDir, DATA_DIR),
+    ...(hostDataRoot ? { hostDataRoot } : {}),
+    runtimeEnv: path.join(baseDir, DATA_DIR, runtimeFileNames.runtimeEnv)
   };
 
   await readdir(baseDir);
@@ -124,8 +133,19 @@ async function initializeBaseDir(baseDir: string): Promise<RuntimePaths> {
   await mkdir(runtimePaths.journal, { recursive: true });
   await writeFileIfMissing(path.join(runtimePaths.journal, runtimeFileNames.operations), "");
   await mkdir(runtimePaths.dataRoot, { recursive: true });
+  await writeFileIfMissing(runtimePaths.runtimeEnv, `${JSON.stringify({ version: 1, entries: [] }, null, 2)}\n`);
 
   return runtimePaths;
+}
+
+function normalizeHostDataRoot(hostDataRoot: string | undefined): string | undefined {
+  if (!hostDataRoot) {
+    return undefined;
+  }
+  if (!path.isAbsolute(hostDataRoot)) {
+    throw new Error(`Host data root must be an absolute path: ${hostDataRoot}`);
+  }
+  return path.normalize(hostDataRoot);
 }
 
 async function writeFileIfMissing(filePath: string, content: string): Promise<void> {

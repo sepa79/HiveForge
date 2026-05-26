@@ -6,6 +6,7 @@ services:
       - "${HIVEFORGE_HTTP_BIND:-0.0.0.0:3000}:3000"
     environment:
       HIVEFORGE_BASE_DIR: /hf
+      HIVEFORGE_HOST_DATA_ROOT: ${HIVEFORGE_HOST_DATA_ROOT:-/opt/hiveforge/data}
       HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:-}
       HIVEFORGE_BIND_HOST: 0.0.0.0
       HIVEFORGE_PORT: "3000"
@@ -16,5 +17,5 @@ services:
       https_proxy: ${https_proxy:-}
       no_proxy: ${no_proxy:-}
     volumes:
-      - ./:/hf
+      - ${HIVEFORGE_HOST_BASE_DIR:-/opt/hiveforge}:/hf
       - /var/run/docker.sock:/var/run/docker.sock

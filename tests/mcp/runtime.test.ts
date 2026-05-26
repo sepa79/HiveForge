@@ -17,6 +17,9 @@ describe("HiveForge MCP runtime", () => {
       "inspect_repository",
       "register_project",
       "set_environment_project_policy",
+      "list_project_runtime_env",
+      "set_project_runtime_env",
+      "unset_project_runtime_env",
       "inspect_project",
       "validate_requirements",
       "start_action",
@@ -116,6 +119,28 @@ describe("HiveForge MCP runtime", () => {
         projectId: "hivewatch",
         profiles: ["normal"],
         actions: ["deploy"]
+      }
+    });
+  });
+
+  it("sets project runtime env through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async setProjectRuntimeEnv(input: unknown) {
+        return { entry: input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.setProjectRuntimeEnv({
+      projectId: "hivewatch",
+      profile: "test",
+      values: { IMAGE_TAG: "latest" }
+    });
+
+    expect(result.structuredContent).toEqual({
+      entry: {
+        projectId: "hivewatch",
+        profile: "test",
+        values: { IMAGE_TAG: "latest" }
       }
     });
   });

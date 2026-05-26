@@ -4,6 +4,7 @@ import { createHttpServer } from "../../src/server/http-server.js";
 import { createRestRoutes } from "../../src/server/rest-api.js";
 import type { Journal } from "../../src/journal/journal.js";
 import type { ProjectRegistry } from "../../src/manifest/manifest-types.js";
+import type { EnvironmentDefinition } from "../../src/config/environment-types.js";
 
 const servers: ReturnType<typeof createHttpServer>[] = [];
 
@@ -152,6 +153,123 @@ describe("REST API", () => {
         actions: ["deploy", "remove"]
       }
     });
+  });
+
+  it("manages non-secret project runtime env", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const set = await fetch(`${baseUrl}/projects/hivewatch/runtime-env`, {
+      method: "PUT",
+      body: JSON.stringify({ profile: "test", values: { IMAGE_TAG: "latest" } })
+    });
+    const list = await fetch(`${baseUrl}/projects/hivewatch/runtime-env`);
+    const unset = await fetch(`${baseUrl}/projects/hivewatch/runtime-env/unset`, {
+      method: "POST",
+      body: JSON.stringify({ profile: "test", keys: ["IMAGE_TAG"] })
+    });
+
+    expect(set.status).toBe(200);
+    await expect(set.json()).resolves.toEqual({
+      projectId: "hivewatch",
+      profile: "test",
+      values: { IMAGE_TAG: "latest" },
+      updatedKeys: ["IMAGE_TAG"]
+    });
+    expect(list.status).toBe(200);
+    await expect(list.json()).resolves.toEqual({
+      projectId: "hivewatch",
+      entries: [{ projectId: "hivewatch", profile: "test", values: { IMAGE_TAG: "latest" } }]
+    });
+    expect(unset.status).toBe(200);
+    await expect(unset.json()).resolves.toEqual({
+      projectId: "hivewatch",
+      profile: "test",
+      values: {},
+      removedKeys: ["IMAGE_TAG"]
+    });
+    expect(calls).toContainEqual({
+      setRuntimeEnv: {
+        projectId: "hivewatch",
+        profile: "test",
+        values: { IMAGE_TAG: "latest" }
+      }
+    });
+  });
+
+  it("rejects runtime env for unregistered projects", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/unknown/runtime-env`, {
+      method: "PUT",
+      body: JSON.stringify({ values: { IMAGE_TAG: "latest" } })
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Project is not registered: unknown" });
+    expect(calls).toEqual([]);
+  });
+
+  it("rejects reserved HiveForge runtime env keys", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/runtime-env`, {
+      method: "PUT",
+      body: JSON.stringify({ values: { HIVEFORGE_PROFILE: "test" } })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid runtime env key: HIVEFORGE_PROFILE" });
+  });
+
+  it("passes resolved runtime env to validation", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+    const currentEnvironment = defaultEnvironment();
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/validate`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main", profile: "test" })
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls).toContainEqual({ resolveRuntimeEnv: { projectId: "hivewatch", profile: "test" } });
+    expect(calls).toContainEqual({
+      validate: expect.objectContaining({
+        environment: {
+          IMAGE_TAG: "latest",
+          HIVEFORGE_PROFILE: "test"
+        },
+        deploymentEnvironment: currentEnvironment,
+        profile: "test"
+      })
+    });
+  });
+
+  it("returns 400 when validation rejects the request", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({
+      calls,
+      validationError: "Profile swarm is not eligible for environment local"
+    });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/validate`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main", profile: "swarm" })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Profile swarm is not eligible for environment local"
+    });
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        validate: expect.objectContaining({
+          profile: "swarm"
+        })
+      })
+    );
   });
 
   it("lists deployment inventory", async () => {
@@ -500,7 +618,15 @@ describe("REST API", () => {
   });
 });
 
-async function startServer(options: { calls?: unknown[]; authToken?: string } = {}): Promise<string> {
+async function startServer(
+  options: {
+    calls?: unknown[];
+    authToken?: string;
+    currentEnvironment?: EnvironmentDefinition;
+    validationError?: string;
+  } = {}
+): Promise<string> {
+  const currentEnvironment = options.currentEnvironment ?? defaultEnvironment();
   const server = createHttpServer(
     createRestRoutes({
       appInfo: {
@@ -532,7 +658,11 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
         }
       } as never,
       validation: {
-        async validate() {
+        async validate(request: unknown) {
+          options.calls?.push({ validate: request });
+          if (options.validationError) {
+            throw new Error(options.validationError);
+          }
           return {
             operationId: "validate-op",
             report: {
@@ -566,6 +696,7 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
         }
       } as never,
       currentEnvironmentId: "local",
+      currentEnvironment,
       environmentPolicy: {
         assertActionAllowed(request: { profile?: string }) {
           if (request.profile === "prod") {
@@ -588,6 +719,7 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
         }
       } as never,
       operations: operationService(options.calls),
+      runtimeEnv: runtimeEnvService(options.calls),
       repositoryInspection: {
         async inspect(request: { repository: string; gitRef: string }) {
           return {
@@ -626,38 +758,8 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
         }
       },
       environments: {
-        current: {
-          id: "local",
-          name: "Local Docker",
-          kind: "local-docker",
-          capabilities: {
-            runtime: ["docker-single"],
-            managedRoot: {
-              shared: false,
-              nodes: ["local-docker"]
-            }
-          },
-          policy: {
-            projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
-          }
-        },
-        known: [
-          {
-            id: "local",
-            name: "Local Docker",
-            kind: "local-docker",
-            capabilities: {
-              runtime: ["docker-single"],
-              managedRoot: {
-                shared: false,
-                nodes: ["local-docker"]
-              }
-            },
-            policy: {
-              projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
-            }
-          }
-        ]
+        current: currentEnvironment,
+        known: [currentEnvironment]
       }
     }),
     { authToken: options.authToken, publicPaths: [/^\/health$/] }
@@ -668,6 +770,24 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+function defaultEnvironment(): EnvironmentDefinition {
+  return {
+    id: "local",
+    name: "Local Docker",
+    kind: "local-docker",
+    capabilities: {
+      runtime: ["docker-single"],
+      managedRoot: {
+        shared: false,
+        nodes: ["local-docker"]
+      }
+    },
+    policy: {
+      projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
+    }
+  };
 }
 
 function releaseRequest() {
@@ -732,6 +852,64 @@ function operationService(calls?: unknown[]) {
         });
       });
       return operation;
+    }
+  } as never;
+}
+
+function runtimeEnvService(calls?: unknown[]) {
+  const entries = new Map<string, { projectId: string; profile?: string; values: Record<string, string> }>();
+  return {
+    async listProject(projectId: string) {
+      return {
+        projectId,
+        entries: [...entries.values()].filter((entry) => entry.projectId === projectId)
+      };
+    },
+    async set(request: { projectId: string; profile?: string; values: Record<string, string> }) {
+      const reservedKey = Object.keys(request.values).find((key) => key.startsWith("HIVEFORGE_"));
+      if (reservedKey) {
+        throw new Error(`Invalid runtime env key: ${reservedKey}`);
+      }
+      calls?.push({ setRuntimeEnv: request });
+      const key = `${request.projectId}/${request.profile ?? ""}`;
+      const entry = {
+        projectId: request.projectId,
+        ...(request.profile ? { profile: request.profile } : {}),
+        values: {
+          ...(entries.get(key)?.values ?? {}),
+          ...request.values
+        }
+      };
+      entries.set(key, entry);
+      return {
+        ...entry,
+        updatedKeys: Object.keys(request.values)
+      };
+    },
+    async unset(request: { projectId: string; profile?: string; keys: string[] }) {
+      const key = `${request.projectId}/${request.profile ?? ""}`;
+      const values = { ...(entries.get(key)?.values ?? {}) };
+      for (const envKey of request.keys) {
+        delete values[envKey];
+      }
+      const entry = {
+        projectId: request.projectId,
+        ...(request.profile ? { profile: request.profile } : {}),
+        values
+      };
+      if (Object.keys(values).length === 0) {
+        entries.delete(key);
+      } else {
+        entries.set(key, entry);
+      }
+      return {
+        ...entry,
+        removedKeys: request.keys
+      };
+    },
+    async resolve(scope: { projectId: string; profile?: string }) {
+      calls?.push({ resolveRuntimeEnv: scope });
+      return { IMAGE_TAG: "latest" };
     }
   } as never;
 }

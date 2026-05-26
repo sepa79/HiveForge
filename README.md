@@ -53,6 +53,10 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    cat /opt/hiveforge/auth-token
    ```
 
+   The install templates default `HIVEFORGE_HOST_BASE_DIR` to `/opt/hiveforge`
+   and `HIVEFORGE_HOST_DATA_ROOT` to `/opt/hiveforge/data`. Override both when
+   HiveForge data lives elsewhere.
+
    For Portainer or `docker stack deploy`, use
    [deploy/docker-stack.hiveforge.yml](deploy/docker-stack.hiveforge.yml)
    instead. See [First Swarm quickstart](docs/quickstart/first-swarm.md).
@@ -76,6 +80,7 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    inspect_repository
    register_project
    set_environment_project_policy
+   set_project_runtime_env
    inspect_project
    validate_requirements
    start_action
@@ -86,6 +91,8 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    `register_project` approves a repository/ref. `set_environment_project_policy`
    is a separate explicit operator decision that allows that registered project
    to run selected actions/profiles on the target environment.
+   `set_project_runtime_env` is only for non-secret runtime values that must
+   stay outside git; secrets are outside the current HiveForge contract.
 
 4. Deploy only projects that carry HiveForge manifests.
 

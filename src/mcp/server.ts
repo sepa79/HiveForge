@@ -9,6 +9,8 @@ import { HiveForgeApiClient } from "./api-client.js";
 import { createHiveForgeMcpRuntime } from "./runtime.js";
 
 const lifecycleAction = z.enum(["deploy", "remove", "purge", "update", "upgrade"]);
+const runtimeEnvValues = z.record(z.string().regex(/^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$/), z.string());
+const runtimeEnvKeys = z.array(z.string().regex(/^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$/)).min(1);
 const releaseVarsSchema = z.record(z.string().min(1), z.string());
 const releaseImageSchema = z.object({
   name: z.string().min(1),
@@ -139,6 +141,47 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
       }
     },
     runtime.setEnvironmentProjectPolicy
+  );
+
+  server.registerTool(
+    "list_project_runtime_env",
+    {
+      title: "List project runtime env",
+      description: "List non-secret runtime env entries stored outside git for one project.",
+      inputSchema: {
+        projectId: z.string().min(1)
+      }
+    },
+    runtime.listProjectRuntimeEnv
+  );
+
+  server.registerTool(
+    "set_project_runtime_env",
+    {
+      title: "Set project runtime env",
+      description:
+        "Set or update non-secret runtime env values for one project/profile scope. Do not use this for secrets.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        profile: z.string().min(1).optional(),
+        values: runtimeEnvValues
+      }
+    },
+    runtime.setProjectRuntimeEnv
+  );
+
+  server.registerTool(
+    "unset_project_runtime_env",
+    {
+      title: "Unset project runtime env",
+      description: "Remove non-secret runtime env keys from one project/profile scope.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        profile: z.string().min(1).optional(),
+        keys: runtimeEnvKeys
+      }
+    },
+    runtime.unsetProjectRuntimeEnv
   );
 
   server.registerTool(

@@ -49,12 +49,13 @@ Use MCP tools in this order:
 7. `register_project` only after inspection succeeds and the operator approves
 8. `set_environment_project_policy` only after the operator approves the
    environment, actions, and profiles for that project
-9. `inspect_project`
-10. `validate_requirements`
-11. `deploy_release` for release/image-tag prepare checks, or `start_action` for
+9. `set_project_runtime_env` for non-secret values that must stay outside git
+10. `inspect_project`
+11. `validate_requirements`
+12. `deploy_release` for release/image-tag prepare checks, or `start_action` for
    the current repo/ref POC lifecycle path
-12. `get_operation`
-13. `read_journal`
+13. `get_operation`
+14. `read_journal`
 
 `deploy_release` currently prepares and validates a release plan only. It does
 not build images, push images, or execute deployment actions. With `gitRef`, it
@@ -72,6 +73,7 @@ Before starting an action, confirm:
 - component,
 - action,
 - profile,
+- non-secret runtime env required by manifest `requirements.environment`,
 - git ref when using checkout-backed `deploy_release`,
 - release vars such as `release.imageTag` when using `deploy_release`,
 - registry vars such as `imageRepository.project` when using `deploy_release`,

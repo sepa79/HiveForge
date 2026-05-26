@@ -6,6 +6,9 @@ export interface ManagedFilesResult {
   projectDir: string;
   stackDir: string;
   artifactsDir: string;
+  projectHostDir?: string;
+  stackHostDir?: string;
+  artifactsHostDir?: string;
   prepared: Array<{
     name: string;
     source: string;
@@ -14,12 +17,18 @@ export interface ManagedFilesResult {
 }
 
 export class ManagedFilesService {
-  constructor(private readonly dataRoot: string) {}
+  constructor(
+    private readonly dataRoot: string,
+    private readonly hostDataRoot?: string
+  ) {}
 
   async prepare(request: { projectId: string; workspacePath: string; registry: ProjectRegistry }): Promise<ManagedFilesResult> {
     const projectDir = path.join(this.dataRoot, "deployed", request.projectId);
     const stackDir = path.join(projectDir, "stacks");
     const artifactsDir = path.join(projectDir, "artifacts");
+    const projectHostDir = this.hostDataRoot ? path.join(this.hostDataRoot, "deployed", request.projectId) : undefined;
+    const stackHostDir = projectHostDir ? path.join(projectHostDir, "stacks") : undefined;
+    const artifactsHostDir = projectHostDir ? path.join(projectHostDir, "artifacts") : undefined;
     const managedPaths = request.registry.artifacts?.managedPaths ?? [];
     assertManagedPathTargets(managedPaths);
 
@@ -41,7 +50,15 @@ export class ManagedFilesService {
       });
     }
 
-    return { projectDir, stackDir, artifactsDir, prepared };
+    return {
+      projectDir,
+      stackDir,
+      artifactsDir,
+      ...(projectHostDir ? { projectHostDir } : {}),
+      ...(stackHostDir ? { stackHostDir } : {}),
+      ...(artifactsHostDir ? { artifactsHostDir } : {}),
+      prepared
+    };
   }
 }
 
@@ -73,7 +90,10 @@ export function managedFilesEnvironment(result: ManagedFilesResult): NodeJS.Proc
   return {
     HIVEFORGE_PROJECT_DIR: result.projectDir,
     HIVEFORGE_STACK_DIR: result.stackDir,
-    HIVEFORGE_ARTIFACTS_DIR: result.artifactsDir
+    HIVEFORGE_ARTIFACTS_DIR: result.artifactsDir,
+    ...(result.projectHostDir ? { HIVEFORGE_PROJECT_HOST_DIR: result.projectHostDir } : {}),
+    ...(result.stackHostDir ? { HIVEFORGE_STACK_HOST_DIR: result.stackHostDir } : {}),
+    ...(result.artifactsHostDir ? { HIVEFORGE_ARTIFACTS_HOST_DIR: result.artifactsHostDir } : {})
   };
 }
 

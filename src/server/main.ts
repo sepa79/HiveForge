@@ -4,6 +4,7 @@ import { EnvironmentPolicyService } from "../config/environment-policy.js";
 import { EnvironmentPolicyEditor } from "../config/environment-policy-editor.js";
 import { loadEnvironmentConfig } from "../config/environment-loader.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
+import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { SystemClock } from "../operation/clock.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
@@ -34,6 +35,7 @@ interface ServerOptions {
   workspace?: string;
   journal?: string;
   dataRoot?: string;
+  hostDataRoot?: string;
 }
 
 const serverOptions = parseServerOptions(process.argv.slice(2));
@@ -44,6 +46,7 @@ const runtimePaths = await resolveRuntimePaths({
   workspace: serverOptions.workspace ?? process.env.HIVEFORGE_WORKSPACE_DIR,
   journal: serverOptions.journal ?? process.env.HIVEFORGE_JOURNAL_DIR,
   dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT,
+  hostDataRoot: serverOptions.hostDataRoot ?? process.env.HIVEFORGE_HOST_DATA_ROOT,
   requireEnvironments: true
 });
 const auth = await resolveAuthToken({
@@ -60,12 +63,15 @@ const environmentsPath = required(runtimePaths.environments, "--environments");
 const workspaceRoot = runtimePaths.workspace;
 const journalDir = runtimePaths.journal;
 const dataRoot = runtimePaths.dataRoot;
+const hostDataRoot = runtimePaths.hostDataRoot;
+const runtimeEnvPath = runtimePaths.runtimeEnv;
 const port = Number.parseInt(process.env.HIVEFORGE_PORT ?? "3000", 10);
 const host = process.env.HIVEFORGE_BIND_HOST ?? "127.0.0.1";
 
 const projectRegistry = await loadProjectRegistryConfig(projectRegistryPath);
 const environmentConfig = await loadEnvironmentConfig(environmentsPath);
 const journal = new JsonlJournal(journalDir);
+const runtimeEnv = new RuntimeEnvStore(runtimeEnvPath);
 const ids = new UuidGenerator();
 const clock = new SystemClock();
 const commandRunner = new NodeCommandRunner();
@@ -78,14 +84,14 @@ const validation = new ProjectValidationService(
   clock
 );
 const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
-const managedFiles = new ManagedFilesService(dataRoot);
+const managedFiles = new ManagedFilesService(dataRoot, hostDataRoot);
 const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner);
 const projectRegistration = new ProjectRegistrationService(projectRegistryPath, projectRegistry, repositoryInspection);
 const currentEnvironment = environmentConfig.environments.find((environment) => environment.id === environmentConfig.current);
 if (!currentEnvironment) {
   throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
 }
-const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment);
+const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment, runtimeEnv);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
 const releaseDeploy = new ReleaseDeployService({
@@ -109,9 +115,11 @@ createHttpServer(
       deploy,
       releaseDeploy,
       currentEnvironmentId: currentEnvironment.id,
+      currentEnvironment,
       environmentPolicy,
       deploymentInventory,
       operations,
+      runtimeEnv,
       repositoryInspection,
       projectRegistration,
       environmentPolicyEditor,
@@ -154,6 +162,9 @@ function parseServerOptions(args: string[]): ServerOptions {
         break;
       case "--data-root":
         options.dataRoot = value;
+        break;
+      case "--host-data-root":
+        options.hostDataRoot = value;
         break;
       default:
         throw new Error(`Unknown option: ${key}`);

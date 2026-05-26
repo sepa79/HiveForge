@@ -23,11 +23,14 @@ checked-out playbooks, but it must not be required to provide Ansible.
 The preferred container install uses one mounted HiveForge base directory:
 
 - `HIVEFORGE_BASE_DIR=/hf`
-- host mount, for example `./:/hf`
+- host mount, for example `/opt/hiveforge:/hf`
+- `HIVEFORGE_HOST_DATA_ROOT=/opt/hiveforge/data` when actions need
+  host-visible managed paths for Docker bind mounts
 
 For Swarm stack and Portainer installs, the base directory should be backed by a
-named volume mounted at `/hf`. Relative host bind mounts such as `./:/hf` are
-only for `docker compose up` on one known manager node.
+host bind or shared filesystem mounted at `/hf`. Relative host bind mounts such
+as `./:/hf` are only for `docker compose up` on one known manager node and do
+not provide a portable host-visible path contract.
 
 This mode is mutually exclusive with explicit runtime paths. HiveForge
 initializes missing runtime files and directories under the base directory:
@@ -41,6 +44,7 @@ initializes missing runtime files and directories under the base directory:
   journal/
     operations.jsonl
   data/
+    runtime-env.json
 ```
 
 The generated `projects.yaml` contains:
@@ -69,7 +73,11 @@ Explicit runtime path mode remains supported for advanced installs:
 - `HIVEFORGE_ENVIRONMENTS_PATH` for environment policy config,
 - `HIVEFORGE_WORKSPACE_DIR` for checked-out repositories,
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
-- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files.
+- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files and non-secret
+  runtime env config.
+- `HIVEFORGE_HOST_DATA_ROOT` for the same managed data root as seen by the
+  target Docker daemon. This is required only for actions that render bind
+  mounts into Docker Compose or Stack files.
 
 The published runtime image starts the REST/UI server by default:
 
@@ -96,6 +104,16 @@ project managed tree is:
 ```text
 <HIVEFORGE_DATA_ROOT>/deployed/<projectId>/
 ```
+
+When `HIVEFORGE_HOST_DATA_ROOT` is configured, the host-visible equivalent is:
+
+```text
+<HIVEFORGE_HOST_DATA_ROOT>/deployed/<projectId>/
+```
+
+HiveForge passes both forms to actions. It does not infer one from the other.
+If an action needs host bind sources and no host data root is configured, the
+action must fail rather than substituting the container path.
 
 Managed artifact targets are always relative to that project directory.
 HiveForge does not create or repair host mount points outside its configured

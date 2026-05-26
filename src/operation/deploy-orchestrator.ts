@@ -3,8 +3,7 @@ import type { ProjectInspectionResult, ProjectInspectionService } from "./projec
 import type { ProjectValidationResult, ProjectValidationService } from "./project-validation-service.js";
 import { managedFilesEnvironment, type ManagedFilesResult, type ManagedFilesService } from "./managed-files-service.js";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
-import { assertProfileEligible } from "../config/profile-eligibility.js";
-import type { ProjectProfile } from "../manifest/manifest-types.js";
+import type { RuntimeEnvScope } from "../config/runtime-env-store.js";
 
 export interface DeployRequest {
   projectId: string;
@@ -31,13 +30,18 @@ export interface DeployResult {
   action: ProjectActionResult;
 }
 
+export interface RuntimeEnvProvider {
+  resolve(scope: RuntimeEnvScope): Promise<NodeJS.ProcessEnv>;
+}
+
 export class DeployOrchestrator {
   constructor(
     private readonly inspectionService: ProjectInspectionService,
     private readonly validationService: ProjectValidationService,
     private readonly actionService: ProjectActionService,
     private readonly managedFilesService?: ManagedFilesService,
-    private readonly environment?: EnvironmentDefinition
+    private readonly environment?: EnvironmentDefinition,
+    private readonly runtimeEnv?: RuntimeEnvProvider
   ) {}
 
   async deploy(request: DeployRequest): Promise<DeployResult> {
@@ -55,10 +59,12 @@ export class DeployOrchestrator {
       status: "succeeded",
       message: `Loaded ${inspection.registry.components.length} component(s)`
     });
-    const profile = selectProfile(inspection.registry.project.profiles, request.profile, this.environment);
-    if (profile && this.environment) {
-      assertProfileEligible(this.environment, profile);
-    }
+    const resolvedRuntimeEnv = this.runtimeEnv
+      ? await this.runtimeEnv.resolve({
+          projectId: inspection.projectId,
+          ...(request.profile ? { profile: request.profile } : {})
+        })
+      : {};
 
     request.progress?.({
       stage: "validate",
@@ -70,7 +76,9 @@ export class DeployOrchestrator {
       repository: inspection.repository,
       gitRef: inspection.gitRef,
       registry: inspection.registry,
-      environment: request.profile ? { HIVEFORGE_PROFILE: request.profile } : {}
+      environment: actionEnvironment(resolvedRuntimeEnv, undefined, request.profile),
+      deploymentEnvironment: this.environment,
+      profile: request.profile
     });
     request.progress?.({
       stage: "validate",
@@ -111,7 +119,7 @@ export class DeployOrchestrator {
       action: request.action,
       environmentId: request.environmentId,
       profile: request.profile,
-      environment: managedFiles ? managedFilesEnvironment(managedFiles) : {}
+      environment: actionEnvironment(resolvedRuntimeEnv, managedFiles, request.profile)
     });
     request.progress?.({
       stage: "action",
@@ -123,24 +131,14 @@ export class DeployOrchestrator {
   }
 }
 
-function selectProfile(
-  profiles: ProjectProfile[] | undefined,
-  profileId: string | undefined,
-  environment: EnvironmentDefinition | undefined
-): ProjectProfile | undefined {
-  if (!profiles?.length) {
-    return undefined;
-  }
-  if (!profileId) {
-    if (!environment) {
-      return undefined;
-    }
-    throw new Error("Missing required profile for profile eligibility validation");
-  }
-
-  const profile = profiles.find((candidate) => candidate.id === profileId);
-  if (!profile) {
-    throw new Error(`Project manifest does not declare profile: ${profileId}`);
-  }
-  return profile;
+function actionEnvironment(
+  runtimeEnv: NodeJS.ProcessEnv,
+  managedFiles: ManagedFilesResult | undefined,
+  profile: string | undefined
+): NodeJS.ProcessEnv {
+  return {
+    ...runtimeEnv,
+    ...(managedFiles ? managedFilesEnvironment(managedFiles) : {}),
+    ...(profile ? { HIVEFORGE_PROFILE: profile } : {})
+  };
 }

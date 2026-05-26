@@ -15,8 +15,10 @@ The POC deploy flow is:
 
 1. checkout registered project ref,
 2. inspect root and component manifests,
-3. validate declared runtime requirements,
-4. run the declared component lifecycle action.
+3. resolve non-secret runtime env for the selected project/profile,
+4. validate selected profile eligibility for the current environment and
+   declared runtime requirements,
+5. run the declared component lifecycle action.
 
 Each step is explicit and journaled by its service. A failed step stops the flow;
 later steps do not run.

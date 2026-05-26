@@ -35,15 +35,30 @@ the exact relative path declared by the component manifest.
 
 ## Variable Contract
 
-The POC runner currently passes only the process environment plus
-`HIVEFORGE_PROFILE` when a profile is selected. This is not enough for real
-Docker/Proxmox deployment actions.
+The POC runner inherits the HiveForge process environment and receives resolved
+non-secret runtime env from `docs/specs/runtime-env.md`.
 
 When managed files are configured, HiveForge also passes:
 
-- `HIVEFORGE_PROJECT_DIR` - project managed tree under `HIVEFORGE_DATA_ROOT`,
+- `HIVEFORGE_PROJECT_DIR` - project managed tree inside the HiveForge runtime,
+  under `HIVEFORGE_DATA_ROOT`,
 - `HIVEFORGE_STACK_DIR` - `<HIVEFORGE_PROJECT_DIR>/stacks`,
 - `HIVEFORGE_ARTIFACTS_DIR` - `<HIVEFORGE_PROJECT_DIR>/artifacts`.
+
+When `HIVEFORGE_HOST_DATA_ROOT` is configured, HiveForge also passes
+host-visible managed paths for Docker bind sources:
+
+- `HIVEFORGE_PROJECT_HOST_DIR` - project managed tree as seen by the target
+  Docker daemon,
+- `HIVEFORGE_STACK_HOST_DIR` - `<HIVEFORGE_PROJECT_HOST_DIR>/stacks`,
+- `HIVEFORGE_ARTIFACTS_HOST_DIR` - `<HIVEFORGE_PROJECT_HOST_DIR>/artifacts`.
+
+Actions that read prepared files from inside the HiveForge container must use
+the non-host variables. Actions that render Docker Compose or Stack bind
+sources must use the host variables and fail explicitly when they are absent.
+
+When a profile is selected, HiveForge passes `HIVEFORGE_PROFILE`. Operator
+runtime env must not define `HIVEFORGE_*` keys.
 
 For the target managed-service release contract in `docs/specs/releases.md`, the
 Ansible adapter contract needs an explicit, typed variable surface for:

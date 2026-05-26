@@ -70,6 +70,26 @@ export function assertProfileEligible(environment: EnvironmentDefinition, profil
   }
 }
 
+export function assertProjectProfileEligible(
+  environment: EnvironmentDefinition | undefined,
+  profiles: ProjectProfile[] | undefined,
+  profileId: string | undefined
+): void {
+  if (!environment || !profiles?.length) {
+    return;
+  }
+  if (!profileId) {
+    throw new Error("Missing required profile for profile eligibility validation");
+  }
+
+  const profile = profiles.find((candidate) => candidate.id === profileId);
+  if (!profile) {
+    throw new Error(`Project manifest does not declare profile: ${profileId}`);
+  }
+
+  assertProfileEligible(environment, profile);
+}
+
 function evaluateManagedRootRequirement(
   environment: EnvironmentDefinition,
   profile: ProjectProfile

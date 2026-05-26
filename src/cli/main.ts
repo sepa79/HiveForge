@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { AnsibleRunner } from "../action/ansible-runner.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
+import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import { managedFilesEnvironment, ManagedFilesService } from "../operation/managed-files-service.js";
@@ -46,12 +47,16 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   if (command === "validate") {
     const inspection = await context.inspection.inspect(requiredProjectRef(options));
+    const runtimeEnv = await context.runtimeEnv.resolve(runtimeEnvScope(inspection.projectId, options.profile));
     const result = await context.validation.validate({
       projectId: inspection.projectId,
       repository: inspection.repository,
       gitRef: inspection.gitRef,
       registry: inspection.registry,
-      environment: options.profile ? { HIVEFORGE_PROFILE: options.profile } : {}
+      environment: {
+        ...runtimeEnv,
+        ...(options.profile ? { HIVEFORGE_PROFILE: options.profile } : {})
+      }
     });
     writeJson(result);
     return;
@@ -59,11 +64,16 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   if (command === "run-action") {
     const inspection = await context.inspection.inspect(requiredProjectRef(options));
+    const runtimeEnv = await context.runtimeEnv.resolve(runtimeEnvScope(inspection.projectId, options.profile));
     await context.validation.validate({
       projectId: inspection.projectId,
       repository: inspection.repository,
       gitRef: inspection.gitRef,
-      registry: inspection.registry
+      registry: inspection.registry,
+      environment: {
+        ...runtimeEnv,
+        ...(options.profile ? { HIVEFORGE_PROFILE: options.profile } : {})
+      }
     });
     const managedFiles = await context.managedFiles.prepare({
       projectId: inspection.projectId,
@@ -79,7 +89,10 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       component: required(options.component, "--component"),
       action: required(options.action, "--action"),
       profile: options.profile,
-      environment: managedFilesEnvironment(managedFiles)
+      environment: {
+        ...runtimeEnv,
+        ...managedFilesEnvironment(managedFiles)
+      }
     });
     writeJson(result);
     return;
@@ -165,6 +178,7 @@ async function buildContext(options: CliOptions) {
   const workspaceRoot = runtimePaths.workspace;
   const journal = new JsonlJournal(runtimePaths.journal);
   const dataRoot = runtimePaths.dataRoot;
+  const runtimeEnv = new RuntimeEnvStore(runtimePaths.runtimeEnv);
   const ids = new UuidGenerator();
   const clock = new SystemClock();
   const commandRunner = new NodeCommandRunner();
@@ -184,8 +198,16 @@ async function buildContext(options: CliOptions) {
     inspection,
     validation,
     action,
+    runtimeEnv,
     managedFiles,
-    deploy: new DeployOrchestrator(inspection, validation, action, managedFiles)
+    deploy: new DeployOrchestrator(inspection, validation, action, managedFiles, undefined, runtimeEnv)
+  };
+}
+
+function runtimeEnvScope(projectId: string, profile: string | undefined) {
+  return {
+    projectId,
+    ...(profile ? { profile } : {})
   };
 }
 

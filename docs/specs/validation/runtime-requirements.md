@@ -7,8 +7,9 @@ Draft POC contract.
 ## Rule
 
 Before running a declared action, HiveForge validates requirements declared in
-the component manifest:
+the selected project/profile and component manifest:
 
+- profile eligibility for the current environment,
 - Docker volumes,
 - Docker secrets,
 - environment variables,
@@ -17,6 +18,16 @@ the component manifest:
 Missing requirements are explicit failures. HiveForge does not create missing
 resources during validation and does not fall back to alternate names or adapter
 behavior.
+
+When a project manifest declares profiles and HiveForge knows the current
+environment, the selected profile must be explicit and eligible for that
+environment before component requirements are considered. Ineligible profile
+runtime, managed-root, or capability requirements are validation failures and
+are recorded as `validate_requirements` failures.
+
+Environment variable requirements can be satisfied by the HiveForge process
+environment or by resolved non-secret runtime env from
+`docs/specs/runtime-env.md`.
 
 ## Docker Probe
 

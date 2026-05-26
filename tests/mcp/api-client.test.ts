@@ -150,6 +150,48 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("manages project runtime env through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { projectId: "hivewatch", entries: [] });
+      }
+    });
+
+    await client.listProjectRuntimeEnv({ projectId: "hivewatch" });
+    await client.setProjectRuntimeEnv({
+      projectId: "hivewatch",
+      profile: "test",
+      values: { IMAGE_TAG: "latest" }
+    });
+    await client.unsetProjectRuntimeEnv({
+      projectId: "hivewatch",
+      profile: "test",
+      keys: ["IMAGE_TAG"]
+    });
+
+    expect(calls.map((call) => ({ url: call.url, method: call.init.method, body: call.init.body }))).toEqual([
+      {
+        url: "http://127.0.0.1:3000/projects/hivewatch/runtime-env",
+        method: "GET",
+        body: undefined
+      },
+      {
+        url: "http://127.0.0.1:3000/projects/hivewatch/runtime-env",
+        method: "PUT",
+        body: JSON.stringify({ profile: "test", values: { IMAGE_TAG: "latest" } })
+      },
+      {
+        url: "http://127.0.0.1:3000/projects/hivewatch/runtime-env/unset",
+        method: "POST",
+        body: JSON.stringify({ profile: "test", keys: ["IMAGE_TAG"] })
+      }
+    ]);
+  });
+
   it("prepares release deployments through the internal release endpoint", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({

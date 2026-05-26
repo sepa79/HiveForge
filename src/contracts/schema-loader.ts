@@ -18,6 +18,7 @@ export const schemaPaths = {
   manifest: path.join(SCHEMA_ROOT, "manifest.schema.json"),
   projectRegistry: path.join(SCHEMA_ROOT, "config/project-registry.schema.json"),
   environments: path.join(SCHEMA_ROOT, "config/environments.schema.json"),
+  runtimeEnv: path.join(SCHEMA_ROOT, "config/runtime-env.schema.json"),
   journalEvent: path.join(SCHEMA_ROOT, "journal/event.schema.json")
 } as const;
 

@@ -39,6 +39,7 @@ Use it for:
 | `journal/event.schema.json` | Append-only operation journal event contract. | Draft |
 | `journal/jsonl.md` | POC JSONL journal storage contract. | Draft |
 | `runtime-container.md` | Self-contained deploy container runtime contract. | Draft |
+| `runtime-env.md` | Non-secret runtime environment variable storage and injection contract. | Draft |
 | `validation/runtime-requirements.md` | Runtime requirement validation contract. | Draft |
 | `profiles.md` | Deployment profile contract. | Draft |
 | `actions/lifecycle.md` | Canonical deployment lifecycle action contract. | Draft |
@@ -59,6 +60,7 @@ docs/specs/
   api/
   config/
     project-registry.schema.json
+    runtime-env.schema.json
   integrations/
   journal/
     event.schema.json

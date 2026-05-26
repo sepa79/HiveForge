@@ -44,7 +44,9 @@ docker exec <container-id> cat /hf/auth-token
 ```
 
 The stack template uses a named volume and constrains HiveForge to manager
-nodes. Do not use the single-node Compose file as a Portainer Swarm stack.
+The stack template uses an absolute host bind at `/opt/hiveforge` by default
+and constrains HiveForge to manager nodes. Do not use the single-node Compose
+file as a Portainer Swarm stack.
 
 Check process health:
 
@@ -111,6 +113,24 @@ set_environment_project_policy(
 Do the same for HiveMind with its documented profiles and lifecycle actions.
 Do not guess profiles or actions; use the project manifest and operator intent.
 
+## Configure Non-Secret Runtime Env
+
+If the project requires environment variables that are not secrets and should
+not be committed to git, set them before validation:
+
+```text
+set_project_runtime_env(
+  projectId="hivewatch",
+  profile="normal",
+  values={
+    "IMAGE_TAG": "latest"
+  }
+)
+```
+
+Do not use runtime env for passwords, API tokens, private keys, or other secret
+values. Secrets are outside the current HiveForge contract.
+
 ## Validate And Deploy
 
 Inspect and validate before any action:
@@ -144,7 +164,8 @@ gap.
 
 ## Current Gaps
 
-- Runtime secret/private config provisioning is proposed but not implemented.
+- Runtime env supports non-secret values only; secret provisioning is not
+  implemented.
 - `deploy_release` prepares release plans but does not execute release actions.
 - External HiveWatch/HiveMind repositories must carry their own HiveForge
   manifests before they can be deployed by this flow.

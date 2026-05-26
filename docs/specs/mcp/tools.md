@@ -208,6 +208,60 @@ provision secrets, infer profiles, or run project actions.
 
 Output: environment id and the saved project policy.
 
+### `list_project_runtime_env`
+
+Input:
+
+```json
+{
+  "projectId": "hivewatch"
+}
+```
+
+Behavior: list non-secret runtime env entries stored outside the project
+repository for one registered project. Values are returned because this is not a
+secret store.
+
+Output: project id and scoped runtime env entries.
+
+### `set_project_runtime_env`
+
+Input:
+
+```json
+{
+  "projectId": "hivewatch",
+  "profile": "test",
+  "values": {
+    "IMAGE_TAG": "latest",
+    "PUBLIC_URL": "http://192.0.2.10:18180"
+  }
+}
+```
+
+Behavior: set or update non-secret runtime env values for the exact
+project/profile scope. `profile` is optional. Keys must be uppercase env names
+and must not start with `HIVEFORGE_`.
+
+Output: updated entry values and changed key names.
+
+### `unset_project_runtime_env`
+
+Input:
+
+```json
+{
+  "projectId": "hivewatch",
+  "profile": "test",
+  "keys": ["IMAGE_TAG"]
+}
+```
+
+Behavior: remove non-secret runtime env keys from the exact project/profile
+scope.
+
+Output: remaining entry values and removed key names.
+
 ### `inspect_project`
 
 Input:
@@ -234,9 +288,14 @@ Input:
 }
 ```
 
-Behavior: checkout, inspect, and validate declared requirements.
+Behavior: checkout, inspect, and validate the selected profile against the
+current HiveForge environment, then validate declared requirements.
+Resolved runtime env for the selected project/profile can satisfy manifest
+`requirements.environment` entries.
 
-Output: operation ID, `ok`, and validation issues.
+Output: operation ID, `ok`, and validation issues. Ineligible profiles are
+explicit validation failures; for example a `docker-swarm` profile is rejected
+on a `docker-single` environment before an action can start.
 
 ### `start_action`
 
@@ -257,6 +316,8 @@ Behavior: start checkout, inspect, validate, then run the declared action.
 `profile` is optional at the tool contract level, but projects may declare it as
 a required environment variable. Environment policy may also require and limit
 profiles.
+Resolved runtime env for the selected project/profile is passed into validation
+and the declared action process.
 
 Output: operation ID, status, and current logs. Use `get_operation` to poll live
 logs and final stdout/stderr.

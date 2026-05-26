@@ -32,14 +32,16 @@ more than one runtime.
 
 | Value | Meaning |
 |---|---|
-| `managedRoot.shared` | Whether the configured HiveForge managed data root is shared across every runtime node that may run the selected profile. The real path comes from `HIVEFORGE_DATA_ROOT`, not from project profiles. |
+| `managedRoot.shared` | Whether the configured HiveForge managed data root is shared across every runtime node that may run the selected profile. Container paths come from `HIVEFORGE_DATA_ROOT`; host-visible bind paths come from `HIVEFORGE_HOST_DATA_ROOT` when configured. Project profiles never declare those paths. |
 | `managedRoot.nodes` | Explicit node names where a non-shared managed root is available. Required when `managedRoot.shared` is `false`. |
 | `placement` | The environment supports explicit runtime placement constraints. |
 
 ## Managed Root
 
 The current contract has exactly one HiveForge-managed root per environment. The
-root is configured as `HIVEFORGE_DATA_ROOT` for the HiveForge service.
+container root is configured as `HIVEFORGE_DATA_ROOT` for the HiveForge service.
+When Docker bind mounts need host-visible paths, the matching host root is
+configured explicitly as `HIVEFORGE_HOST_DATA_ROOT`.
 
 Projects may require a shared root:
 

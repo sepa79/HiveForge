@@ -13,6 +13,8 @@ import type { ProjectValidationService } from "../operation/project-validation-s
 import type { HiveForgeInfo } from "../app-info.js";
 import type { ReleaseDeployOperationRequest } from "../release/release-deploy-service.js";
 import type { ReleaseImageTemplate } from "../release/release-deploy-contract.js";
+import type { EnvironmentDefinition } from "../config/environment-types.js";
+import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
@@ -29,9 +31,11 @@ export interface RestApiServices {
     prepare(request: ReleaseDeployOperationRequest): Promise<unknown>;
   };
   currentEnvironmentId?: string;
+  currentEnvironment?: EnvironmentDefinition;
   environmentPolicy?: EnvironmentPolicyService;
   deploymentInventory?: DeploymentInventoryService;
   operations?: OperationLogService;
+  runtimeEnv?: RuntimeEnvStore;
   repositoryInspection?: {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
@@ -151,6 +155,57 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       }
     },
     {
+      method: "GET",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/runtime-env$/,
+      async handle({ params }) {
+        if (!services.runtimeEnv) {
+          throw new HttpError(501, "Runtime env config is not configured");
+        }
+        assertRegisteredProject(services, params.projectId);
+        return services.runtimeEnv.listProject(params.projectId);
+      }
+    },
+    {
+      method: "PUT",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/runtime-env$/,
+      async handle({ request, params }) {
+        if (!services.runtimeEnv) {
+          throw new HttpError(501, "Runtime env config is not configured");
+        }
+        assertRegisteredProject(services, params.projectId);
+        const body = await readRuntimeEnvSetRequest(request);
+        try {
+          return await services.runtimeEnv.set({
+            projectId: params.projectId,
+            ...(body.profile ? { profile: body.profile } : {}),
+            values: body.values
+          });
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Runtime env update failed");
+        }
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/runtime-env\/unset$/,
+      async handle({ request, params }) {
+        if (!services.runtimeEnv) {
+          throw new HttpError(501, "Runtime env config is not configured");
+        }
+        assertRegisteredProject(services, params.projectId);
+        const body = await readRuntimeEnvUnsetRequest(request);
+        try {
+          return await services.runtimeEnv.unset({
+            projectId: params.projectId,
+            ...(body.profile ? { profile: body.profile } : {}),
+            keys: body.keys
+          });
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Runtime env update failed");
+        }
+      }
+    },
+    {
       method: "PUT",
       pattern: /^\/environments\/(?<environmentId>[a-z][a-z0-9-]*)\/policy\/projects\/(?<projectId>[a-z][a-z0-9-]*)$/,
       async handle({ request, params }) {
@@ -193,22 +248,37 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/validate$/,
       async handle({ request, params }) {
         const body = await readProfiledRefRequest(request);
+        const runtimeEnv = services.runtimeEnv
+          ? await services.runtimeEnv.resolve({
+              projectId: params.projectId,
+              ...(body.profile ? { profile: body.profile } : {})
+            })
+          : {};
         const inspection = await services.inspection.inspect({
           projectId: params.projectId,
           gitRef: body.gitRef
         });
-        const validation = await services.validation.validate({
-          projectId: inspection.projectId,
-          repository: inspection.repository,
-          gitRef: inspection.gitRef,
-          registry: inspection.registry,
-          environment: body.profile ? { HIVEFORGE_PROFILE: body.profile } : {}
-        });
-        return {
-          operationId: validation.operationId,
-          ok: validation.report.ok,
-          issues: validation.report.issues
-        };
+        try {
+          const validation = await services.validation.validate({
+            projectId: inspection.projectId,
+            repository: inspection.repository,
+            gitRef: inspection.gitRef,
+            registry: inspection.registry,
+            environment: {
+              ...runtimeEnv,
+              ...(body.profile ? { HIVEFORGE_PROFILE: body.profile } : {})
+            },
+            deploymentEnvironment: services.currentEnvironment,
+            profile: body.profile
+          });
+          return {
+            operationId: validation.operationId,
+            ok: validation.report.ok,
+            issues: validation.report.issues
+          };
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Requirement validation failed");
+        }
       }
     },
     {
@@ -317,6 +387,12 @@ function assertEnvironmentPolicy(
   }
 }
 
+function assertRegisteredProject(services: RestApiServices, projectId: string): void {
+  if (!services.projectRegistry.projects.some((project) => project.id === projectId)) {
+    throw new HttpError(404, `Project is not registered: ${projectId}`);
+  }
+}
+
 async function readRefRequest(request: Parameters<typeof readJsonBody>[0]): Promise<{ gitRef: string }> {
   const body = await readJsonBody(request);
   if (!isObject(body) || typeof body.gitRef !== "string" || body.gitRef.length === 0) {
@@ -358,6 +434,44 @@ async function readRepositoryInspectionRequest(
   return {
     repository: body.repository,
     gitRef: body.gitRef
+  };
+}
+
+async function readRuntimeEnvSetRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<{ profile?: string; values: Record<string, string> }> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid runtime env request body");
+  }
+  if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
+    throw new HttpError(400, "Invalid field: profile");
+  }
+  if (!isStringRecord(body.values)) {
+    throw new HttpError(400, "Invalid field: values");
+  }
+  return {
+    ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
+    values: body.values
+  };
+}
+
+async function readRuntimeEnvUnsetRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<{ profile?: string; keys: string[] }> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid runtime env request body");
+  }
+  if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
+    throw new HttpError(400, "Invalid field: profile");
+  }
+  if (!Array.isArray(body.keys) || body.keys.length === 0) {
+    throw new HttpError(400, "Missing required field: keys");
+  }
+  return {
+    ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
+    keys: readStringArray(body.keys, "keys")
   };
 }
 

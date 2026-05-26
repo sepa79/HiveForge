@@ -19,6 +19,11 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
       actions: string[];
       profiles?: string[];
     }) => call(() => apiClient.setEnvironmentProjectPolicy(input)),
+    listProjectRuntimeEnv: (input: { projectId: string }) => call(() => apiClient.listProjectRuntimeEnv(input)),
+    setProjectRuntimeEnv: (input: { projectId: string; profile?: string; values: Record<string, string> }) =>
+      call(() => apiClient.setProjectRuntimeEnv(input)),
+    unsetProjectRuntimeEnv: (input: { projectId: string; profile?: string; keys: string[] }) =>
+      call(() => apiClient.unsetProjectRuntimeEnv(input)),
     inspectProject: (input: { projectId: string; gitRef: string }) => call(() => apiClient.inspectProject(input)),
     validateRequirements: (input: { projectId: string; gitRef: string; profile?: string }) =>
       call(() => apiClient.validateRequirements(input)),

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hiveforge.local/specs/config/runtime-env.schema.json",
+  "title": "HiveForge runtime environment config",
+  "description": "Non-secret runtime environment variables managed outside project repositories.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "entries"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/runtimeEnvEntry"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "envName": {
+      "type": "string",
+      "pattern": "^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$"
+    },
+    "runtimeEnvEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectId", "values"],
+      "properties": {
+        "projectId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "profile": {
+          "$ref": "#/$defs/identifier"
+        },
+        "values": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/envName"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

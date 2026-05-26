@@ -1,7 +1,8 @@
 # Install HiveForge With Docker Compose Or Swarm
 
 HiveForge installs into one operator-owned directory. The container mounts that
-directory at `/hf` and initializes missing runtime files there on first start.
+directory at `/hf`, records the matching host-visible data root, and initializes
+missing runtime files there on first start.
 
 ## Docker Compose On One Swarm Manager
 
@@ -18,8 +19,9 @@ HiveForge runtime files directly under `/opt/hiveforge`.
 ## Swarm Stack / Portainer
 
 Use `deploy/docker-stack.hiveforge.yml` when you want to paste a stack into
-Portainer or run `docker stack deploy`. This variant uses a named volume instead
-of `./:/hf`, because relative bind mounts are not portable in Swarm stacks.
+Portainer or run `docker stack deploy`. This variant uses an absolute bind mount
+instead of `./:/hf`, because relative bind mounts are not portable in Swarm
+stacks.
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-stack.hiveforge.yml
@@ -29,6 +31,8 @@ docker stack deploy -c docker-stack.hiveforge.yml hiveforge
 For Portainer, paste the contents of
 `deploy/docker-stack.hiveforge.yml` as a Swarm stack. The service is constrained
 to manager nodes because it mounts `/var/run/docker.sock`.
+Override `HIVEFORGE_HOST_BASE_DIR` and `HIVEFORGE_HOST_DATA_ROOT` only when the
+host path is not `/opt/hiveforge`.
 
 Read the generated token from the running task:
 
@@ -56,8 +60,8 @@ Read the generated token on the host:
 cat /opt/hiveforge/auth-token
 ```
 
-For Swarm stack installs, the token is inside the `hiveforge-data` named volume.
-Use the `docker exec` command above unless you intentionally provide
+For Swarm stack installs, the token is also under the configured host base dir,
+for example `/opt/hiveforge/auth-token`, unless you intentionally provide
 `HIVEFORGE_AUTH_TOKEN`.
 
 API and MCP clients use it as a bearer token. The UI shell loads without auth,
@@ -145,11 +149,15 @@ HiveForge creates missing runtime files, but does not overwrite existing files:
   `policy.projects: []`,
 - `workspace/` stores checked-out repositories,
 - `journal/operations.jsonl` stores operation history,
-- `data/` stores HiveForge-managed deployment files,
+- `data/` stores HiveForge-managed deployment files and
+  `runtime-env.json` non-secret runtime env config,
 - `auth-token` is created only when no `HIVEFORGE_AUTH_TOKEN` is supplied.
 
 No project can be deployed until an operator explicitly registers or configures
 project registry and environment policy entries.
+
+Non-secret project runtime env is stored in `data/runtime-env.json` and is
+managed through REST/MCP. Do not put secrets in this file.
 
 ## Docker Access
 

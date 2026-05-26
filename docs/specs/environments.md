@@ -56,7 +56,9 @@ capabilities:
 ```
 
 `managedRoot` means the environment-local HiveForge service has one configured
-`HIVEFORGE_DATA_ROOT`. The real path is not part of the project contract.
+managed data root. The container path comes from `HIVEFORGE_DATA_ROOT`; the
+host-visible path for Docker bind sources comes from `HIVEFORGE_HOST_DATA_ROOT`
+when the install provides it. Project manifests do not declare those paths.
 HiveForge does not create arbitrary host mount points.
 
 `managedRoot.shared: true` means the root is available to every node that may

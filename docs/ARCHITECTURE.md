@@ -116,6 +116,8 @@ Canonical specs live under `docs/specs/`.
 - `docs/specs/journal/event.schema.json` is the SSOT for operation journal
   events.
 - `docs/specs/journal/jsonl.md` defines the POC journal storage backend.
+- `docs/specs/runtime-env.md` defines non-secret runtime environment config
+  stored outside project repositories and injected into validation/actions.
 - `docs/specs/validation/runtime-requirements.md` defines runtime requirement
   validation.
 - `docs/specs/actions/ansible.md` defines the POC Ansible action runner.
@@ -131,6 +133,7 @@ environment with access to:
 
 - a configured workspace directory,
 - a configured journal directory,
+- a configured data root that stores non-secret runtime env config,
 - git network access for registered repositories,
 - the target Docker/Swarm control surface required by project playbooks.
 

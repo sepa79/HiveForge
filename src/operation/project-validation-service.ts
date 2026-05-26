@@ -2,6 +2,8 @@ import type { Journal } from "../journal/journal.js";
 import type { ProjectRegistry } from "../manifest/manifest-types.js";
 import type { RequirementValidationReport } from "../validation/requirement-validator.js";
 import { RequirementValidationError, RequirementValidator } from "../validation/requirement-validator.js";
+import type { EnvironmentDefinition } from "../config/environment-types.js";
+import { assertProjectProfileEligible } from "../config/profile-eligibility.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
 
@@ -11,6 +13,8 @@ export interface ProjectValidationRequest {
   gitRef: string;
   registry: ProjectRegistry;
   environment?: NodeJS.ProcessEnv;
+  deploymentEnvironment?: EnvironmentDefinition;
+  profile?: string;
 }
 
 export interface ProjectValidationResult {
@@ -31,6 +35,11 @@ export class ProjectValidationService {
     const startedAt = this.clock.now().toISOString();
 
     try {
+      assertProjectProfileEligible(
+        request.deploymentEnvironment,
+        request.registry.project.profiles,
+        request.profile
+      );
       const report = await this.validator.assertProjectValid(request.registry, request.environment);
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
