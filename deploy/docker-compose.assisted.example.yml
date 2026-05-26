@@ -16,6 +16,12 @@ services:
       HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:-}
       HIVEFORGE_BIND_HOST: 0.0.0.0
       HIVEFORGE_PORT: "3000"
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+      http_proxy: ${http_proxy:-}
+      https_proxy: ${https_proxy:-}
+      no_proxy: ${no_proxy:-}
     volumes:
       - ./:/hf
       - /var/run/docker.sock:/var/run/docker.sock

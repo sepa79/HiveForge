@@ -34,6 +34,8 @@ describe("UI routes", () => {
     const styles = await fetch(`${baseUrl}/ui/styles.css`);
     const script = await fetch(`${baseUrl}/ui/app.js`);
     const favicon = await fetch(`${baseUrl}/favicon.svg`);
+    const logo = await fetch(`${baseUrl}/assets/hiveforge-logo.svg`);
+    const mark = await fetch(`${baseUrl}/assets/hiveforge-mark.svg`);
 
     expect(styles.status).toBe(200);
     expect(styles.headers.get("content-type")).toContain("text/css");
@@ -41,6 +43,10 @@ describe("UI routes", () => {
     expect(script.headers.get("content-type")).toContain("text/javascript");
     expect(favicon.status).toBe(200);
     expect(favicon.headers.get("content-type")).toContain("image/svg+xml");
+    expect(logo.status).toBe(200);
+    expect(logo.headers.get("content-type")).toContain("image/svg+xml");
+    expect(mark.status).toBe(200);
+    expect(mark.headers.get("content-type")).toContain("image/svg+xml");
   });
 
   it("embeds the HiveForge version in the UI script", async () => {
@@ -50,6 +56,43 @@ describe("UI routes", () => {
 
     expect(script.status).toBe(200);
     await expect(script.text()).resolves.toContain('"version":"0.1.0-test"');
+  });
+
+  it("keeps the sticky token bar above scrollable content", async () => {
+    const baseUrl = await startServer();
+
+    const styles = await fetch(`${baseUrl}/ui/styles.css`);
+
+    expect(styles.status).toBe(200);
+    await expect(styles.text()).resolves.toContain("z-index: 30");
+  });
+
+  it("keeps lifecycle actions and journal views separate", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain("current run");
+    expect(body).toContain("durable audit events");
+    expect(body).not.toContain("Operation history");
+    expect(body).not.toContain("Operation logs");
+  });
+
+  it("uses a readable topbar brand and reserves the full logo for the home view", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain('class="brandMark"');
+    expect(body).toContain('class="brandWordmark"');
+    expect(body).toContain('class="homeBrandLogo"');
+    expect(body).toContain('navItem("home", "H", "Home")');
+    expect(body).toContain("https://github.com/sepa79/HiveForge");
+    expect(body).toContain("validates manifests and requirements");
   });
 });
 

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280" width="280" height="280" role="img" aria-labelledby="title desc">
+  <title id="title">HiveForge mark</title>
+  <desc id="desc">A yellow hexagon containing a stacked layer symbol for HiveForge.</desc>
+  <defs>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="280" height="280" rx="0" fill="#070B12"/>
+
+  <path
+    d="M140 26 L236 82 L236 194 L140 250 L44 194 L44 82 Z"
+    fill="none"
+    stroke="#FFC107"
+    stroke-width="10"
+    stroke-linejoin="round"
+    filter="url(#softShadow)"
+  />
+
+  <path
+    d="M140 78 L198 112 L140 146 L82 112 Z"
+    fill="#FFC107"
+    stroke="#FFC107"
+    stroke-width="4"
+    stroke-linejoin="round"
+  />
+
+  <path
+    d="M84 146 L140 178 L196 146"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M84 180 L140 212 L196 180"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,8 +1,24 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { writeText } from "./json-http.js";
 import type { HiveForgeInfo } from "../app-info.js";
 import type { HttpRoute } from "./http-types.js";
 
-export const uiPublicPaths = [/^\/$/, /^\/favicon\.svg$/, /^\/ui\/app\.js$/, /^\/ui\/styles\.css$/];
+export const uiPublicPaths = [
+  /^\/$/,
+  /^\/favicon\.svg$/,
+  /^\/assets\/hiveforge-logo\.svg$/,
+  /^\/assets\/hiveforge-mark\.svg$/,
+  /^\/ui\/app\.js$/,
+  /^\/ui\/styles\.css$/
+];
+
+const logoSvg = readAsset("hiveforge-logo.svg");
+const markSvg = readAsset("hiveforge-mark.svg");
+
+function readAsset(fileName: string): string {
+  return readFileSync(path.join(process.cwd(), "assets", fileName), "utf8");
+}
 
 export function createUiRoutes(appInfo: HiveForgeInfo = { name: "hiveforge", version: "0.0.0-dev" }): HttpRoute[] {
   return [
@@ -17,7 +33,21 @@ export function createUiRoutes(appInfo: HiveForgeInfo = { name: "hiveforge", ver
       method: "GET",
       pattern: /^\/favicon\.svg$/,
       async handle({ response }) {
-        writeText(response, 200, "image/svg+xml; charset=utf-8", renderFavicon());
+        writeText(response, 200, "image/svg+xml; charset=utf-8", markSvg);
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/assets\/hiveforge-logo\.svg$/,
+      async handle({ response }) {
+        writeText(response, 200, "image/svg+xml; charset=utf-8", logoSvg);
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/assets\/hiveforge-mark\.svg$/,
+      async handle({ response }) {
+        writeText(response, 200, "image/svg+xml; charset=utf-8", markSvg);
       }
     },
     {
@@ -52,14 +82,6 @@ function renderIndexHtml(): string {
   <script type="module" src="/ui/app.js"></script>
 </body>
 </html>`;
-}
-
-function renderFavicon(): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#05070b"/>
-  <circle cx="32" cy="32" r="19" fill="none" stroke="#33e1ff" stroke-width="4"/>
-  <path d="M22 43V21h5v8h10v-8h5v22h-5v-9H27v9z" fill="#ffc107"/>
-</svg>`;
 }
 
 function renderStyles(): string {
@@ -108,21 +130,14 @@ button { cursor: pointer; }
   background: rgba(8, 10, 14, 0.78);
   backdrop-filter: blur(6px);
   position: relative;
-  z-index: 10;
+  z-index: 300;
 }
-.topBarInner { height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 12px; }
+.topBarInner { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 10px; }
 .logoLink { display: inline-flex; align-items: center; height: 44px; gap: 10px; color: inherit; text-decoration: none; }
-.brandMark {
-  width: 28px; height: 28px; display: grid; place-items: center;
-  border-radius: 50%;
-  border: 1px solid rgba(51, 225, 255, 0.45);
-  color: var(--accent-strong);
-  box-shadow: 0 0 20px rgba(51, 225, 255, 0.18) inset, 0 0 14px rgba(51, 225, 255, 0.18);
-  font-weight: 900;
-}
-.brandWordmark { font-size: 22px; font-weight: 900; line-height: 1; letter-spacing: 0; white-space: nowrap; }
-.brandWordHive { color: rgba(255, 255, 255, 0.95); }
-.brandWordForge { color: #ffc107; }
+.brandMark { width: 28px; height: 28px; flex: 0 0 auto; }
+.brandWordmark { font-size: 22px; font-weight: 900; line-height: 1; letter-spacing: 0; white-space: nowrap; position: relative; top: -1px; }
+.brandWordHive { color: #ffc107; }
+.brandWordForge { color: rgba(255, 255, 255, 0.95); }
 .breadcrumb { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topBarRight { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
@@ -131,29 +146,45 @@ button { cursor: pointer; }
   border-right: 1px solid var(--border2);
   background: rgba(8, 10, 14, 0.88);
   backdrop-filter: blur(6px);
-  padding: 12px 0;
+  padding: 8px 0;
 }
-.navHeader { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; padding: 0 18px 10px; }
+.navHeader { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; padding: 0 10px 6px; min-height: 40px; display: flex; align-items: center; }
 .navItem {
   display: flex; align-items: center; gap: 10px; height: 40px; margin: 0 8px 6px; padding: 0 12px;
   width: calc(100% - 16px);
-  border-radius: 8px; color: #0ff; border: 1px solid rgba(51, 225, 255, 0.28);
-  background: radial-gradient(120% 120% at 10% 10%, rgba(51, 225, 255, 0.20), rgba(51, 225, 255, 0.06) 42%, rgba(255, 255, 255, 0.04) 70%, rgba(0, 0, 0, 0) 100%);
-  box-shadow: 0 0 18px rgba(51, 225, 255, 0.12) inset;
+  border-radius: 12px; color: #0ff; border: 1px solid rgba(51, 225, 255, 0.35);
+  background: radial-gradient(120% 120% at 10% 10%, rgba(51, 225, 255, 0.25), rgba(51, 225, 255, 0.06) 40%, rgba(255, 255, 255, 0.05) 70%, rgba(0, 0, 0, 0) 100%);
+  box-shadow: 0 0 20px rgba(51, 225, 255, 0.15) inset, 0 0 16px rgba(51, 225, 255, 0.18);
   text-decoration: none;
   text-align: left;
 }
-.navItemActive { border-color: rgba(255, 193, 7, 0.45); box-shadow: 0 0 18px rgba(255, 193, 7, 0.12) inset; }
+.navItem:hover {
+  box-shadow: 0 0 26px rgba(51, 225, 255, 0.22) inset, 0 0 20px rgba(51, 225, 255, 0.28);
+  background: radial-gradient(120% 120% at 10% 10%, rgba(51, 225, 255, 0.35), rgba(51, 225, 255, 0.1) 50%, rgba(255, 255, 255, 0.07) 75%, rgba(0, 0, 0, 0) 100%);
+}
+.navItemActive { background: #33e1ff !important; color: #111 !important; font-weight: 800; border-color: transparent !important; box-shadow: none; }
 .navIcon { width: 18px; text-align: center; font-weight: 900; }
-.navLabel { color: rgba(255, 255, 255, 0.9); font-weight: 700; }
+.navLabel { color: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.1px; }
 
 .appContent { grid-row: 2; min-width: 0; min-height: 0; overflow: auto; }
 .toolsBar {
-  min-height: 48px; border-bottom: 1px solid var(--border2); background: rgba(255, 255, 255, 0.025);
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px; position: sticky; top: 0; z-index: 4;
+  min-height: 48px; border-bottom: 1px solid var(--border2); background: rgba(8, 10, 14, 0.96);
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; position: sticky; top: 0; z-index: 30;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
 }
-.page { padding: 18px; max-width: 1420px; }
+.toolsBar .fieldInput { width: min(720px, 70vw); }
+.page { width: min(1240px, calc(100vw - 276px)); margin: 0 auto; padding: 18px 0 32px; }
 .pageHeader { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.pageHome .pageHeader { justify-content: center; text-align: center; }
+.pageHome .pageHeader .mono { display: none; }
+.homeHero { width: min(980px, 100%); margin: 0 auto 14px; }
+.homeHeroPanel {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--panel); box-shadow: 0 16px 40px var(--shadow);
+  display: flex; flex-direction: column; align-items: center; text-align: center; padding: 34px 28px 30px;
+}
+.homeBrandLogo { display: block; width: min(680px, 100%); max-height: 220px; margin: 0 auto; object-fit: contain; object-position: center; }
+.homeCopy { margin: 14px auto 0; color: var(--muted); text-align: center; max-width: 980px; font-size: 15px; line-height: 1.6; }
+.homeActions { display: flex; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
 .h1 { margin: 0; font-size: 28px; line-height: 1.1; letter-spacing: 0; }
 .h2 { margin: 0; font-size: 15px; font-weight: 900; letter-spacing: 0; }
 .muted { color: var(--muted); }
@@ -164,7 +195,7 @@ button { cursor: pointer; }
 .summaryGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
 .mainGrid { grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr); align-items: start; }
 .card {
-  border: 1px solid var(--border); background: var(--panel); border-radius: 8px; box-shadow: 0 16px 40px var(--shadow);
+  border: 1px solid var(--border); background: var(--panel); border-radius: 12px; box-shadow: 0 16px 40px var(--shadow);
 }
 .cardHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-bottom: 1px solid var(--border2); }
 .cardBody { padding: 12px; }
@@ -172,7 +203,7 @@ button { cursor: pointer; }
 .metricLabel { color: var(--muted); font-size: 12px; }
 .metricValue { font-size: 24px; font-weight: 900; margin-top: 6px; line-height: 1; }
 
-.tableWrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel2); }
+.tableWrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--panel2); }
 .table { width: 100%; border-collapse: collapse; min-width: 760px; }
 .table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--border2); text-align: left; vertical-align: top; }
 .table th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; background: rgba(255, 255, 255, 0.025); }
@@ -187,7 +218,7 @@ button { cursor: pointer; }
 .pill[data-kind="alert"] { border-color: rgba(255, 117, 117, 0.4); color: var(--danger); }
 
 .button, .select, .fieldInput {
-  min-height: 34px; border-radius: 8px; border: 1px solid var(--border);
+  min-height: 34px; border-radius: 10px; border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.055); color: var(--text);
 }
 .button {
@@ -201,7 +232,7 @@ button { cursor: pointer; }
 .field { display: grid; gap: 5px; min-width: 0; }
 .fieldLabel { color: var(--muted); font-size: 12px; font-weight: 700; }
 .formRow { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; align-items: end; }
-.notice { border: 1px solid var(--border); background: var(--panel2); border-radius: 8px; padding: 10px 12px; }
+.notice { border: 1px solid var(--border); background: var(--panel2); border-radius: 12px; padding: 10px 12px; }
 .notice[data-kind="error"] { border-color: rgba(255, 117, 117, 0.36); color: #ffb4b4; }
 .notice[data-kind="ok"] { border-color: rgba(86, 211, 145, 0.35); color: #a3efc6; }
 .statusSteps { display: grid; gap: 8px; margin: 12px 0; }
@@ -222,6 +253,8 @@ button { cursor: pointer; }
   .appShell { grid-template-columns: 56px 1fr; }
   .brandWordmark, .breadcrumb, .navHeader, .navLabel { display: none; }
   .navItem { justify-content: center; padding: 0; }
+  .page { width: calc(100vw - 84px); padding: 14px 0 24px; }
+  .toolsBar .fieldInput { width: min(100%, 52vw); }
   .summaryGrid, .mainGrid { grid-template-columns: 1fr; }
   .formRow { grid-template-columns: 1fr; }
 }
@@ -239,13 +272,12 @@ const state = {
   projects: [],
   deployments: [],
   journal: [],
-  operations: [],
   selectedProject: "",
   selectedComponent: "",
   selectedProfile: "",
   selectedRef: "main",
   selectedAction: "deploy",
-  view: "overview",
+  view: "home",
   busy: false,
   operation: null,
   operationPoll: null,
@@ -289,12 +321,6 @@ async function refreshAll() {
     state.projects = projects.projects;
     state.deployments = deployments.deployments;
     state.journal = journal.events.slice().reverse();
-    try {
-      const operations = await api("/operations");
-      state.operations = operations.operations;
-    } catch {
-      state.operations = [];
-    }
     const policyProject = state.environment?.policy?.projects?.[0];
     state.selectedProject ||= policyProject?.id || state.projects[0]?.id || "";
     state.selectedProfile ||= policyProject?.profiles?.[0] || "";
@@ -439,20 +465,6 @@ function renderJournal() {
   </table></div>\`;
 }
 
-function renderOperationRows() {
-  if (!state.operations.length) return \`<div class="notice muted">No operations recorded in this process.</div>\`;
-  return \`<div class="tableWrap"><table class="table">
-    <thead><tr><th>Operation</th><th>Project</th><th>Action</th><th>Status</th><th>Started</th></tr></thead>
-    <tbody>\${state.operations.map((operation) => \`<tr>
-      <td><button class="button mono" type="button" data-operation-id="\${escapeHtml(operation.operationId)}">\${escapeHtml(operation.operationId)}</button></td>
-      <td>\${escapeHtml(operation.projectId)} / \${escapeHtml(operation.component)}</td>
-      <td>\${escapeHtml(operation.action)}</td>
-      <td>\${pill(operation.status, operation.status === "succeeded" ? "ok" : operation.status === "failed" ? "alert" : "warn")}</td>
-      <td class="muted">\${escapeHtml(operation.startedAt)}</td>
-    </tr>\`).join("")}</tbody>
-  </table></div>\`;
-}
-
 function renderProjects() {
   if (!state.projects.length) return \`<div class="notice muted">No projects loaded.</div>\`;
   const policyProjects = new Map((state.environment?.policy?.projects || []).map((project) => [project.id, project]));
@@ -534,19 +546,47 @@ function renderActionForm() {
       </div>
     </div>
   </div>
-  <section class="card"><div class="cardHeader"><h2 class="h2">Operation status</h2></div><div class="cardBody">\${renderOperationStatus()}</div></section>
-  <section class="card"><div class="cardHeader"><h2 class="h2">Operation history</h2></div><div class="cardBody">\${renderOperationRows()}</div></section>
+  <section class="card"><div class="cardHeader"><h2 class="h2">Operation status</h2><span class="muted2">current run</span></div><div class="cardBody">\${renderOperationStatus()}</div></section>
   </div>\`;
 }
 
 function pageTitle() {
+  if (state.view === "home") return "Home";
   if (state.view === "deployments") return "Deployments";
   if (state.view === "actions") return "Lifecycle Actions";
   if (state.view === "journal") return "Journal";
   return "Overview";
 }
 
+function pageSubtitle() {
+  if (state.view === "home") return "Deployment control plane for explicit Docker and Swarm project actions.";
+  return state.environment ? state.environment.kind : "Connect with the REST bearer token.";
+}
+
+function pageMeta() {
+  if (state.view === "home") return "";
+  return state.environment?.id || "";
+}
+
+function renderHome() {
+  return \`<section class="homeHero" aria-label="HiveForge home">
+    <div class="homeHeroPanel">
+      <img class="homeBrandLogo" src="/assets/hiveforge-logo.svg" alt="HiveForge">
+      <div class="homeCopy">
+        HiveForge runs on the target Docker or Swarm environment, registers approved project repositories,
+        validates manifests and requirements, then runs explicit lifecycle actions through UI, REST, or MCP.
+      </div>
+      <div class="homeActions">
+        <a class="button" href="https://github.com/sepa79/HiveForge" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </div>
+  </section>\`;
+}
+
 function renderCurrentView() {
+  if (state.view === "home") {
+    return renderHome();
+  }
   if (state.view === "deployments") {
     return \`<section class="card"><div class="cardHeader"><h2 class="h2">Deployments</h2></div><div class="cardBody">\${renderDeployments()}</div></section>\`;
   }
@@ -554,7 +594,7 @@ function renderCurrentView() {
     return renderActionForm();
   }
   if (state.view === "journal") {
-    return \`<div class="grid"><section class="card"><div class="cardHeader"><h2 class="h2">Operation logs</h2></div><div class="cardBody">\${renderOperationRows()}\${state.operation ? \`<div style="margin-top:12px;">\${renderOperationStatus()}</div>\` : ""}</div></section><section class="card"><div class="cardHeader"><h2 class="h2">Journal</h2></div><div class="cardBody">\${renderJournal()}</div></section></div>\`;
+    return \`<section class="card"><div class="cardHeader"><h2 class="h2">Journal</h2><span class="muted2">durable audit events</span></div><div class="cardBody">\${renderJournal()}</div></section>\`;
   }
   return renderOverview();
 }
@@ -569,8 +609,8 @@ function render() {
   app.innerHTML = \`<div class="appShell">
     <header class="topBar"><div class="topBarInner">
       <a class="logoLink" href="/" aria-label="HiveForge home">
-        <span class="brandMark">H</span>
-        <span class="brandWordmark"><span class="brandWordHive">Hive</span><span class="brandWordForge">Forge</span></span>
+        <img class="brandMark" src="/assets/hiveforge-mark.svg" alt="" aria-hidden="true">
+        <span class="brandWordmark" aria-hidden="true"><span class="brandWordHive">Hive</span><span class="brandWordForge">Forge</span></span>
       </a>
       <div class="breadcrumb">\${current ? \`Environment / \${escapeHtml(current.name)}\` : "Environment / disconnected"}</div>
       <div class="topBarRight">
@@ -582,6 +622,7 @@ function render() {
     <aside class="sideNav">
       <div style="width:100%">
         <div class="navHeader">Navigation</div>
+        \${navItem("home", "H", "Home")}
         \${navItem("overview", "O", "Overview")}
         \${navItem("deployments", "D", "Deployments")}
         \${navItem("actions", "A", "Actions")}
@@ -593,11 +634,11 @@ function render() {
         <input class="fieldInput mono" id="tokenInput" type="password" autocomplete="current-password" value="\${escapeHtml(state.token)}" placeholder="Bearer token" aria-label="Bearer token">
         <button class="button" id="saveTokenButton" type="submit">Save token</button>
       </form>
-      <div class="page">
-        <div class="pageHeader">
-          <div><h1 class="h1">\${pageTitle()}</h1><div class="muted">\${current ? escapeHtml(current.kind) : "Connect with the REST bearer token."}</div></div>
-          <div class="muted mono">\${current ? escapeHtml(current.id) : ""}</div>
-        </div>
+      <div class="page \${state.view === "home" ? "pageHome" : ""}">
+        \${state.view === "home" ? "" : \`<div class="pageHeader">
+          <div><h1 class="h1">\${pageTitle()}</h1><div class="muted">\${escapeHtml(pageSubtitle())}</div></div>
+          <div class="muted mono">\${escapeHtml(pageMeta())}</div>
+        </div>\`}
         \${state.error ? \`<div class="notice" data-kind="error" style="margin-bottom:12px;">\${escapeHtml(state.error)}</div>\` : ""}
         \${state.message ? \`<div class="notice" data-kind="ok" style="margin-bottom:12px;">\${escapeHtml(state.message)}</div>\` : ""}
         \${renderCurrentView()}
@@ -629,14 +670,6 @@ function render() {
   document.getElementById("actionSelect")?.addEventListener("change", (event) => { state.selectedAction = event.target.value; });
   document.getElementById("inspectButton")?.addEventListener("click", inspectSelectedProject);
   document.getElementById("runButton")?.addEventListener("click", runLifecycleAction);
-  document.querySelectorAll("[data-operation-id]").forEach((element) => {
-    element.addEventListener("click", async (event) => {
-      const operationId = event.currentTarget.getAttribute("data-operation-id");
-      if (!operationId) return;
-      state.operation = await api(\`/operations/\${encodeURIComponent(operationId)}\`);
-      render();
-    });
-  });
 }
 
 render();

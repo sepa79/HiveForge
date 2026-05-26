@@ -81,6 +81,12 @@ It binds to `HIVEFORGE_BIND_HOST` and `HIVEFORGE_PORT`; the Docker image
 defaults are `0.0.0.0` and `3000` so Compose or a reverse proxy can expose the
 service explicitly.
 
+If the target environment requires an outbound HTTP proxy, the runtime service
+may be configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`,
+`http_proxy`, `https_proxy`, and `no_proxy` environment variables. HiveForge
+does not interpret those values itself; child processes such as `git clone` and
+declared lifecycle action commands inherit the container environment.
+
 Runtime paths must be configured through exactly one supported mode. Missing
 writable directories are deployment configuration errors.
 

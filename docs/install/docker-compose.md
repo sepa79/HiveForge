@@ -106,6 +106,36 @@ docker compose -f docker-compose.hiveforge.yml up -d
 If `HIVEFORGE_AUTH_TOKEN` is set, HiveForge uses it and does not create
 `auth-token`.
 
+## Corporate Proxy
+
+HiveForge clones registered repositories from inside the HiveForge container.
+If that container needs a corporate HTTP proxy to reach GitHub or another Git
+host, configure the proxy on the HiveForge service itself.
+
+For Docker Compose installs, put the standard proxy variables in the same
+operator-owned directory as `docker-compose.hiveforge.yml`:
+
+```bash
+cat >> .env <<'EOF'
+HTTPS_PROXY=http://proxy.example.internal:8080
+HTTP_PROXY=http://proxy.example.internal:8080
+NO_PROXY=localhost,127.0.0.1,.internal,<target-host>
+EOF
+
+docker compose -f docker-compose.hiveforge.yml up -d
+```
+
+For Swarm stack or Portainer installs, provide the same `HTTP_PROXY`,
+`HTTPS_PROXY`, and `NO_PROXY` values as stack environment variables before the
+stack is deployed. The Compose and Stack templates pass uppercase and lowercase
+proxy variable names through to the HiveForge container when those values are
+set. `git clone` and declared lifecycle action processes inherit that container
+environment.
+
+MCP proxy configuration on the workstation is separate. It only affects the MCP
+client process connecting to the HiveForge REST endpoint; it does not affect
+repository checkout performed by the HiveForge container.
+
 ## Runtime Files
 
 HiveForge creates missing runtime files, but does not overwrite existing files:

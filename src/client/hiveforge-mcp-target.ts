@@ -26,5 +26,8 @@ if (isExecutedAsEntrypoint(import.meta.url, process.argv[1])) {
 }
 
 function isExecutedAsEntrypoint(moduleUrl: string, argv1: string | undefined): boolean {
-  return Boolean(argv1) && moduleUrl === pathToFileURL(argv1).href;
+  if (!argv1) {
+    return false;
+  }
+  return moduleUrl === pathToFileURL(argv1).href;
 }

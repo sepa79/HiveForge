@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 280" width="900" height="280" role="img" aria-labelledby="title desc">
+  <title id="title">HiveForge logo</title>
+  <desc id="desc">HiveForge logo with yellow hexagonal stacked-layer mark and wordmark.</desc>
+  <style>
+    .hex { fill:none; stroke:#FFC107; stroke-width:10; stroke-linejoin:round; }
+    .topLayer { fill:#FFC107; stroke:#FFC107; stroke-width:4; stroke-linejoin:round; }
+    .layer { fill:none; stroke:#ffffff; stroke-width:10; stroke-linecap:round; stroke-linejoin:round; }
+    .brand { font:800 76px 'Inter','Segoe UI',Arial,sans-serif; }
+    .brandHive { fill:#FFC107; }
+    .brandForge { fill:#ffffff; }
+    .tagline { font:500 26px 'Inter','Segoe UI',Arial,sans-serif; fill:#999999; }
+    .shadow { filter:url(#textShadow); }
+  </style>
+  <defs>
+    <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(0,30)">
+    <path class="hex" d="M110 20 L190 66 L190 158 L110 204 L30 158 L30 66 Z"/>
+    <path class="topLayer" d="M110 64 L158 92 L110 120 L62 92 Z"/>
+    <path class="layer" d="M64 126 L110 152 L156 126"/>
+    <path class="layer" d="M64 154 L110 180 L156 154"/>
+  </g>
+
+  <g transform="translate(260,148)" class="shadow">
+    <text class="brand" x="0" y="0" textLength="440" lengthAdjust="spacingAndGlyphs">
+      <tspan class="brandHive">Hive</tspan><tspan class="brandForge">Forge</tspan>
+    </text>
+    <text class="tagline" x="0" y="34" textLength="440" lengthAdjust="spacingAndGlyphs">deployment control plane</text>
+  </g>
+</svg>
