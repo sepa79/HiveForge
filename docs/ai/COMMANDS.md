@@ -38,6 +38,12 @@ Validate the Docker Compose install template:
 docker compose -f deploy/docker-compose.hiveforge.yml config
 ```
 
+Validate the Docker Swarm stack template:
+
+```bash
+docker compose -f deploy/docker-stack.hiveforge.yml config
+```
+
 ## Test
 
 ```bash

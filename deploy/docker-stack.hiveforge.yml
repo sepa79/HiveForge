@@ -1,0 +1,26 @@
+services:
+  hiveforge:
+    image: ${HIVEFORGE_IMAGE:-ghcr.io/sepa79/hiveforge:latest}
+    environment:
+      HIVEFORGE_BASE_DIR: /hf
+      HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:-}
+      HIVEFORGE_BIND_HOST: 0.0.0.0
+      HIVEFORGE_PORT: "3000"
+    ports:
+      - target: 3000
+        published: ${HIVEFORGE_HTTP_PORT:-3000}
+        protocol: tcp
+        mode: ingress
+    volumes:
+      - hiveforge-data:/hf
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.role == manager
+
+volumes:
+  hiveforge-data:

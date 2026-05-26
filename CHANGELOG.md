@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4 - 2026-05-26
+
+- Add MCP/REST environment policy editing for explicitly allowing a registered
+  project on a known environment.
+- Add a first Swarm quickstart focused on external HiveWatch/HiveMind example
+  repositories and MCP startup without a local checkout.
+- Add a paste-ready Swarm/Portainer stack template with a named `/hf` volume and
+  manager-node placement.
+
 ## 0.4.3 - 2026-05-26
 
 - Add a public REST health endpoint at `/health`.

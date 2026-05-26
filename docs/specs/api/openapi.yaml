@@ -112,6 +112,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRegistrationResult"
+  /environments/{environmentId}/policy/projects/{projectId}:
+    put:
+      summary: Set explicit environment policy for one project
+      operationId: setEnvironmentProjectPolicy
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Identifier"
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnvironmentProjectPolicyRequest"
+      responses:
+        "200":
+          description: Updated environment project policy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [environmentId, project]
+                properties:
+                  environmentId:
+                    $ref: "#/components/schemas/Identifier"
+                  project:
+                    $ref: "#/components/schemas/EnvironmentProjectPolicy"
   /deployments:
     get:
       summary: List deployment inventory for the current environment
@@ -487,6 +517,37 @@ components:
               type: object
               additionalProperties:
                 type: string
+    EnvironmentProjectPolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [actions]
+      properties:
+        profiles:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Identifier"
+          uniqueItems: true
+        actions:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/LifecycleAction"
+          uniqueItems: true
+    EnvironmentProjectPolicy:
+      type: object
+      required: [id, actions]
+      properties:
+        id:
+          $ref: "#/components/schemas/Identifier"
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Identifier"
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/LifecycleAction"
     Environment:
       type: object
       required: [id, name, kind, capabilities, policy]
@@ -511,19 +572,7 @@ components:
             projects:
               type: array
               items:
-                type: object
-                required: [id, actions]
-                properties:
-                  id:
-                    $ref: "#/components/schemas/Identifier"
-                  profiles:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Identifier"
-                  actions:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/LifecycleAction"
+                $ref: "#/components/schemas/EnvironmentProjectPolicy"
     EnvironmentCapabilities:
       type: object
       additionalProperties: false

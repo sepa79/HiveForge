@@ -126,6 +126,34 @@ describe("REST API", () => {
     expect(calls).toEqual([]);
   });
 
+  it("sets environment project policy", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/environments/docker/policy/projects/hivewatch`, {
+      method: "PUT",
+      body: JSON.stringify({ profiles: ["normal"], actions: ["deploy", "remove"] })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      environmentId: "docker",
+      project: {
+        id: "hivewatch",
+        profiles: ["normal"],
+        actions: ["deploy", "remove"]
+      }
+    });
+    expect(calls).toContainEqual({
+      setProjectPolicy: {
+        environmentId: "docker",
+        projectId: "hivewatch",
+        profiles: ["normal"],
+        actions: ["deploy", "remove"]
+      }
+    });
+  });
+
   it("lists deployment inventory", async () => {
     const baseUrl = await startServer();
 
@@ -580,6 +608,19 @@ async function startServer(options: { calls?: unknown[]; authToken?: string } = 
               source: "github",
               repository: request.repository,
               approvedRefs: [request.gitRef]
+            }
+          };
+        }
+      },
+      environmentPolicyEditor: {
+        async setProjectPolicy(request: unknown) {
+          options.calls?.push({ setProjectPolicy: request });
+          return {
+            environmentId: "docker",
+            project: {
+              id: "hivewatch",
+              profiles: ["normal"],
+              actions: ["deploy", "remove"]
             }
           };
         }

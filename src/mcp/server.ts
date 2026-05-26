@@ -126,6 +126,21 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "set_environment_project_policy",
+    {
+      title: "Set environment project policy",
+      description: "Allow one registered project on one HiveForge environment with explicit actions and profiles.",
+      inputSchema: {
+        environmentId: z.string().min(1),
+        projectId: z.string().min(1),
+        actions: z.array(lifecycleAction).min(1),
+        profiles: z.array(z.string().min(1)).optional()
+      }
+    },
+    runtime.setEnvironmentProjectPolicy
+  );
+
+  server.registerTool(
     "inspect_project",
     {
       title: "Inspect a registered project",

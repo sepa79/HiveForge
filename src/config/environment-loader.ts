@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import YAML from "yaml";
 import { loadYamlFile, schemaPaths, validateContract } from "../contracts/schema-loader.js";
 import type { EnvironmentConfig } from "./environment-types.js";
 
@@ -6,6 +8,12 @@ export async function loadEnvironmentConfig(filePath: string): Promise<Environme
   await validateContract(schemaPaths.environments, config);
   assertEnvironmentConfig(config as EnvironmentConfig);
   return config as EnvironmentConfig;
+}
+
+export async function saveEnvironmentConfig(filePath: string, config: EnvironmentConfig): Promise<void> {
+  await validateContract(schemaPaths.environments, config);
+  assertEnvironmentConfig(config);
+  await writeFile(filePath, YAML.stringify(config), "utf8");
 }
 
 function assertEnvironmentConfig(config: EnvironmentConfig): void {

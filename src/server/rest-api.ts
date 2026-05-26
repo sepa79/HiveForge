@@ -1,5 +1,9 @@
 import type { ProjectRegistryConfig } from "../config/project-registry-types.js";
 import type { EnvironmentPolicyService } from "../config/environment-policy.js";
+import type {
+  SetEnvironmentProjectPolicyRequest,
+  SetEnvironmentProjectPolicyResult
+} from "../config/environment-policy-editor.js";
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
@@ -33,6 +37,9 @@ export interface RestApiServices {
   };
   projectRegistration?: {
     register(request: { repository: string; gitRef: string }): Promise<unknown>;
+  };
+  environmentPolicyEditor?: {
+    setProjectPolicy(request: SetEnvironmentProjectPolicyRequest): Promise<SetEnvironmentProjectPolicyResult>;
   };
   environments?: {
     current: unknown;
@@ -140,6 +147,26 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           return await services.projectRegistration.register(body);
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Project registration failed");
+        }
+      }
+    },
+    {
+      method: "PUT",
+      pattern: /^\/environments\/(?<environmentId>[a-z][a-z0-9-]*)\/policy\/projects\/(?<projectId>[a-z][a-z0-9-]*)$/,
+      async handle({ request, params }) {
+        if (!services.environmentPolicyEditor) {
+          throw new HttpError(501, "Environment policy editing is not configured");
+        }
+        const body = await readEnvironmentProjectPolicyRequest(request);
+        try {
+          return await services.environmentPolicyEditor.setProjectPolicy({
+            environmentId: params.environmentId,
+            projectId: params.projectId,
+            actions: body.actions,
+            ...(body.profiles ? { profiles: body.profiles } : {})
+          });
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Environment policy update failed");
         }
       }
     },
@@ -331,6 +358,37 @@ async function readRepositoryInspectionRequest(
   return {
     repository: body.repository,
     gitRef: body.gitRef
+  };
+}
+
+async function readEnvironmentProjectPolicyRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<{ actions: Array<"deploy" | "remove" | "purge" | "update" | "upgrade">; profiles?: string[] }> {
+  const body = await readJsonBody(request);
+  if (!isObject(body) || !Array.isArray(body.actions) || body.actions.length === 0) {
+    throw new HttpError(400, "Missing required field: actions");
+  }
+  const actions = body.actions.map((action) => {
+    if (typeof action !== "string" || !LIFECYCLE_ACTIONS.has(action)) {
+      throw new HttpError(400, `Unsupported lifecycle action: ${String(action)}`);
+    }
+    return action as "deploy" | "remove" | "purge" | "update" | "upgrade";
+  });
+  if ("profiles" in body && !Array.isArray(body.profiles)) {
+    throw new HttpError(400, "Invalid field: profiles");
+  }
+  const profiles = Array.isArray(body.profiles)
+    ? body.profiles.map((profile) => {
+        if (typeof profile !== "string" || profile.length === 0) {
+          throw new HttpError(400, "Invalid field: profiles");
+        }
+        return profile;
+      })
+    : undefined;
+
+  return {
+    actions,
+    ...(profiles ? { profiles } : {})
   };
 }
 

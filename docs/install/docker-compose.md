@@ -1,15 +1,40 @@
-# Install HiveForge With Docker Compose
+# Install HiveForge With Docker Compose Or Swarm
 
 HiveForge installs into one operator-owned directory. The container mounts that
 directory at `/hf` and initializes missing runtime files there on first start.
 
-## Minimal Start
+## Docker Compose On One Swarm Manager
 
 ```bash
 mkdir -p /opt/hiveforge
 cd /opt/hiveforge
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
 docker compose -f docker-compose.hiveforge.yml up -d
+```
+
+Use this mode when you SSH to one Docker or Swarm manager node and want
+HiveForge runtime files directly under `/opt/hiveforge`.
+
+## Swarm Stack / Portainer
+
+Use `deploy/docker-stack.hiveforge.yml` when you want to paste a stack into
+Portainer or run `docker stack deploy`. This variant uses a named volume instead
+of `./:/hf`, because relative bind mounts are not portable in Swarm stacks.
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-stack.hiveforge.yml
+docker stack deploy -c docker-stack.hiveforge.yml hiveforge
+```
+
+For Portainer, paste the contents of
+`deploy/docker-stack.hiveforge.yml` as a Swarm stack. The service is constrained
+to manager nodes because it mounts `/var/run/docker.sock`.
+
+Read the generated token from the running task:
+
+```bash
+docker ps --filter label=com.docker.swarm.service.name=hiveforge_hiveforge
+docker exec <container-id> cat /hf/auth-token
 ```
 
 After first start, the directory contains:
@@ -31,6 +56,10 @@ Read the generated token on the host:
 cat /opt/hiveforge/auth-token
 ```
 
+For Swarm stack installs, the token is inside the `hiveforge-data` named volume.
+Use the `docker exec` command above unless you intentionally provide
+`HIVEFORGE_AUTH_TOKEN`.
+
 API and MCP clients use it as a bearer token. The UI shell loads without auth,
 but its API requests require the same token.
 
@@ -48,6 +77,17 @@ Start MCP against the installed HiveForge endpoint with:
 HIVEFORGE_BASE_URL=http://<host>:3000 \
 HIVEFORGE_AUTH_TOKEN="$(cat /opt/hiveforge/auth-token)" \
 npm run hiveforge-mcp
+```
+
+If you do not have a local HiveForge checkout, run the MCP stdio server from
+the published image on your workstation:
+
+```bash
+docker run --rm -i \
+  -e HIVEFORGE_BASE_URL=http://<host>:3000 \
+  -e HIVEFORGE_AUTH_TOKEN=<token> \
+  ghcr.io/sepa79/hiveforge:v0.4.4 \
+  npm run hiveforge-mcp
 ```
 
 MCP connects to the HiveForge REST endpoint. It does not use
@@ -93,7 +133,7 @@ not acceptable, do not install this Compose file as-is.
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.4.3 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.4.4 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
 The default public bind is `0.0.0.0:3000`. Override it with:

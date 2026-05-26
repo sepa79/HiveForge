@@ -25,6 +25,10 @@ The preferred container install uses one mounted HiveForge base directory:
 - `HIVEFORGE_BASE_DIR=/hf`
 - host mount, for example `./:/hf`
 
+For Swarm stack and Portainer installs, the base directory should be backed by a
+named volume mounted at `/hf`. Relative host bind mounts such as `./:/hf` are
+only for `docker compose up` on one known manager node.
+
 This mode is mutually exclusive with explicit runtime paths. HiveForge
 initializes missing runtime files and directories under the base directory:
 

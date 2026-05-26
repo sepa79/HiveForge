@@ -103,6 +103,24 @@ export class HiveForgeApiClient {
     return this.request({ method: "POST", path: "/projects/register", body: input });
   }
 
+  setEnvironmentProjectPolicy(input: {
+    environmentId: string;
+    projectId: string;
+    actions: string[];
+    profiles?: string[];
+  }): Promise<unknown> {
+    return this.request({
+      method: "PUT",
+      path: `/environments/${encodeURIComponent(input.environmentId)}/policy/projects/${encodeURIComponent(
+        input.projectId
+      )}`,
+      body: {
+        actions: input.actions,
+        ...(input.profiles ? { profiles: input.profiles } : {})
+      }
+    });
+  }
+
   inspectProject(input: { projectId: string; gitRef: string }): Promise<unknown> {
     return this.request({
       method: "POST",

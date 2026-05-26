@@ -47,12 +47,14 @@ Use MCP tools in this order:
 5. `list_deployments`
 6. `inspect_repository` only for a candidate repository/ref not yet registered
 7. `register_project` only after inspection succeeds and the operator approves
-8. `inspect_project`
-9. `validate_requirements`
-10. `deploy_release` for release/image-tag prepare checks, or `start_action` for
+8. `set_environment_project_policy` only after the operator approves the
+   environment, actions, and profiles for that project
+9. `inspect_project`
+10. `validate_requirements`
+11. `deploy_release` for release/image-tag prepare checks, or `start_action` for
    the current repo/ref POC lifecycle path
-11. `get_operation`
-12. `read_journal`
+12. `get_operation`
+13. `read_journal`
 
 `deploy_release` currently prepares and validates a release plan only. It does
 not build images, push images, or execute deployment actions. With `gitRef`, it

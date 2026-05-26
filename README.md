@@ -39,6 +39,62 @@ already-published release or registry-qualified image tag set, validate registry
 artifacts, and use repository inspection as bootstrap/dev tooling rather than
 the deployment source of truth. See [Release deployment](docs/specs/releases.md).
 
+## How To Use
+
+1. Install HiveForge on the target Docker/Swarm environment.
+
+   For `docker compose up` on one manager node:
+
+   ```bash
+   mkdir -p /opt/hiveforge
+   cd /opt/hiveforge
+   curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
+   docker compose -f docker-compose.hiveforge.yml up -d
+   cat /opt/hiveforge/auth-token
+   ```
+
+   For Portainer or `docker stack deploy`, use
+   [deploy/docker-stack.hiveforge.yml](deploy/docker-stack.hiveforge.yml)
+   instead. See [First Swarm quickstart](docs/quickstart/first-swarm.md).
+
+2. Start the MCP server from your workstation.
+
+   ```bash
+   docker run --rm -i \
+     -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
+     -e HIVEFORGE_AUTH_TOKEN=<token> \
+     ghcr.io/sepa79/hiveforge:latest \
+     npm run hiveforge-mcp
+   ```
+
+3. Ask your agent to use HiveForge MCP tools in this order:
+
+   ```text
+   check_health
+   get_hiveforge_info
+   list_environments
+   inspect_repository
+   register_project
+   set_environment_project_policy
+   inspect_project
+   validate_requirements
+   start_action
+   get_operation
+   read_journal
+   ```
+
+   `register_project` approves a repository/ref. `set_environment_project_policy`
+   is a separate explicit operator decision that allows that registered project
+   to run selected actions/profiles on the target environment.
+
+4. Deploy only projects that carry HiveForge manifests.
+
+   HiveWatch and HiveMind are external consumer repositories. They become
+   deployable when their own repositories carry `hiveforge.yaml` manifests,
+   component manifests, and declared action assets. The fixture under
+   `examples/hivewatch/` is for HiveForge development, not the user-facing
+   deployment example.
+
 ## Core Rule
 
 HiveForge manages only components that are explicitly listed in the project
@@ -93,8 +149,10 @@ runtime files directly.
 HiveForge can run as a Docker Compose service on a target Docker host.
 
 Use [Docker Compose install](docs/install/docker-compose.md),
+[first Swarm quickstart](docs/quickstart/first-swarm.md),
 [deploy/docker-compose.assisted.example.yml](deploy/docker-compose.assisted.example.yml),
-and [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml)
+[deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml),
+and [deploy/docker-stack.hiveforge.yml](deploy/docker-stack.hiveforge.yml)
 as the installation source of truth.
 
 The default Compose install uses one mounted base directory. HiveForge creates

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadEnvironmentConfig } from "../../src/config/environment-loader.js";
+import { EnvironmentPolicyEditor } from "../../src/config/environment-policy-editor.js";
 
 describe("environment loader", () => {
   it("loads explicit known environments", async () => {
@@ -225,6 +226,58 @@ describe("environment loader", () => {
           },
           policy: {
             projects: []
+          }
+        }
+      ]
+    });
+  });
+
+  it("sets project policy explicitly and persists it", async () => {
+    const filePath = await writeConfig([
+      "current: docker",
+      "environments:",
+      "  - id: docker",
+      "    name: Docker host",
+      "    kind: docker",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-single",
+      "      managedRoot:",
+      "        shared: true",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+    const config = await loadEnvironmentConfig(filePath);
+    const editor = new EnvironmentPolicyEditor(filePath, config);
+
+    await expect(
+      editor.setProjectPolicy({
+        environmentId: "docker",
+        projectId: "hivewatch",
+        profiles: ["normal", "test"],
+        actions: ["deploy", "remove"]
+      })
+    ).resolves.toEqual({
+      environmentId: "docker",
+      project: {
+        id: "hivewatch",
+        profiles: ["normal", "test"],
+        actions: ["deploy", "remove"]
+      }
+    });
+
+    await expect(loadEnvironmentConfig(filePath)).resolves.toMatchObject({
+      environments: [
+        {
+          policy: {
+            projects: [
+              {
+                id: "hivewatch",
+                profiles: ["normal", "test"],
+                actions: ["deploy", "remove"]
+              }
+            ]
           }
         }
       ]

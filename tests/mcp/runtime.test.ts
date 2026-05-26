@@ -16,6 +16,7 @@ describe("HiveForge MCP runtime", () => {
       "list_deployments",
       "inspect_repository",
       "register_project",
+      "set_environment_project_policy",
       "inspect_project",
       "validate_requirements",
       "start_action",
@@ -93,5 +94,29 @@ describe("HiveForge MCP runtime", () => {
     });
 
     expect(result.structuredContent).toEqual({ plan: { projectId: "pockethive", images: [] } });
+  });
+
+  it("sets environment project policy through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async setEnvironmentProjectPolicy(input: unknown) {
+        return { policy: input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.setEnvironmentProjectPolicy({
+      environmentId: "docker",
+      projectId: "hivewatch",
+      profiles: ["normal"],
+      actions: ["deploy"]
+    });
+
+    expect(result.structuredContent).toEqual({
+      policy: {
+        environmentId: "docker",
+        projectId: "hivewatch",
+        profiles: ["normal"],
+        actions: ["deploy"]
+      }
+    });
   });
 });

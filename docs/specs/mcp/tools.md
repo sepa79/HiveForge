@@ -188,6 +188,26 @@ deployable, register the project and approve the inspected ref.
 
 Output: registered project metadata and `deployable: true`.
 
+### `set_environment_project_policy`
+
+Input:
+
+```json
+{
+  "environmentId": "docker",
+  "projectId": "hivewatch",
+  "profiles": ["normal", "test"],
+  "actions": ["deploy", "remove", "update"]
+}
+```
+
+Behavior: explicitly allow one registered project on one known environment for
+the provided lifecycle actions and optional profiles. This updates environment
+policy only. It does not register repositories, create runtime resources,
+provision secrets, infer profiles, or run project actions.
+
+Output: environment id and the saved project policy.
+
 ### `inspect_project`
 
 Input:

@@ -120,6 +120,36 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("sets environment project policy through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, {
+          environmentId: "docker",
+          project: { id: "hivewatch", profiles: ["normal"], actions: ["deploy"] }
+        });
+      }
+    });
+
+    await client.setEnvironmentProjectPolicy({
+      environmentId: "docker",
+      projectId: "hivewatch",
+      profiles: ["normal"],
+      actions: ["deploy"]
+    });
+
+    expect(calls[0]).toMatchObject({
+      url: "http://127.0.0.1:3000/environments/docker/policy/projects/hivewatch",
+      init: {
+        method: "PUT",
+        body: JSON.stringify({ actions: ["deploy"], profiles: ["normal"] })
+      }
+    });
+  });
+
   it("prepares release deployments through the internal release endpoint", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({

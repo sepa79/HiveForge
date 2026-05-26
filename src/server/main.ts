@@ -1,6 +1,7 @@
 import { AnsibleRunner } from "../action/ansible-runner.js";
 import { getHiveForgeInfo } from "../app-info.js";
 import { EnvironmentPolicyService } from "../config/environment-policy.js";
+import { EnvironmentPolicyEditor } from "../config/environment-policy-editor.js";
 import { loadEnvironmentConfig } from "../config/environment-loader.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
@@ -86,6 +87,7 @@ if (!currentEnvironment) {
 }
 const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
+const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
 const releaseDeploy = new ReleaseDeployService({
   environment: currentEnvironment,
   environmentPolicy,
@@ -112,6 +114,7 @@ createHttpServer(
       operations,
       repositoryInspection,
       projectRegistration,
+      environmentPolicyEditor,
       environments: {
         current: currentEnvironment,
         known: environmentConfig.environments
