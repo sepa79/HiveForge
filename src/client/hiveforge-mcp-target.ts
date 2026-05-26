@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { pathToFileURL } from "node:url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createHiveForgeMcpServer } from "../mcp/server.js";
 import { resolveActiveHiveForgeTarget } from "./known-hiveforges.js";
@@ -16,10 +17,14 @@ export async function main(): Promise<void> {
   await server.connect(new StdioServerTransport());
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isExecutedAsEntrypoint(import.meta.url, process.argv[1])) {
   main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : "Command failed";
     process.stderr.write(`${message}\n`);
     process.exitCode = 1;
   });
+}
+
+function isExecutedAsEntrypoint(moduleUrl: string, argv1: string | undefined): boolean {
+  return Boolean(argv1) && moduleUrl === pathToFileURL(argv1).href;
 }

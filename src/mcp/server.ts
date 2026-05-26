@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -245,11 +246,15 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   return server;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isExecutedAsEntrypoint(import.meta.url, process.argv[1])) {
   const baseUrl = requiredEnv("HIVEFORGE_BASE_URL");
   const authToken = requiredEnv("HIVEFORGE_AUTH_TOKEN");
   const server = createHiveForgeMcpServer({ baseUrl, authToken });
   await server.connect(new StdioServerTransport());
+}
+
+function isExecutedAsEntrypoint(moduleUrl: string, argv1: string | undefined): boolean {
+  return Boolean(argv1) && moduleUrl === pathToFileURL(argv1).href;
 }
 
 function requiredEnv(name: string): string {

@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import { AnsibleRunner } from "../action/ansible-runner.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
@@ -206,10 +207,14 @@ function writeJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isExecutedAsEntrypoint(import.meta.url, process.argv[1])) {
   main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : "Command failed";
     process.stderr.write(`${message}\n`);
     process.exitCode = 1;
   });
+}
+
+function isExecutedAsEntrypoint(moduleUrl: string, argv1: string | undefined): boolean {
+  return Boolean(argv1) && moduleUrl === pathToFileURL(argv1).href;
 }
