@@ -93,7 +93,7 @@ not acceptable, do not install this Compose file as-is.
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.4.2 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.4.3 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
 The default public bind is `0.0.0.0:3000`. Override it with:

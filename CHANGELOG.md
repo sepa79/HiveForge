@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3 - 2026-05-26
+
+- Add a public REST health endpoint at `/health`.
+- Expose health checks through MCP so clients can verify the selected
+  HiveForge target before running operations.
+- Document MCP token usage for Docker Compose installs.
+- Propose runtime config provisioning for `.env`-derived secrets and private
+  config without plaintext values in model-visible MCP payloads.
+
 ## 0.4.2 - 2026-05-25
 
 - Make Docker Compose installs use a single HiveForge base directory mounted at
