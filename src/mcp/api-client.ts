@@ -79,6 +79,10 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/environments" });
   }
 
+  refreshEnvironment(): Promise<unknown> {
+    return this.request({ method: "POST", path: "/environments/refresh" });
+  }
+
   listDeployments(): Promise<unknown> {
     return this.request({ method: "GET", path: "/deployments" });
   }

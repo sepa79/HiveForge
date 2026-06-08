@@ -93,6 +93,26 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "refresh_environment",
+    {
+      title: "Refresh current environment",
+      description: "Re-run local environment detection and refresh current environment node inventory.",
+      inputSchema: {}
+    },
+    runtime.refreshEnvironment
+  );
+
+  server.registerTool(
+    "list_environment_nodes",
+    {
+      title: "List current environment nodes",
+      description: "List current environment node inventory, including Docker Swarm labels when available.",
+      inputSchema: {}
+    },
+    runtime.listEnvironmentNodes
+  );
+
+  server.registerTool(
     "list_deployments",
     {
       title: "List deployment inventory",

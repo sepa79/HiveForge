@@ -43,19 +43,22 @@ Use MCP tools in this order:
 1. `check_health`
 2. `get_hiveforge_info`
 3. `list_environments`
-4. `list_projects`
-5. `list_deployments`
-6. `inspect_repository` only for a candidate repository/ref not yet registered
-7. `register_project` only after inspection succeeds and the operator approves
-8. `set_environment_project_policy` only after the operator approves the
+4. `refresh_environment` when Docker/Swarm node labels or node membership may
+   have changed
+5. `list_environment_nodes` when node inventory or placement labels matter
+6. `list_projects`
+7. `list_deployments`
+8. `inspect_repository` only for a candidate repository/ref not yet registered
+9. `register_project` only after inspection succeeds and the operator approves
+10. `set_environment_project_policy` only after the operator approves the
    environment, actions, and profiles for that project
-9. `set_project_runtime_env` for non-secret values that must stay outside git
-10. `inspect_project`
-11. `validate_requirements`
-12. `deploy_release` for release/image-tag prepare checks, or `start_action` for
+11. `set_project_runtime_env` for non-secret values that must stay outside git
+12. `inspect_project`
+13. `validate_requirements`
+14. `deploy_release` for release/image-tag prepare checks, or `start_action` for
    the current repo/ref POC lifecycle path
-13. `get_operation`
-14. `read_journal`
+15. `get_operation`
+16. `read_journal`
 
 `deploy_release` currently prepares and validates a release plan only. It does
 not build images, push images, or execute deployment actions. With `gitRef`, it

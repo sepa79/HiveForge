@@ -9,6 +9,7 @@ import type { ProjectRegistry } from "../../src/manifest/manifest-types.js";
 import type { Clock } from "../../src/operation/clock.js";
 import type { IdGenerator } from "../../src/operation/id-generator.js";
 import { ProjectActionService } from "../../src/operation/project-action-service.js";
+import { CommandExecutionError } from "../../src/workspace/command-runner.js";
 
 class SequenceIds implements IdGenerator {
   private next = 1;
@@ -102,9 +103,19 @@ describe("project action service", () => {
 
   it("journals runner failure", async () => {
     const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
-    const service = serviceWith(journalDir, new FakeActionRunner(new Error("ansible exited 2")));
+    const service = serviceWith(
+      journalDir,
+      new FakeActionRunner(
+        new CommandExecutionError("ansible-playbook", ["ansible/deploy.yml"], {
+          cwd: "/workspace/components/api",
+          exitCode: 2,
+          stdout: "play recap",
+          stderr: "fatal task"
+        })
+      )
+    );
 
-    await expect(service.run(request("api", "deploy"))).rejects.toThrow("ansible exited 2");
+    await expect(service.run(request("api", "deploy"))).rejects.toThrow("fatal task");
     const events = await new JsonlJournal(journalDir).readAll();
     expect(events).toMatchObject([
       {
@@ -116,7 +127,7 @@ describe("project action service", () => {
         action: "deploy",
         adapter: "ansible",
         status: "failed",
-        reason: "ansible exited 2"
+        reason: "Command failed: ansible-playbook ansible/deploy.yml (exit code 2, cwd /workspace/components/api)"
       }
     ]);
   });

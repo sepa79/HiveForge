@@ -1,6 +1,7 @@
 import type { DeployOrchestrator, DeployRequest } from "./deploy-orchestrator.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
+import { isCommandExecutionError } from "../workspace/command-runner.js";
 
 export type OperationStatus = "running" | "succeeded" | "failed";
 export type OperationLogLevel = "info" | "stdout" | "stderr" | "error";
@@ -81,7 +82,19 @@ export class OperationLogService {
         this.complete(operationId, "succeeded", { actionOperationId: result.action.operationId });
       })
       .catch((error) => {
-        const message = error instanceof Error ? error.message : "Operation failed";
+        if (isCommandExecutionError(error)) {
+          if (error.stdout.length > 0) {
+            this.append(operationId, "stdout", error.stdout);
+          }
+          if (error.stderr.length > 0) {
+            this.append(operationId, "stderr", error.stderr);
+          }
+        }
+        const message = isCommandExecutionError(error)
+          ? error.summary
+          : error instanceof Error
+            ? error.message
+            : "Operation failed";
         this.append(operationId, "error", message);
         this.complete(operationId, "failed", undefined, message);
       });

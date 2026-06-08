@@ -7,6 +7,8 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     getHiveForgeInfo: () => call(() => apiClient.getInfo()),
     listProjects: () => call(() => apiClient.listProjects()),
     listEnvironments: () => call(() => apiClient.listEnvironments()),
+    refreshEnvironment: () => call(() => apiClient.refreshEnvironment()),
+    listEnvironmentNodes: () => call(() => listEnvironmentNodes(apiClient)),
     listDeployments: () => call(() => apiClient.listDeployments()),
     listOperations: () => call(() => apiClient.listOperations()),
     getOperation: (input: { operationId: string }) => call(() => apiClient.getOperation(input.operationId)),
@@ -30,6 +32,19 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     startAction: (input: { projectId: string; gitRef: string; component: string; action: string; profile?: string }) =>
       call(() => apiClient.startAction(input)),
     deployRelease: (input: ReleaseDeployApiInput) => call(() => apiClient.deployRelease(input))
+  };
+}
+
+async function listEnvironmentNodes(apiClient: HiveForgeApiClient): Promise<unknown> {
+  const payload = await apiClient.listEnvironments();
+  if (!isRecord(payload) || !isRecord(payload.current)) {
+    throw new Error("HiveForge environments response does not include a current environment.");
+  }
+  const current = payload.current;
+  return {
+    environmentId: current.id,
+    environmentName: current.name,
+    nodes: Array.isArray(current.nodes) ? current.nodes : []
   };
 }
 
@@ -59,6 +74,10 @@ function toStructuredContent(payload: unknown): Record<string, unknown> {
     return payload as Record<string, unknown>;
   }
   return { value: payload };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function errorResult(error: unknown) {

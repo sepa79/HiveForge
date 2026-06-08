@@ -33,6 +33,11 @@ ansible-playbook <declared playbook>
 The working directory is the component manifest directory. The playbook path is
 the exact relative path declared by the component manifest.
 
+When `ansible-playbook` exits non-zero, HiveForge surfaces the command, exit
+status, working directory, and redacted stdout/stderr tails through operation
+logs. Secret-looking values such as password, token, and secret assignments are
+redacted before they are stored or returned.
+
 ## Variable Contract
 
 The POC runner inherits the HiveForge process environment and receives resolved

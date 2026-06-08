@@ -2,6 +2,7 @@ import { resolveDeclaredAction } from "../action/action-resolver.js";
 import type { ActionRunner } from "../action/ansible-runner.js";
 import type { Journal } from "../journal/journal.js";
 import type { ProjectRegistry } from "../manifest/manifest-types.js";
+import { isCommandExecutionError } from "../workspace/command-runner.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
 
@@ -99,11 +100,18 @@ export class ProjectActionService {
         status: "failed",
         startedAt,
         endedAt: this.clock.now().toISOString(),
-        reason: error instanceof Error ? error.message : "Action failed"
+        reason: actionFailureReason(error)
       });
       throw error;
     }
   }
+}
+
+function actionFailureReason(error: unknown): string {
+  if (isCommandExecutionError(error)) {
+    return error.summary;
+  }
+  return error instanceof Error ? error.message : "Action failed";
 }
 
 function journalScope(request: ProjectActionRequest): { environment?: string; profile?: string } {

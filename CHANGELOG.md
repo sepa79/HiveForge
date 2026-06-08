@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.8 - 2026-06-08
+
+- Add MCP `refresh_environment` and `list_environment_nodes` tools so agents can
+  explicitly refresh Swarm node inventory and list current nodes with labels
+  without calling REST directly.
+- Include failed command diagnostics for lifecycle actions, including exit
+  status plus redacted stdout/stderr tails in operation logs.
+
 ## 0.4.7 - 2026-06-08
 
 - Add explicit environment refresh through `POST /environments/refresh` so

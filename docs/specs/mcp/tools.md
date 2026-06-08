@@ -132,6 +132,31 @@ When a connected HiveForge instance reports Swarm node inventory, each node
 entry contains Docker node id, hostname, role, availability, status, and labels.
 Node inventory does not include host mount discovery.
 
+`list_environments` reads the current stored inventory. It does not refresh
+Docker/Swarm labels implicitly.
+
+### `refresh_environment`
+
+Input: none.
+
+Output: refreshed current environment and known environment metadata.
+
+Behavior: explicitly re-run local environment detection for the current
+HiveForge target. On Swarm managers this refreshes node inventory and node
+labels, then rewrites `environments.yaml`. The refresh fails if detection
+reports a different current environment id.
+
+### `list_environment_nodes`
+
+Input: none.
+
+Output: current environment id, current environment name, and current node
+inventory. Each node includes Docker node id, hostname, role, availability,
+status, and labels.
+
+Behavior: read-only. This tool does not refresh the environment. Use
+`refresh_environment` first when Docker node labels or node membership changed.
+
 ### `list_deployments`
 
 Input: none.
@@ -324,7 +349,10 @@ Resolved runtime env for the selected project/profile is passed into validation
 and the declared action process.
 
 Output: operation ID, status, and current logs. Use `get_operation` to poll live
-logs and final stdout/stderr.
+logs and final stdout/stderr. If the underlying action command fails, the
+operation error includes the failed command, exit status, and working directory;
+operation logs also include redacted stdout/stderr tails when the command
+captured output.
 
 ### `deploy_release`
 

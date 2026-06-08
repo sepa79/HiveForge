@@ -13,6 +13,8 @@ describe("HiveForge MCP runtime", () => {
       "get_hiveforge_info",
       "list_projects",
       "list_environments",
+      "refresh_environment",
+      "list_environment_nodes",
       "list_deployments",
       "inspect_repository",
       "register_project",
@@ -76,6 +78,54 @@ describe("HiveForge MCP runtime", () => {
       status: "ok",
       hiveforge: { name: "hiveforge", version: "0.4.2" }
     });
+  });
+
+  it("refreshes the current environment through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async refreshEnvironment() {
+        return { current: { id: "swarm", name: "Docker Swarm" }, known: [] };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.refreshEnvironment();
+
+    expect(result.structuredContent).toEqual({ current: { id: "swarm", name: "Docker Swarm" }, known: [] });
+  });
+
+  it("lists current environment nodes with labels through the runtime", async () => {
+    const nodes = [
+      {
+        id: "node-1",
+        hostname: "docker-swarm-mgr-1",
+        role: "manager",
+        availability: "active",
+        status: "ready",
+        labels: {
+          "pockethive.postgres": "true"
+        }
+      }
+    ];
+    const runtime = createHiveForgeMcpRuntime({
+      async listEnvironments() {
+        return {
+          current: {
+            id: "swarm",
+            name: "Docker Swarm",
+            nodes
+          },
+          known: []
+        };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.listEnvironmentNodes();
+
+    expect(result.structuredContent).toEqual({
+      environmentId: "swarm",
+      environmentName: "Docker Swarm",
+      nodes
+    });
+    expect(result.content[0].text).toContain("pockethive.postgres");
   });
 
   it("returns release deployment prepare results through the runtime", async () => {

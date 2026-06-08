@@ -76,6 +76,29 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("refreshes the current environment through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { current: { id: "swarm" }, known: [] });
+      }
+    });
+
+    await expect(client.refreshEnvironment()).resolves.toEqual({ current: { id: "swarm" }, known: [] });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/environments/refresh",
+      init: {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
   it("maps REST errors without hiding the original message", async () => {
     const client = new HiveForgeApiClient({
       baseUrl: "http://127.0.0.1:3000",

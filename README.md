@@ -77,6 +77,8 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    check_health
    get_hiveforge_info
    list_environments
+   refresh_environment
+   list_environment_nodes
    inspect_repository
    register_project
    set_environment_project_policy
