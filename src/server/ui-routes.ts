@@ -279,6 +279,7 @@ const state = {
   selectedAction: "deploy",
   view: "home",
   busy: false,
+  environmentRefreshing: false,
   operation: null,
   operationPoll: null,
   message: null,
@@ -304,9 +305,9 @@ async function api(path, options = {}) {
   return body;
 }
 
-async function refreshAll() {
+async function refreshAll(options = {}) {
   if (!state.token) {
-    render();
+    if (options.render !== false) render();
     return;
   }
   state.error = null;
@@ -328,7 +329,7 @@ async function refreshAll() {
   } catch (error) {
     state.error = error instanceof Error ? error.message : "Request failed";
   }
-  render();
+  if (options.render !== false) render();
 }
 
 function currentPolicyProject() {
@@ -368,6 +369,28 @@ async function inspectSelectedProject() {
     };
   }
   render();
+}
+
+async function refreshEnvironmentInventory() {
+  if (!state.token) {
+    state.error = "API token is required to refresh the environment.";
+    render();
+    return;
+  }
+  state.environmentRefreshing = true;
+  state.error = null;
+  state.message = null;
+  render();
+  try {
+    await api("/environments/refresh", { method: "POST" });
+    await refreshAll({ render: false });
+    state.message = "Environment inventory refreshed.";
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : "Environment refresh failed";
+  } finally {
+    state.environmentRefreshing = false;
+    render();
+  }
 }
 
 async function runLifecycleAction() {
@@ -534,7 +557,7 @@ function renderOverview() {
       <div class="card metric"><div class="metricLabel">Projects</div><div class="metricValue">\${state.projects.length}</div></div>
       <div class="card metric"><div class="metricLabel">Journal events</div><div class="metricValue">\${state.journal.length}</div></div>
     </div>
-    <section class="card"><div class="cardHeader"><h2 class="h2">Node inventory</h2></div><div class="cardBody">\${renderEnvironmentNodes()}</div></section>
+    <section class="card"><div class="cardHeader"><h2 class="h2">Node inventory</h2><button class="button" id="refreshEnvironmentButton" type="button" \${state.environmentRefreshing || !state.token ? "disabled" : ""}>\${state.environmentRefreshing ? "Refreshing..." : "Refresh nodes"}</button></div><div class="cardBody">\${renderEnvironmentNodes()}</div></section>
     <section class="card"><div class="cardHeader"><h2 class="h2">Projects and policy</h2></div><div class="cardBody">\${renderProjects()}</div></section>
   </div>\`;
 }
@@ -581,12 +604,7 @@ function pageTitle() {
 
 function pageSubtitle() {
   if (state.view === "home") return "Deployment control plane for explicit Docker and Swarm project actions.";
-  return state.environment ? state.environment.kind : "Connect with the REST bearer token.";
-}
-
-function pageMeta() {
-  if (state.view === "home") return "";
-  return state.environment?.id || "";
+  return state.environment ? state.environment.name : "Connect with the REST bearer token.";
 }
 
 function renderHome() {
@@ -658,7 +676,6 @@ function render() {
       <div class="page \${state.view === "home" ? "pageHome" : ""}">
         \${state.view === "home" ? "" : \`<div class="pageHeader">
           <div><h1 class="h1">\${pageTitle()}</h1><div class="muted">\${escapeHtml(pageSubtitle())}</div></div>
-          <div class="muted mono">\${escapeHtml(pageMeta())}</div>
         </div>\`}
         \${state.error ? \`<div class="notice" data-kind="error" style="margin-bottom:12px;">\${escapeHtml(state.error)}</div>\` : ""}
         \${state.message ? \`<div class="notice" data-kind="ok" style="margin-bottom:12px;">\${escapeHtml(state.message)}</div>\` : ""}
@@ -668,6 +685,7 @@ function render() {
   </div>\`;
 
   document.getElementById("refreshButton")?.addEventListener("click", refreshAll);
+  document.getElementById("refreshEnvironmentButton")?.addEventListener("click", refreshEnvironmentInventory);
   document.querySelectorAll("[data-view]").forEach((element) => {
     element.addEventListener("click", (event) => {
       state.view = event.currentTarget.getAttribute("data-view") || "overview";

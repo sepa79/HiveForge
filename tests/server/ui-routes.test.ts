@@ -94,6 +94,31 @@ describe("UI routes", () => {
     expect(body).toContain("https://github.com/sepa79/HiveForge");
     expect(body).toContain("validates manifests and requirements");
   });
+
+  it("uses the human environment name in page headers instead of raw id or kind fields", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain('state.environment ? state.environment.name : "Connect with the REST bearer token."');
+    expect(body).not.toContain("state.environment.kind");
+    expect(body).not.toContain("state.environment?.id");
+    expect(body).not.toContain("pageMeta");
+  });
+
+  it("exposes an Overview button for refreshing environment node inventory", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain("refreshEnvironmentButton");
+    expect(body).toContain("Refresh nodes");
+    expect(body).toContain('api("/environments/refresh", { method: "POST" })');
+  });
 });
 
 async function startServer(): Promise<string> {

@@ -65,6 +65,13 @@ Detected Swarm node inventory records Docker node id, hostname, role,
 availability, status, and labels. It does not include mount inventory, host path
 discovery, or host path templating.
 
+HiveForge does not refresh this node inventory implicitly while the server is
+running. Operators can refresh it explicitly through `POST
+/environments/refresh` or the UI Overview node inventory action. Refresh
+preserves existing managed-root configuration, environment policy, and vars for
+the same current environment id, then rewrites the detected runtime fields and
+node labels in `environments.yaml`.
+
 This lets the server start, but no project can deploy until an operator
 explicitly configures project registry and environment policy.
 

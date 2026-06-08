@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.7 - 2026-06-08
+
+- Add explicit environment refresh through `POST /environments/refresh` so
+  operators can re-run local Docker/Swarm autodetection after node labels or
+  runtime facts change.
+- Add an Overview `Refresh nodes` action that refreshes environment inventory
+  and reloads the UI without relying on an implicit server restart.
+- Preserve operator-owned managed-root settings, project policy, and deployment
+  vars during refresh, and fail explicitly if autodetection reports a different
+  current environment id.
+- Make non-home page headers use the human environment name and remove duplicate
+  raw id/kind labels such as `swarm` / `swarm`.
+- Document the refresh API and runtime-container behavior for node inventory
+  updates.
+
 ## 0.4.6 - 2026-06-08
 
 - Auto-detect Docker Swarm manager environments when initializing a new

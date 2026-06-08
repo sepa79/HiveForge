@@ -508,6 +508,38 @@ describe("REST API", () => {
     });
   });
 
+  it("refreshes the current environment through the configured refresh service", async () => {
+    const calls: unknown[] = [];
+    const refreshedEnvironment: EnvironmentDefinition = {
+      ...defaultEnvironment(),
+      name: "Refreshed Docker",
+      nodes: [
+        {
+          id: "node-1",
+          hostname: "docker-swarm-mgr-1",
+          role: "manager",
+          availability: "active",
+          status: "ready",
+          labels: {
+            "pockethive.postgres": "true"
+          }
+        }
+      ]
+    };
+    const baseUrl = await startServer({ calls, refreshedEnvironment });
+
+    const response = await fetch(`${baseUrl}/environments/refresh`, {
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      current: refreshedEnvironment,
+      known: [refreshedEnvironment]
+    });
+    expect(calls).toContainEqual({ refreshEnvironment: true });
+  });
+
   it("inspects candidate repositories through the configured repository inspector", async () => {
     const baseUrl = await startServer();
 
@@ -623,6 +655,7 @@ async function startServer(
     calls?: unknown[];
     authToken?: string;
     currentEnvironment?: EnvironmentDefinition;
+    refreshedEnvironment?: EnvironmentDefinition;
     validationError?: string;
   } = {}
 ): Promise<string> {
@@ -754,6 +787,16 @@ async function startServer(
               profiles: ["normal"],
               actions: ["deploy", "remove"]
             }
+          };
+        }
+      },
+      environmentRefresh: {
+        async refreshCurrent() {
+          options.calls?.push({ refreshEnvironment: true });
+          const refreshed = options.refreshedEnvironment ?? currentEnvironment;
+          return {
+            current: refreshed,
+            known: [refreshed]
           };
         }
       },

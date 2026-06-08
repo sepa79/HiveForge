@@ -78,6 +78,35 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Environment"
+  /environments/refresh:
+    post:
+      summary: Refresh the current environment from the local runtime provider
+      operationId: refreshEnvironment
+      responses:
+        "200":
+          description: Refreshed current environment
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [current, known]
+                properties:
+                  current:
+                    $ref: "#/components/schemas/Environment"
+                  known:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Environment"
+        "400":
+          description: Environment refresh failed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
   /repositories/inspect:
     post:
       summary: Inspect a repository for HiveForge deployability without authorizing deployment

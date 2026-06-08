@@ -3,6 +3,7 @@ import { getHiveForgeInfo } from "../app-info.js";
 import { EnvironmentPolicyService } from "../config/environment-policy.js";
 import { EnvironmentPolicyEditor } from "../config/environment-policy-editor.js";
 import { loadEnvironmentConfig } from "../config/environment-loader.js";
+import { EnvironmentRefreshService } from "../config/environment-refresh-service.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
@@ -101,6 +102,9 @@ if (!currentEnvironment) {
 const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment, runtimeEnv);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
+const environmentRefresh = new EnvironmentRefreshService(environmentsPath, environmentConfig, {
+  docker: commandRunner
+});
 const releaseDeploy = new ReleaseDeployService({
   environment: currentEnvironment,
   environmentPolicy,
@@ -130,6 +134,7 @@ createHttpServer(
       repositoryInspection,
       projectRegistration,
       environmentPolicyEditor,
+      environmentRefresh,
       environments: {
         current: currentEnvironment,
         known: environmentConfig.environments

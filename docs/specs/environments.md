@@ -81,6 +81,15 @@ through REST/MCP/UI as environment metadata. It is not mount inventory:
 HiveForge does not discover, infer, create, or repair external host mount
 points from this field.
 
+Node inventory is not refreshed implicitly while the server is running.
+Operators can request an explicit refresh through `POST /environments/refresh`
+or the UI Overview node inventory action. The refresh re-runs the local provider
+detection, updates the current environment runtime fields such as Swarm nodes
+and labels, and preserves operator-owned `capabilities.managedRoot`,
+`policy.projects`, and `vars` for the same environment id. If autodetection
+reports a different environment id, the refresh fails explicitly instead of
+switching environments silently.
+
 Environment config may also declare deployment var overrides:
 
 ```yaml

@@ -4,6 +4,7 @@ import type {
   SetEnvironmentProjectPolicyRequest,
   SetEnvironmentProjectPolicyResult
 } from "../config/environment-policy-editor.js";
+import type { EnvironmentRefreshResult } from "../config/environment-refresh-service.js";
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
@@ -44,6 +45,9 @@ export interface RestApiServices {
   };
   environmentPolicyEditor?: {
     setProjectPolicy(request: SetEnvironmentProjectPolicyRequest): Promise<SetEnvironmentProjectPolicyResult>;
+  };
+  environmentRefresh?: {
+    refreshCurrent(): Promise<EnvironmentRefreshResult>;
   };
   environments?: {
     current: unknown;
@@ -92,6 +96,20 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       pattern: /^\/environments$/,
       async handle() {
         return services.environments ?? { current: null, known: [] };
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/environments\/refresh$/,
+      async handle() {
+        if (!services.environmentRefresh) {
+          throw new HttpError(501, "Environment refresh is not configured");
+        }
+        try {
+          return await services.environmentRefresh.refreshCurrent();
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Environment refresh failed");
+        }
       }
     },
     {
