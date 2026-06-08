@@ -7,6 +7,7 @@ export interface AuthTokenResolution {
   authToken: string;
   source: "environment" | "file" | "generated";
   tokenPath?: string;
+  ignoredTokenPath?: string;
 }
 
 export async function resolveAuthToken(options: {
@@ -14,7 +15,11 @@ export async function resolveAuthToken(options: {
   baseDir?: string;
 }): Promise<AuthTokenResolution> {
   if (options.authToken) {
-    return { authToken: options.authToken, source: "environment" };
+    return {
+      authToken: options.authToken,
+      source: "environment",
+      ...(options.baseDir ? await ignoredBaseDirToken(options.baseDir) : {})
+    };
   }
 
   if (!options.baseDir) {
@@ -42,6 +47,11 @@ export async function resolveAuthToken(options: {
     source: "generated",
     tokenPath
   };
+}
+
+async function ignoredBaseDirToken(baseDir: string): Promise<Pick<AuthTokenResolution, "ignoredTokenPath">> {
+  const tokenPath = path.join(baseDir, runtimeFileNames.authToken);
+  return (await readTokenFile(tokenPath)) ? { ignoredTokenPath: tokenPath } : {};
 }
 
 async function readTokenFile(tokenPath: string): Promise<string | undefined> {

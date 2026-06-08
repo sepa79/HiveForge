@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.6 - 2026-06-08
+
+- Auto-detect Docker Swarm manager environments when initializing a new
+  HiveForge base directory and generate `environments.yaml` with Swarm runtime,
+  placement capability, and node inventory.
+- Expose environment node inventory through config, REST/OpenAPI, MCP docs, and
+  the operator UI, including Docker node id, hostname, role, availability,
+  status, and labels.
+- Fail explicitly when Swarm is active but HiveForge is started on a worker
+  without an explicit `environments.yaml`.
+- Keep mount inventory, host path discovery, and host path templating out of
+  the autodetection slice; projects remain responsible for explicit bind paths
+  and placement labels.
+- Log the selected HiveForge auth token source at startup and warn when a
+  base-dir token file is ignored because `HIVEFORGE_AUTH_TOKEN` is set, without
+  printing token values.
+
 ## 0.4.5 - 2026-05-27
 
 - Add non-secret project runtime environment storage with REST and MCP tools for

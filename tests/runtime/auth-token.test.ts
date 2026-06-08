@@ -12,6 +12,29 @@ describe("runtime auth token", () => {
     });
   });
 
+  it("does not create a base dir token file when an environment token is set", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
+    const tokenPath = path.join(baseDir, "auth-token");
+
+    await expect(resolveAuthToken({ authToken: "operator-token", baseDir })).resolves.toEqual({
+      authToken: "operator-token",
+      source: "environment"
+    });
+    await expect(stat(tokenPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("reports an ignored base dir token file when an environment token is set", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
+    const tokenPath = path.join(baseDir, "auth-token");
+    await writeFile(tokenPath, "stored-token\n", "utf8");
+
+    await expect(resolveAuthToken({ authToken: "operator-token", baseDir })).resolves.toEqual({
+      authToken: "operator-token",
+      source: "environment",
+      ignoredTokenPath: tokenPath
+    });
+  });
+
   it("reads an existing base dir token", async () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
     const tokenPath = path.join(baseDir, "auth-token");

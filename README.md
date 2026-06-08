@@ -167,3 +167,8 @@ missing runtime files there on first start and generates `auth-token` when an
 operator-provided `HIVEFORGE_AUTH_TOKEN` is not set. Project deployment remains
 blocked until project registry and environment policy entries are explicitly
 configured.
+
+## License
+
+This project is licensed under the project's repository license. See `LICENSE`
+in the root for details.

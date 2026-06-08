@@ -483,6 +483,26 @@ function renderProjects() {
   </table></div>\`;
 }
 
+function renderEnvironmentNodes() {
+  const nodes = state.environment?.nodes || [];
+  if (!nodes.length) {
+    return \`<div class="notice muted">No node inventory recorded for this environment.</div>\`;
+  }
+  return \`<div class="tableWrap"><table class="table">
+    <thead><tr><th>Hostname</th><th>Role</th><th>Availability</th><th>Status</th><th>Labels</th></tr></thead>
+    <tbody>\${nodes.map((node) => {
+      const labels = Object.entries(node.labels || {}).map(([key, value]) => \`\${key}=\${value}\`);
+      return \`<tr>
+        <td><strong>\${escapeHtml(node.hostname)}</strong><div class="muted mono">\${escapeHtml(node.id)}</div></td>
+        <td>\${pill(node.role, node.role === "manager" ? "ok" : "")}</td>
+        <td>\${escapeHtml(node.availability)}</td>
+        <td>\${escapeHtml(node.status)}</td>
+        <td>\${labels.length ? labels.map((label) => pill(label)).join(" ") : "—"}</td>
+      </tr>\`;
+    }).join("")}</tbody>
+  </table></div>\`;
+}
+
 function renderOperationStatus() {
   const operation = state.operation;
   if (!operation) {
@@ -514,6 +534,7 @@ function renderOverview() {
       <div class="card metric"><div class="metricLabel">Projects</div><div class="metricValue">\${state.projects.length}</div></div>
       <div class="card metric"><div class="metricLabel">Journal events</div><div class="metricValue">\${state.journal.length}</div></div>
     </div>
+    <section class="card"><div class="cardHeader"><h2 class="h2">Node inventory</h2></div><div class="cardBody">\${renderEnvironmentNodes()}</div></section>
     <section class="card"><div class="cardHeader"><h2 class="h2">Projects and policy</h2></div><div class="cardBody">\${renderProjects()}</div></section>
   </div>\`;
 }

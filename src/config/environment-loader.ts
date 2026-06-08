@@ -24,6 +24,20 @@ function assertEnvironmentConfig(config: EnvironmentConfig): void {
     }
     seen.add(environment.id);
 
+    const nodeIds = new Set<string>();
+    const nodeHostnames = new Set<string>();
+    for (const node of environment.nodes ?? []) {
+      if (nodeIds.has(node.id)) {
+        throw new Error(`Duplicate node id for environment ${environment.id}: ${node.id}`);
+      }
+      nodeIds.add(node.id);
+
+      if (nodeHostnames.has(node.hostname)) {
+        throw new Error(`Duplicate node hostname for environment ${environment.id}: ${node.hostname}`);
+      }
+      nodeHostnames.add(node.hostname);
+    }
+
     const projectIds = new Set<string>();
     for (const project of environment.policy.projects) {
       if (projectIds.has(project.id)) {

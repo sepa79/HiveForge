@@ -53,13 +53,29 @@ The generated `projects.yaml` contains:
 projects: []
 ```
 
-The generated `environments.yaml` contains one Docker host environment with
-`policy.projects: []`. This lets the server start, but no project can deploy
-until an operator explicitly configures project registry and environment policy.
+The generated `environments.yaml` contains `policy.projects: []`. On a Docker
+host it contains one Docker host environment. When the server initializes a new
+base dir on an active Docker Swarm manager, it detects Swarm nodes through the
+Docker CLI and writes one Swarm environment with `docker-swarm`, `placement`,
+and node inventory fields. If Docker reports active Swarm mode but the current
+node is not a manager, startup fails instead of silently writing a single-host
+Docker environment.
+
+Detected Swarm node inventory records Docker node id, hostname, role,
+availability, status, and labels. It does not include mount inventory, host path
+discovery, or host path templating.
+
+This lets the server start, but no project can deploy until an operator
+explicitly configures project registry and environment policy.
 
 If `HIVEFORGE_AUTH_TOKEN` is not set, the server creates `auth-token` once and
 uses that file as the bearer token source. It must not overwrite an existing
 token file or print the token value in logs.
+
+On startup HiveForge logs only the selected token source:
+`environment`, `file`, or `generated`. When `HIVEFORGE_AUTH_TOKEN` is set and a
+base-dir `auth-token` file also exists, the environment token wins and HiveForge
+logs that the file is ignored without printing either token value.
 
 If files already exist, HiveForge derives those same paths and uses them. It
 must not overwrite existing `projects.yaml`, `environments.yaml`, or

@@ -1,6 +1,8 @@
 import { constants } from "node:fs";
-import { access, mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
+import type { CommandRunner } from "../workspace/command-runner.js";
+import { createDefaultEnvironmentYaml } from "./default-environment.js";
 
 export interface RuntimePathOptions {
   baseDir?: string;
@@ -11,6 +13,7 @@ export interface RuntimePathOptions {
   dataRoot?: string;
   hostDataRoot?: string;
   requireEnvironments?: boolean;
+  defaultEnvironmentDocker?: CommandRunner;
 }
 
 export interface RuntimePaths {
@@ -37,22 +40,6 @@ const JOURNAL_DIR = "journal";
 const DATA_DIR = "data";
 
 const EMPTY_PROJECT_REGISTRY = "projects: []\n";
-const EMPTY_ENVIRONMENTS = [
-  "current: docker",
-  "environments:",
-  "  - id: docker",
-  "    name: Docker host",
-  "    kind: docker",
-  "    capabilities:",
-  "      runtime:",
-  "        - docker-single",
-  "      managedRoot:",
-  "        shared: true",
-  "    policy:",
-  "      projects: []",
-  ""
-].join("\n");
-
 export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<RuntimePaths> {
   const hostDataRoot = normalizeHostDataRoot(options.hostDataRoot);
   const explicitOptions = [
@@ -71,7 +58,7 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
   }
 
   if (options.baseDir) {
-    return initializeBaseDir(options.baseDir, hostDataRoot);
+    return initializeBaseDir(options.baseDir, hostDataRoot, options.defaultEnvironmentDocker);
   }
 
   const requiredExplicitOptions = explicitOptions.filter(
@@ -97,7 +84,11 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
   };
 }
 
-async function initializeBaseDir(baseDir: string, hostDataRoot?: string): Promise<RuntimePaths> {
+async function initializeBaseDir(
+  baseDir: string,
+  hostDataRoot?: string,
+  defaultEnvironmentDocker?: CommandRunner
+): Promise<RuntimePaths> {
   const baseStat = await stat(baseDir).catch((error: unknown) => {
     if (isNodeError(error, "ENOENT")) {
       throw new Error(`Base dir does not exist: ${baseDir}`);
@@ -128,7 +119,9 @@ async function initializeBaseDir(baseDir: string, hostDataRoot?: string): Promis
 
   await readdir(baseDir);
   await writeFileIfMissing(runtimePaths.registry, EMPTY_PROJECT_REGISTRY);
-  await writeFileIfMissing(runtimePaths.environments, EMPTY_ENVIRONMENTS);
+  await writeFileIfMissing(runtimePaths.environments, () =>
+    createDefaultEnvironmentYaml({ docker: defaultEnvironmentDocker })
+  );
   await mkdir(runtimePaths.workspace, { recursive: true });
   await mkdir(runtimePaths.journal, { recursive: true });
   await writeFileIfMissing(path.join(runtimePaths.journal, runtimeFileNames.operations), "");
@@ -148,13 +141,26 @@ function normalizeHostDataRoot(hostDataRoot: string | undefined): string | undef
   return path.normalize(hostDataRoot);
 }
 
-async function writeFileIfMissing(filePath: string, content: string): Promise<void> {
-  await writeFile(filePath, content, { encoding: "utf8", flag: "wx" }).catch((error: unknown) => {
+async function writeFileIfMissing(filePath: string, content: string | (() => Promise<string>)): Promise<void> {
+  const handle = await open(filePath, "wx").catch((error: unknown) => {
     if (isNodeError(error, "EEXIST")) {
-      return;
+      return undefined;
     }
     throw error;
   });
+  if (!handle) {
+    return;
+  }
+  let wrote = false;
+  try {
+    await handle.writeFile(typeof content === "string" ? content : await content(), "utf8");
+    wrote = true;
+  } finally {
+    await handle.close();
+    if (!wrote) {
+      await rm(filePath, { force: true });
+    }
+  }
 }
 
 function required(value: string | undefined, label: string): string {

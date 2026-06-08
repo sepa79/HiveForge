@@ -110,6 +110,11 @@ docker compose -f docker-compose.hiveforge.yml up -d
 If `HIVEFORGE_AUTH_TOKEN` is set, HiveForge uses it and does not create
 `auth-token`.
 
+If `auth-token` already exists from an earlier start and you later set
+`HIVEFORGE_AUTH_TOKEN`, the environment token wins. HiveForge keeps the old file
+in place, logs `HiveForge auth token source: environment`, and logs that the
+base-dir token file is ignored without printing either token value.
+
 ## Corporate Proxy
 
 HiveForge clones registered repositories from inside the HiveForge container.
@@ -145,8 +150,9 @@ repository checkout performed by the HiveForge container.
 HiveForge creates missing runtime files, but does not overwrite existing files:
 
 - `projects.yaml` starts as `projects: []`,
-- `environments.yaml` starts with one Docker host environment and
-  `policy.projects: []`,
+- `environments.yaml` starts with `policy.projects: []`; server startup writes
+  a Docker host environment on standalone Docker, or a Swarm environment with
+  detected node inventory when Docker reports active Swarm manager mode,
 - `workspace/` stores checked-out repositories,
 - `journal/operations.jsonl` stores operation history,
 - `data/` stores HiveForge-managed deployment files and
@@ -165,6 +171,10 @@ The Compose file mounts `/var/run/docker.sock` because the current HiveForge POC
 validates Docker requirements and runs declared actions that target Docker or
 Swarm. This gives the HiveForge container Docker control on the host. If that is
 not acceptable, do not install this Compose file as-is.
+
+On a Swarm worker, HiveForge startup fails when creating a new base-dir
+environment file. Run HiveForge on a manager node or provide an explicit
+`environments.yaml`.
 
 ## Image And Port Overrides
 

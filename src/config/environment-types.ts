@@ -10,8 +10,18 @@ export interface EnvironmentDefinition {
   name: string;
   kind: "local-docker" | "docker" | "swarm";
   capabilities: EnvironmentCapabilities;
+  nodes?: EnvironmentNode[];
   vars?: Record<string, string>;
   policy: EnvironmentPolicy;
+}
+
+export interface EnvironmentNode {
+  id: string;
+  hostname: string;
+  role: "manager" | "worker";
+  availability: "active" | "pause" | "drain";
+  status: string;
+  labels: Record<string, string>;
 }
 
 export interface EnvironmentCapabilities {
