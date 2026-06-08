@@ -116,6 +116,80 @@ describe("environment loader", () => {
     });
   });
 
+  it("loads explicit swarm node inventory", async () => {
+    const filePath = await writeConfig([
+      "current: swarm",
+      "environments:",
+      "  - id: swarm",
+      "    name: Docker Swarm",
+      "    kind: swarm",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-swarm",
+      "      managedRoot:",
+      "        shared: true",
+      "      placement: true",
+      "    nodes:",
+      "      - id: node-manager-1",
+      "        hostname: docker-swarm-mgr-1",
+      "        role: manager",
+      "        availability: active",
+      "        status: ready",
+      "        labels:",
+      "          pockethive.postgres: \"true\"",
+      "      - id: node-worker-1",
+      "        hostname: docker-swarm-wrk-1",
+      "        role: worker",
+      "        availability: active",
+      "        status: ready",
+      "        labels: {}",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).resolves.toEqual({
+      current: "swarm",
+      environments: [
+        {
+          id: "swarm",
+          name: "Docker Swarm",
+          kind: "swarm",
+          capabilities: {
+            runtime: ["docker-swarm"],
+            managedRoot: {
+              shared: true
+            },
+            placement: true
+          },
+          nodes: [
+            {
+              id: "node-manager-1",
+              hostname: "docker-swarm-mgr-1",
+              role: "manager",
+              availability: "active",
+              status: "ready",
+              labels: {
+                "pockethive.postgres": "true"
+              }
+            },
+            {
+              id: "node-worker-1",
+              hostname: "docker-swarm-wrk-1",
+              role: "worker",
+              availability: "active",
+              status: "ready",
+              labels: {}
+            }
+          ],
+          policy: {
+            projects: []
+          }
+        }
+      ]
+    });
+  });
+
   it("rejects a current environment that is not declared", async () => {
     const filePath = await writeConfig([
       "current: prod",
@@ -168,6 +242,42 @@ describe("environment loader", () => {
 
     await expect(loadEnvironmentConfig(filePath)).rejects.toThrow(
       "Duplicate project policy for environment local: hivewatch"
+    );
+  });
+
+  it("rejects duplicate node hostnames within one environment", async () => {
+    const filePath = await writeConfig([
+      "current: swarm",
+      "environments:",
+      "  - id: swarm",
+      "    name: Docker Swarm",
+      "    kind: swarm",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-swarm",
+      "      managedRoot:",
+      "        shared: true",
+      "      placement: true",
+      "    nodes:",
+      "      - id: node-manager-1",
+      "        hostname: docker-swarm-mgr-1",
+      "        role: manager",
+      "        availability: active",
+      "        status: ready",
+      "        labels: {}",
+      "      - id: node-manager-2",
+      "        hostname: docker-swarm-mgr-1",
+      "        role: manager",
+      "        availability: active",
+      "        status: ready",
+      "        labels: {}",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).rejects.toThrow(
+      "Duplicate node hostname for environment swarm: docker-swarm-mgr-1"
     );
   });
 

@@ -128,6 +128,10 @@ Capabilities are structured as described in `docs/specs/capabilities.md`. For
 release deployment, clients must treat them as reported environment facts, not
 as provider-specific target mappings.
 
+When a connected HiveForge instance reports Swarm node inventory, each node
+entry contains Docker node id, hostname, role, availability, status, and labels.
+Node inventory does not include host mount discovery.
+
 ### `list_deployments`
 
 Input: none.

@@ -683,6 +683,10 @@ components:
           enum: [local-docker, docker, swarm]
         capabilities:
           $ref: "#/components/schemas/EnvironmentCapabilities"
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnvironmentNode"
         vars:
           type: object
           additionalProperties:
@@ -711,6 +715,28 @@ components:
           $ref: "#/components/schemas/ManagedRootCapability"
         placement:
           type: boolean
+    EnvironmentNode:
+      type: object
+      additionalProperties: false
+      required: [id, hostname, role, availability, status, labels]
+      properties:
+        id:
+          type: string
+          minLength: 1
+        hostname:
+          type: string
+        role:
+          type: string
+          enum: [manager, worker]
+        availability:
+          type: string
+          enum: [active, pause, drain]
+        status:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
     ManagedRootCapability:
       type: object
       additionalProperties: false

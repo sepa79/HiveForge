@@ -39,6 +39,7 @@ interface ServerOptions {
 }
 
 const serverOptions = parseServerOptions(process.argv.slice(2));
+const commandRunner = new NodeCommandRunner();
 const runtimePaths = await resolveRuntimePaths({
   baseDir: serverOptions.baseDir ?? process.env.HIVEFORGE_BASE_DIR,
   registry: serverOptions.registry ?? process.env.HIVEFORGE_PROJECT_REGISTRY_PATH,
@@ -47,12 +48,19 @@ const runtimePaths = await resolveRuntimePaths({
   journal: serverOptions.journal ?? process.env.HIVEFORGE_JOURNAL_DIR,
   dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT,
   hostDataRoot: serverOptions.hostDataRoot ?? process.env.HIVEFORGE_HOST_DATA_ROOT,
-  requireEnvironments: true
+  requireEnvironments: true,
+  defaultEnvironmentDocker: commandRunner
 });
 const auth = await resolveAuthToken({
   authToken: process.env.HIVEFORGE_AUTH_TOKEN,
   baseDir: runtimePaths.baseDir
 });
+process.stdout.write(`HiveForge auth token source: ${auth.source}\n`);
+if (auth.source === "environment" && auth.ignoredTokenPath) {
+  process.stdout.write(
+    `Warning: HiveForge auth token file ignored because HIVEFORGE_AUTH_TOKEN is set: ${auth.ignoredTokenPath}\n`
+  );
+}
 if (auth.source === "generated" && auth.tokenPath) {
   process.stdout.write(`HiveForge auth token created at ${auth.tokenPath}\n`);
 }
@@ -74,7 +82,6 @@ const journal = new JsonlJournal(journalDir);
 const runtimeEnv = new RuntimeEnvStore(runtimeEnvPath);
 const ids = new UuidGenerator();
 const clock = new SystemClock();
-const commandRunner = new NodeCommandRunner();
 const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
 const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
 const validation = new ProjectValidationService(

@@ -38,6 +38,7 @@ Each environment declares:
 - `name`
 - `kind`
 - `capabilities`
+- `nodes`, when the environment reports runtime node inventory
 - `policy.projects`
 
 Capabilities use the vocabulary in `docs/specs/capabilities.md`.
@@ -53,6 +54,14 @@ capabilities:
     nodes:
       - docker-swarm-mgr-1
   placement: true
+nodes:
+  - id: hbx9486iqq0g5obsnhre9zx4f
+    hostname: docker-swarm-mgr-1
+    role: manager
+    availability: active
+    status: ready
+    labels:
+      pockethive.postgres: "true"
 ```
 
 `managedRoot` means the environment-local HiveForge service has one configured
@@ -65,6 +74,12 @@ HiveForge does not create arbitrary host mount points.
 run the selected profile. `managedRoot.shared: false` means only listed nodes
 have that root. HiveForge does not pick a node automatically; profiles that use
 a non-shared root must declare the target node explicitly.
+
+`nodes` is runtime node inventory. For Docker Swarm autodetection it records
+Docker node id, hostname, role, availability, status, and labels. It is exposed
+through REST/MCP/UI as environment metadata. It is not mount inventory:
+HiveForge does not discover, infer, create, or repair external host mount
+points from this field.
 
 Environment config may also declare deployment var overrides:
 

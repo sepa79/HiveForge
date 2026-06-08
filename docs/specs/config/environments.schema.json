@@ -85,6 +85,42 @@
               }
             }
           },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "hostname", "role", "availability", "status", "labels"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "hostname": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.-]+$"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": ["manager", "worker"]
+                },
+                "availability": {
+                  "type": "string",
+                  "enum": ["active", "pause", "drain"]
+                },
+                "status": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "vars": {
             "type": "object",
             "propertyNames": {
