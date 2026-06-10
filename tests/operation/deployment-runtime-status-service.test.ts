@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { EnvironmentDefinition } from "../../src/config/environment-types.js";
 import { DeploymentRuntimeStatusService } from "../../src/operation/deployment-runtime-status-service.js";
+import type { DeploymentStateRecord, DeploymentStateStore } from "../../src/operation/deployment-state-store.js";
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
 
 describe("deployment runtime status service", () => {
-  it("reports running containers selected by explicit HiveForge labels", async () => {
+  it("reports running containers selected by the HiveForge deployment label", async () => {
     const service = new DeploymentRuntimeStatusService(
       scriptedDocker([
         {
@@ -12,9 +13,7 @@ describe("deployment runtime status service", () => {
             "ps",
             "-a",
             "--filter",
-            "label=hiveforge.project=hivewatch",
-            "--filter",
-            "label=hiveforge.component=api",
+            "label=hiveforge.deployment=deployment-1",
             "--format",
             "{{json .}}"
           ],
@@ -30,8 +29,7 @@ describe("deployment runtime status service", () => {
               Config: {
                 Image: "hivewatch:test",
                 Labels: {
-                  "hiveforge.project": "hivewatch",
-                  "hiveforge.component": "api"
+                  "hiveforge.deployment": "deployment-1"
                 }
               },
               Mounts: [{ Source: "/opt/hiveforge/data/deployed/hivewatch", Destination: "/app/config", Type: "bind" }]
@@ -39,16 +37,17 @@ describe("deployment runtime status service", () => {
           ])
         }
       ]),
-      dockerEnvironment()
+      dockerEnvironment(),
+      stateStore([deployment()])
     );
 
     await expect(service.check({ projectId: "hivewatch", component: "api" })).resolves.toEqual({
+      deploymentId: "deployment-1",
       projectId: "hivewatch",
       component: "api",
       summary: "running",
       requiredLabels: {
-        "hiveforge.project": "hivewatch",
-        "hiveforge.component": "api"
+        "hiveforge.deployment": "deployment-1"
       },
       containers: [
         {
@@ -59,8 +58,7 @@ describe("deployment runtime status service", () => {
           status: "running",
           health: "healthy",
           labels: {
-            "hiveforge.project": "hivewatch",
-            "hiveforge.component": "api"
+            "hiveforge.deployment": "deployment-1"
           },
           mounts: [{ source: "/opt/hiveforge/data/deployed/hivewatch", destination: "/app/config", type: "bind" }]
         }
@@ -73,23 +71,40 @@ describe("deployment runtime status service", () => {
     const service = new DeploymentRuntimeStatusService(
       scriptedDocker([
         {
-          args: ["ps", "-a", "--filter", "label=hiveforge.project=hivewatch", "--format", "{{json .}}"],
+          args: ["ps", "-a", "--filter", "label=hiveforge.deployment=deployment-1", "--format", "{{json .}}"],
           stdout: ""
         }
       ]),
-      dockerEnvironment()
+      dockerEnvironment(),
+      stateStore([deployment()])
     );
 
-    await expect(service.check({ projectId: "hivewatch" })).resolves.toEqual({
+    await expect(service.check({ deploymentId: "deployment-1" })).resolves.toEqual({
+      deploymentId: "deployment-1",
       projectId: "hivewatch",
+      component: "api",
       summary: "missing",
       requiredLabels: {
-        "hiveforge.project": "hivewatch"
+        "hiveforge.deployment": "deployment-1"
       },
       containers: [],
       services: [],
       reason:
         "No Docker containers or services matched the required HiveForge labels. Runtime status does not infer ownership from names."
+    });
+  });
+
+  it("does not call Docker when no deployment state matches the request", async () => {
+    const service = new DeploymentRuntimeStatusService(scriptedDocker([]), dockerEnvironment(), stateStore([]));
+
+    await expect(service.check({ projectId: "hivewatch", component: "api" })).resolves.toEqual({
+      projectId: "hivewatch",
+      component: "api",
+      summary: "missing",
+      requiredLabels: {},
+      containers: [],
+      services: [],
+      reason: "No deployment state matched the requested deployment selector."
     });
   });
 });
@@ -105,6 +120,52 @@ function scriptedDocker(steps: Array<{ args: string[]; stdout: string }>): Comma
       expect(args).toEqual(step.args);
       return { stdout: step.stdout, stderr: "" };
     }
+  };
+}
+
+function stateStore(records: DeploymentStateRecord[]): DeploymentStateStore {
+  return {
+    async listDeployments() {
+      return records;
+    },
+    async getDeployment(deploymentId) {
+      return records.find((record) => record.deploymentId === deploymentId) ?? null;
+    },
+    async findDeployment(lookup) {
+      return (
+        records.find(
+          (record) =>
+            record.environment === lookup.environment &&
+            record.project === lookup.project &&
+            record.component === lookup.component &&
+            (record.profile ?? undefined) === lookup.profile
+        ) ?? null
+      );
+    },
+    async ensureDeployment() {
+      throw new Error("not used");
+    },
+    async recordLifecycleAction() {
+      return null;
+    },
+    async recordDeploymentFailure() {
+      throw new Error("not used");
+    }
+  };
+}
+
+function deployment(): DeploymentStateRecord {
+  return {
+    deploymentId: "deployment-1",
+    environment: "docker",
+    project: "hivewatch",
+    repository: "https://github.com/sepa79/HiveWatch.git",
+    gitRef: "main",
+    component: "api",
+    status: "deployed",
+    lastAction: "deploy",
+    operationId: "op-1",
+    updatedAt: "2026-05-17T10:00:00.000Z"
   };
 }
 

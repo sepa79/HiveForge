@@ -75,7 +75,8 @@ async function createRuntimePaths(): Promise<RuntimePaths> {
     workspace,
     journal,
     dataRoot,
-    runtimeEnv: path.join(dataRoot, "runtime-env.json")
+    runtimeEnv: path.join(dataRoot, "runtime-env.json"),
+    stateDb: path.join(dataRoot, "hiveforge.sqlite")
   };
 }
 

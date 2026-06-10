@@ -21,12 +21,15 @@ The deploy command still follows the normal flow:
 1. checkout registered git ref,
 2. inspect manifests,
 3. validate local Docker resources,
-4. run the declared Ansible playbook,
-5. write journal events.
+4. run the declared Ansible playbook as render/preparation,
+5. inject HiveForge deployment metadata into the rendered Compose file,
+6. run Docker deployment through HiveForge,
+7. write journal and SQLite state evidence.
 
 The smoke deploy runs inside the `hiveforge:local` container with the local
-Docker socket mounted. This verifies that Ansible and Docker CLI are available
-from the deploy container, not from the host shell.
+Docker socket mounted. This verifies that HiveForge can reach Docker from the
+deploy container, not from the host shell. Project Ansible actions must not rely
+on Docker access.
 
 ## Commands
 

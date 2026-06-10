@@ -177,7 +177,7 @@ expected-resource comparison, and UI presentation.
 
 Current `check_health` and `/health` only report the HiveForge process health.
 They do not prove that project containers are running. `list_deployments` is
-journal-derived inventory, not live Docker runtime state.
+SQLite current-state inventory, not live Docker runtime state.
 
 Add an authenticated REST endpoint and MCP tool for live runtime status.
 
@@ -197,9 +197,7 @@ Expected inputs:
 
 ```json
 {
-  "projectId": "pockethive",
-  "component": "stack",
-  "profile": "swarm-reduced"
+  "deploymentId": "deployment-..."
 }
 ```
 
@@ -207,14 +205,13 @@ Expected output shape:
 
 ```json
 {
+  "deploymentId": "deployment-...",
   "projectId": "pockethive",
   "component": "stack",
   "profile": "swarm-reduced",
   "summary": "running",
   "requiredLabels": {
-    "hiveforge.project": "pockethive",
-    "hiveforge.component": "stack",
-    "hiveforge.profile": "swarm-reduced"
+    "hiveforge.deployment": "deployment-..."
   },
   "containers": [
     {
@@ -224,7 +221,7 @@ Expected output shape:
       "state": "running",
       "health": "healthy",
       "labels": {
-        "hiveforge.project": "pockethive"
+        "hiveforge.deployment": "deployment-..."
       },
       "mounts": []
     }
@@ -249,9 +246,10 @@ The tool should report at least:
 
 Ownership and selection rules:
 
-- Prefer explicit HiveForge-managed Docker labels on rendered Compose/Stack
-  resources, for example project id, component, profile, operation id, and
-  release/image tag.
+- Use one explicit HiveForge-managed Docker label on rendered Compose/Stack
+  resources: `hiveforge.deployment=<deploymentId>`.
+- Store project, component, profile, environment, operation, and artifact mapping
+  in HiveForge SQLite state instead of duplicating them as Docker labels.
 - Do not guess ownership from Compose project names, container names, or image
   repository strings.
 - If a legacy deployment has no HiveForge labels, return `unknown`/`untracked`
@@ -483,6 +481,7 @@ Data that must be retained:
   settings,
 - `journal/operations.jsonl`,
 - `data/runtime-env.json`,
+- `data/hiveforge.sqlite`,
 - `data/deployed/<projectId>/` managed deployment files,
 - workspace directories unless a separate explicit cleanup action removes them.
 
@@ -523,6 +522,13 @@ Acceptance:
 
 ## 7. Isolated Project Action Runner
 
+Status: partially implemented. Main deploy flow now treats Ansible as render/
+preparation and HiveForge as the Docker deploy executor for active lifecycle
+actions. HiveForge injects `hiveforge.deployment=<deploymentId>` into the
+rendered Compose/Stack file before running Docker. Remaining work: move Ansible
+execution into an isolated runner container, remove Docker access from that
+runner image, and add HF-owned remove/purge Docker execution.
+
 Current behavior runs project-declared Ansible actions in the HiveForge
 container. That makes project action code trusted with the HiveForge control
 plane's filesystem and Docker socket. It can read or modify `auth-token`,
@@ -547,16 +553,15 @@ Runner boundary:
   environments file, journal, or runtime-env store.
 - The runner should be ephemeral per operation and removed after completion,
   unless an explicit debug-retention mode is requested.
-- The runner may receive Docker socket access only for action phases that still
-  execute Docker commands. Prefer a later split where prepare actions have no
-  Docker socket and HiveForge performs the apply/deploy step itself.
+- The runner must not receive Docker socket access; HiveForge performs the
+  apply/deploy step itself.
 - The project action contract is Ansible-only. The runner guarantees
   `ansible-playbook`, packaged Ansible built-ins, POSIX shell execution for
   explicit shell/command tasks, basic Unix file utilities, `curl`, `jq`, and CA
   certificates.
-- Docker CLI and git are conditional runner capabilities, not default project
-  assumptions. Git is only for HiveForge-controlled checkout phases, not normal
-  action execution.
+- Git is only for HiveForge-controlled checkout phases, not normal action
+  execution. Docker CLI is not a project runner capability; HiveForge owns the
+  Docker apply/deploy step.
 - The runner contract does not guarantee Python as a project-callable CLI, `yq`,
   language runtimes, build tools, Maven, Java, Node package managers, SSH, SSH
   agent/socket access, project-specific CLIs, Ansible collections, or roles
@@ -623,7 +628,6 @@ Expected runner inputs:
 
 - checkout directory, mounted read-only when possible,
 - deployment directory, mounted read-write at the node-visible absolute path,
-- optional Docker socket for apply-capable runners,
 - non-secret runtime env selected for the operation,
 - explicit operation/project/component/action/profile metadata,
 - no unrelated HiveForge control-plane files.
@@ -647,10 +651,8 @@ Validation rules:
 
 Open design decisions:
 
-- Whether 0.5.x keeps a single runner action that both prepares and deploys, or
-  splits project execution into `prepare` and HiveForge-owned `apply`.
 - Whether the runner image is the HiveForge image with a restricted entrypoint
-  or a separate minimal image containing Ansible and Docker CLI.
+  or a separate minimal image containing Ansible without Docker CLI.
 - How projects declare any extra Ansible collections/roles or helper tools
   without making them hidden image dependencies.
 - Whether repository inspection should use sparse checkout to fetch only the

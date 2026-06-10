@@ -98,12 +98,18 @@ export class HiveForgeApiClient {
     });
   }
 
-  checkDeploymentRuntimeStatus(input: { projectId: string; component?: string; profile?: string }): Promise<unknown> {
+  checkDeploymentRuntimeStatus(input: {
+    deploymentId?: string;
+    projectId?: string;
+    component?: string;
+    profile?: string;
+  }): Promise<unknown> {
     return this.request({
       method: "POST",
       path: "/deployments/runtime-status",
       body: {
-        projectId: input.projectId,
+        ...(input.deploymentId ? { deploymentId: input.deploymentId } : {}),
+        ...(input.projectId ? { projectId: input.projectId } : {}),
         ...(input.component ? { component: input.component } : {}),
         ...(input.profile ? { profile: input.profile } : {})
       }

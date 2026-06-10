@@ -1,20 +1,21 @@
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
+import type { DeploymentStateRecord, DeploymentStateStore } from "./deployment-state-store.js";
 
 export const HIVEFORGE_DOCKER_LABELS = {
-  project: "hiveforge.project",
-  component: "hiveforge.component",
-  profile: "hiveforge.profile"
+  deployment: "hiveforge.deployment"
 } as const;
 
 export interface DeploymentRuntimeStatusRequest {
-  projectId: string;
+  deploymentId?: string;
+  projectId?: string;
   component?: string;
   profile?: string;
 }
 
 export interface DeploymentRuntimeStatusResult {
-  projectId: string;
+  deploymentId?: string;
+  projectId?: string;
   component?: string;
   profile?: string;
   summary: "running" | "unhealthy" | "exited" | "missing" | "unknown";
@@ -48,20 +49,40 @@ export interface RuntimeServiceStatus {
 export class DeploymentRuntimeStatusService {
   constructor(
     private readonly commandRunner: CommandRunner,
-    private readonly environment: EnvironmentDefinition
+    private readonly environment: EnvironmentDefinition,
+    private readonly deploymentState: DeploymentStateStore
   ) {}
 
   async check(request: DeploymentRuntimeStatusRequest): Promise<DeploymentRuntimeStatusResult> {
-    const requiredLabels = requiredLabelMap(request);
+    const deployment = await this.resolveDeployment(request);
+    if (!deployment) {
+      return missingDeploymentResult(request);
+    }
+    if (deployment.status === "removed") {
+      return {
+        deploymentId: deployment.deploymentId,
+        projectId: deployment.project,
+        component: deployment.component,
+        ...(deployment.profile ? { profile: deployment.profile } : {}),
+        summary: "missing",
+        requiredLabels: requiredLabelMap(deployment),
+        containers: [],
+        services: [],
+        reason: "Deployment is recorded as removed in HiveForge state."
+      };
+    }
+
+    const requiredLabels = requiredLabelMap(deployment);
     const containers = await this.listContainers(requiredLabels);
     const services = this.environment.capabilities.runtime.includes("docker-swarm")
       ? await this.listServices(requiredLabels)
       : [];
 
     return {
-      projectId: request.projectId,
-      ...(request.component ? { component: request.component } : {}),
-      ...(request.profile ? { profile: request.profile } : {}),
+      deploymentId: deployment.deploymentId,
+      projectId: deployment.project,
+      component: deployment.component,
+      ...(deployment.profile ? { profile: deployment.profile } : {}),
       summary: summarize(containers, services),
       requiredLabels,
       containers,
@@ -73,6 +94,21 @@ export class DeploymentRuntimeStatusService {
           }
         : {})
     };
+  }
+
+  private async resolveDeployment(request: DeploymentRuntimeStatusRequest): Promise<DeploymentStateRecord | null> {
+    if (request.deploymentId) {
+      return this.deploymentState.getDeployment(request.deploymentId);
+    }
+    if (!request.projectId || !request.component) {
+      throw new Error("Deployment runtime status requires deploymentId or projectId and component.");
+    }
+    return this.deploymentState.findDeployment({
+      environment: this.environment.id,
+      project: request.projectId,
+      component: request.component,
+      profile: request.profile
+    });
   }
 
   private async listContainers(labels: Record<string, string>): Promise<RuntimeContainerStatus[]> {
@@ -107,11 +143,23 @@ export class DeploymentRuntimeStatusService {
   }
 }
 
-function requiredLabelMap(request: DeploymentRuntimeStatusRequest): Record<string, string> {
+function requiredLabelMap(deployment: DeploymentStateRecord): Record<string, string> {
   return {
-    [HIVEFORGE_DOCKER_LABELS.project]: request.projectId,
-    ...(request.component ? { [HIVEFORGE_DOCKER_LABELS.component]: request.component } : {}),
-    ...(request.profile ? { [HIVEFORGE_DOCKER_LABELS.profile]: request.profile } : {})
+    [HIVEFORGE_DOCKER_LABELS.deployment]: deployment.deploymentId
+  };
+}
+
+function missingDeploymentResult(request: DeploymentRuntimeStatusRequest): DeploymentRuntimeStatusResult {
+  return {
+    ...(request.deploymentId ? { deploymentId: request.deploymentId } : {}),
+    ...(request.projectId ? { projectId: request.projectId } : {}),
+    ...(request.component ? { component: request.component } : {}),
+    ...(request.profile ? { profile: request.profile } : {}),
+    summary: "missing",
+    requiredLabels: {},
+    containers: [],
+    services: [],
+    reason: "No deployment state matched the requested deployment selector."
   };
 }
 

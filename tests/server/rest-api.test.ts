@@ -281,6 +281,7 @@ describe("REST API", () => {
     await expect(response.json()).resolves.toEqual({
       deployments: [
         {
+          deploymentId: "deployment-1",
           environment: "local",
           project: "hivewatch",
           component: "api",
@@ -310,16 +311,15 @@ describe("REST API", () => {
 
     const response = await fetch(`${baseUrl}/deployments/runtime-status`, {
       method: "POST",
-      body: JSON.stringify({ projectId: "hivewatch", component: "api" })
+      body: JSON.stringify({ deploymentId: "deployment-1" })
     });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      projectId: "hivewatch",
-      component: "api",
+      deploymentId: "deployment-1",
       summary: "missing"
     });
-    expect(calls).toContainEqual({ runtimeStatus: { projectId: "hivewatch", component: "api" } });
+    expect(calls).toContainEqual({ runtimeStatus: { deploymentId: "deployment-1" } });
   });
 
   it("returns runtime diagnostics through the configured service", async () => {
@@ -859,6 +859,7 @@ async function startServer(
           return {
             deployments: [
               {
+                deploymentId: "deployment-1",
                 environment: "local",
                 project: "hivewatch",
                 component: "api",

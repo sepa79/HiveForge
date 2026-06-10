@@ -690,8 +690,11 @@ async function readDeploymentRuntimeStatusRequest(
   if (!isObject(body)) {
     throw new HttpError(400, "Invalid deployment runtime status request body");
   }
-  if (typeof body.projectId !== "string" || body.projectId.length === 0) {
-    throw new HttpError(400, "Missing required field: projectId");
+  if ("deploymentId" in body && (typeof body.deploymentId !== "string" || body.deploymentId.length === 0)) {
+    throw new HttpError(400, "Invalid field: deploymentId");
+  }
+  if ("projectId" in body && (typeof body.projectId !== "string" || body.projectId.length === 0)) {
+    throw new HttpError(400, "Invalid field: projectId");
   }
   if ("component" in body && (typeof body.component !== "string" || body.component.length === 0)) {
     throw new HttpError(400, "Invalid field: component");
@@ -699,9 +702,13 @@ async function readDeploymentRuntimeStatusRequest(
   if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
     throw new HttpError(400, "Invalid field: profile");
   }
+  if (!body.deploymentId && (!body.projectId || !body.component)) {
+    throw new HttpError(400, "Missing required field: deploymentId or projectId and component");
+  }
 
   return {
-    projectId: body.projectId,
+    ...(typeof body.deploymentId === "string" ? { deploymentId: body.deploymentId } : {}),
+    ...(typeof body.projectId === "string" ? { projectId: body.projectId } : {}),
     ...(typeof body.component === "string" ? { component: body.component } : {}),
     ...(typeof body.profile === "string" ? { profile: body.profile } : {})
   };

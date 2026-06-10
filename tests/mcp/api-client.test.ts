@@ -158,9 +158,9 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await expect(
-      client.checkDeploymentRuntimeStatus({ projectId: "hivewatch", component: "api" })
-    ).resolves.toEqual({ summary: "missing" });
+    await expect(client.checkDeploymentRuntimeStatus({ deploymentId: "deployment-1" })).resolves.toEqual({
+      summary: "missing"
+    });
     expect(calls[0]).toEqual({
       url: "http://127.0.0.1:3000/deployments/runtime-status",
       init: {
@@ -169,7 +169,7 @@ describe("HiveForge MCP API client", () => {
           authorization: "Bearer secret",
           "content-type": "application/json"
         },
-        body: JSON.stringify({ projectId: "hivewatch", component: "api" })
+        body: JSON.stringify({ deploymentId: "deployment-1" })
       }
     });
   });

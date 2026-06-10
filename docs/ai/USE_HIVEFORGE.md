@@ -61,7 +61,7 @@ Use MCP tools in this order:
 17. `get_deployment_compose` when the action recorded a rendered Compose/Stack
    artifact
 18. `check_deployment_runtime_status` after deployment execution, using the
-   known project/component/profile labels
+   `deploymentId` from `list_deployments`
 19. `read_journal`
 
 `prepare_release_deploy` currently prepares and validates a release plan only.
@@ -73,8 +73,8 @@ and validates explicit
 
 `get_deployment_compose` returns the recorded rendered Compose/Stack artifact
 for one operation. It does not re-render current source. `check_deployment_runtime_status`
-checks Docker containers/services by explicit HiveForge labels only; it does not
-infer ownership from names.
+checks Docker containers/services by the single `hiveforge.deployment` label
+resolved from HiveForge state DB; it does not infer ownership from names.
 
 ## Required Inputs
 
@@ -116,6 +116,7 @@ Report:
 - environment id,
 - project id,
 - ref/release,
+- deployment id when available,
 - component,
 - recorded compose artifact digest/status when available,
 - live Docker runtime summary from `check_deployment_runtime_status`,

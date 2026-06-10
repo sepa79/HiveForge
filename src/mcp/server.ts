@@ -138,9 +138,10 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     {
       title: "Check deployment runtime status",
       description:
-        "Inspect Docker containers/services matching explicit HiveForge deployment labels for a project/component/profile.",
+        "Inspect Docker containers/services matching the HiveForge deployment UUID label.",
       inputSchema: {
-        projectId: z.string().min(1),
+        deploymentId: z.string().min(1).optional(),
+        projectId: z.string().min(1).optional(),
         component: z.string().min(1).optional(),
         profile: z.string().min(1).optional()
       }

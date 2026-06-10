@@ -161,8 +161,9 @@ Behavior: read-only. This tool does not refresh the environment. Use
 
 Input: none.
 
-Output: deployment inventory for the current environment, derived from
-succeeded lifecycle actions in the journal.
+Output: deployment inventory for the current environment, read from HiveForge
+state DB. Each deployment includes `deploymentId`, project, component, profile,
+current status, last action, operation id, and update timestamp.
 
 ### `diagnose_hiveforge_runtime`
 
@@ -189,24 +190,23 @@ Input:
 
 ```json
 {
-  "projectId": "hivewatch",
-  "component": "api",
-  "profile": "dev"
+  "deploymentId": "deployment-..."
 }
 ```
 
-`component` and `profile` are optional. `projectId` is required.
+Preferred input is `deploymentId` from `list_deployments`. As a convenience,
+clients may provide `projectId` plus `component`, and optional `profile`; the
+connected HiveForge target resolves that selector through its state DB.
 
 Output: live Docker runtime status for objects matching the exact HiveForge
-labels:
+deployment label:
 
-- `hiveforge.project=<projectId>`,
-- `hiveforge.component=<component>` when a component is provided,
-- `hiveforge.profile=<profile>` when a profile is provided.
+- `hiveforge.deployment=<deploymentId>`.
 
-The result includes the required label map, matching containers, matching Swarm
-services when the connected environment has Docker Swarm capability, and a
-summary of `running`, `unhealthy`, `exited`, `missing`, or `unknown`.
+The result includes the deployment id, project/component/profile resolved from
+state DB, required label map, matching containers, matching Swarm services when
+the connected environment has Docker Swarm capability, and a summary of
+`running`, `unhealthy`, `exited`, `missing`, or `unknown`.
 
 Behavior: read-only. This tool does not infer ownership from container names,
 service names, stack names, or compose file names. If no labelled Docker objects

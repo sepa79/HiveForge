@@ -127,11 +127,11 @@ describe("HiveForge MCP runtime", () => {
       }
     } as unknown as HiveForgeApiClient);
 
-    const result = await runtime.checkDeploymentRuntimeStatus({ projectId: "hivewatch", component: "api" });
+    const result = await runtime.checkDeploymentRuntimeStatus({ deploymentId: "deployment-1" });
 
     expect(result.structuredContent).toEqual({
       summary: "running",
-      input: { projectId: "hivewatch", component: "api" }
+      input: { deploymentId: "deployment-1" }
     });
   });
 

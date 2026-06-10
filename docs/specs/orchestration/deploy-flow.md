@@ -11,17 +11,21 @@ managed service flow is release-driven and is defined in
 
 ## Flow
 
-The POC deploy flow is:
+The 0.5 deploy flow is:
 
 1. checkout registered project ref,
 2. inspect root and component manifests,
 3. resolve non-secret runtime env for the selected project/profile,
 4. validate selected profile eligibility for the current environment and
    declared runtime requirements,
-5. run the declared component lifecycle action.
+5. run the declared component lifecycle action as the render/preparation phase,
+6. for active deploy actions, inject HiveForge deployment metadata into the
+   rendered Compose/Stack file,
+7. run the Docker deployment through HiveForge.
 
-Each step is explicit and journaled by its service. A failed step stops the flow;
-later steps do not run.
+Each step is explicit. A failed step stops the flow; later steps do not run.
+The action journal records the lifecycle operation outcome. The SQLite state DB
+records the current deployment slot status and stable `deploymentId`.
 
 ## Non-goals
 
@@ -29,3 +33,4 @@ later steps do not run.
 - No validation bypass.
 - No implicit component discovery.
 - No automatic resource creation during validation.
+- No Docker access from project Ansible actions.

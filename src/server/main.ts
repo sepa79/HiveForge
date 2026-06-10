@@ -13,6 +13,7 @@ import { DeploymentComposeService } from "../operation/deployment-compose-servic
 import { DeployPrerequisitesService } from "../operation/deploy-prerequisites-service.js";
 import { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
 import { DeploymentRuntimeStatusService } from "../operation/deployment-runtime-status-service.js";
+import { DockerDeploymentService } from "../operation/docker-deployment-service.js";
 import { ManagedFilesService } from "../operation/managed-files-service.js";
 import { OperationLogService } from "../operation/operation-log-service.js";
 import { UuidGenerator } from "../operation/id-generator.js";
@@ -21,6 +22,7 @@ import { ProjectInspectionService } from "../operation/project-inspection-servic
 import { ProjectRegistrationService } from "../operation/project-registration-service.js";
 import { RepositoryInspectionService } from "../operation/repository-inspection-service.js";
 import { ProjectValidationService } from "../operation/project-validation-service.js";
+import { SqliteDeploymentStateStore } from "../operation/sqlite-deployment-state-store.js";
 import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { resolveAuthToken } from "../runtime/auth-token.js";
 import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
@@ -78,6 +80,7 @@ const workspaceRoot = runtimePaths.workspace;
 const journalDir = runtimePaths.journal;
 const dataRoot = runtimePaths.dataRoot;
 const runtimeEnvPath = runtimePaths.runtimeEnv;
+const stateDbPath = runtimePaths.stateDb;
 const port = Number.parseInt(process.env.HIVEFORGE_PORT ?? "3000", 10);
 const host = process.env.HIVEFORGE_BIND_HOST ?? "127.0.0.1";
 
@@ -86,6 +89,7 @@ const environmentConfig = await loadEnvironmentConfig(environmentsPath);
 const journal = new JsonlJournal(journalDir);
 const runtimeEnv = new RuntimeEnvStore(runtimeEnvPath);
 const ids = new UuidGenerator();
+const deploymentState = new SqliteDeploymentStateStore(stateDbPath, ids);
 const clock = new SystemClock();
 const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
 const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
@@ -104,7 +108,17 @@ if (!currentEnvironment) {
 }
 const managedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
 const managedFiles = new ManagedFilesService(dataRoot, managedRootBindSourceRoot);
-const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment, runtimeEnv);
+const dockerDeployment = new DockerDeploymentService(commandRunner, currentEnvironment);
+const deploy = new DeployOrchestrator(
+  inspection,
+  validation,
+  action,
+  managedFiles,
+  currentEnvironment,
+  runtimeEnv,
+  deploymentState,
+  dockerDeployment
+);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
 const environmentRefresh = new EnvironmentRefreshService(environmentsPath, environmentConfig, {
@@ -123,9 +137,9 @@ const deployPrerequisites = new DeployPrerequisitesService(
   runtimeEnv,
   currentEnvironment
 );
-const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
+const deploymentInventory = new DeploymentInventoryService(deploymentState, currentEnvironment.id);
 const deploymentCompose = new DeploymentComposeService(journal);
-const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment);
+const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
 const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
 

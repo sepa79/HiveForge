@@ -243,8 +243,8 @@ paths:
       summary: Check live Docker runtime status for a labelled deployment
       description: >
         Looks up Docker containers and, on Swarm environments, services by the
-        explicit HiveForge labels only. This endpoint does not infer deployment
-        ownership from names.
+        single HiveForge deployment UUID label only. This endpoint does not
+        infer deployment ownership from names.
       operationId: checkDeploymentRuntimeStatus
       requestBody:
         required: true
@@ -954,7 +954,7 @@ components:
         derivedPaths:
           type: object
           additionalProperties: false
-          required: [registry, workspace, journal, dataRoot, runtimeEnv]
+          required: [registry, workspace, journal, dataRoot, runtimeEnv, stateDb]
           properties:
             registry:
               $ref: "#/components/schemas/PathDiagnostic"
@@ -967,6 +967,8 @@ components:
             dataRoot:
               $ref: "#/components/schemas/PathDiagnostic"
             runtimeEnv:
+              $ref: "#/components/schemas/PathDiagnostic"
+            stateDb:
               $ref: "#/components/schemas/PathDiagnostic"
         environment:
           type: object
@@ -1017,19 +1019,26 @@ components:
     DeploymentRuntimeStatusRequest:
       type: object
       additionalProperties: false
-      required: [projectId]
       properties:
+        deploymentId:
+          type: string
+          minLength: 1
         projectId:
           $ref: "#/components/schemas/Identifier"
         component:
           $ref: "#/components/schemas/Identifier"
         profile:
           $ref: "#/components/schemas/Identifier"
+      anyOf:
+        - required: [deploymentId]
+        - required: [projectId, component]
     DeploymentRuntimeStatusResult:
       type: object
       additionalProperties: false
-      required: [projectId, summary, requiredLabels, containers, services]
+      required: [summary, requiredLabels, containers, services]
       properties:
+        deploymentId:
+          type: string
         projectId:
           $ref: "#/components/schemas/Identifier"
         component:
@@ -1044,9 +1053,7 @@ components:
           additionalProperties:
             type: string
           description: >
-            Exact Docker labels used for lookup, currently hiveforge.project,
-            hiveforge.component, and hiveforge.profile when those inputs are
-            provided.
+            Exact Docker label used for lookup: hiveforge.deployment=<deploymentId>.
         containers:
           type: array
           items:
@@ -1234,14 +1241,18 @@ components:
       properties:
         operationId:
           type: string
+        deploymentId:
+          type: string
         stdout:
           type: string
         stderr:
           type: string
     Deployment:
       type: object
-      required: [environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
+      required: [deploymentId, environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
       properties:
+        deploymentId:
+          type: string
         environment:
           $ref: "#/components/schemas/Identifier"
         project:
@@ -1256,7 +1267,7 @@ components:
           $ref: "#/components/schemas/Identifier"
         status:
           type: string
-          enum: [deployed, removed]
+          enum: [preparing, deployed, removed, failed]
         lastAction:
           $ref: "#/components/schemas/LifecycleAction"
         operationId:

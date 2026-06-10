@@ -44,14 +44,19 @@ Project workspace cache
       v
 Registry + Validator
       |
-      | run declared adapter/action
+      | run declared adapter/action as render/preparation
       v
 Ansible playbooks from project repo
+      |
+      | rendered Compose/Stack file
+      v
+HiveForge Docker deploy executor
       |
       v
 Docker / Swarm target resources
 
-HiveForge journal records every operation.
+HiveForge journal records operation evidence. SQLite records current deployment
+state.
 ```
 
 The diagram reflects the current HiveWatch POC, which still checks out a
@@ -74,6 +79,7 @@ release contract lives in `docs/specs/releases.md`.
 | Validator | Checks requirements before actions run. | Missing requirement is a hard failure. |
 | Action runner | Executes declared actions through declared adapters, initially Ansible. | No adapter fallback. |
 | Journal | Append-only operation log. | Records target ref, action, result, reason. |
+| SQLite state store | Durable indexed current-state store. | Tracks deployment slots and stable deployment ids. |
 
 ## Boundaries
 
@@ -91,6 +97,7 @@ which file.
 - Registry state: parsed project/component manifests for the active workspace.
 - Validation reports: requirement checks for a project/component/action.
 - Journal: append-only operation records.
+- SQLite state DB: current deployment slots and their stable `deploymentId`.
 
 Secret values are never read, persisted, logged, or returned.
 
@@ -116,6 +123,7 @@ Canonical specs live under `docs/specs/`.
 - `docs/specs/journal/event.schema.json` is the SSOT for operation journal
   events.
 - `docs/specs/journal/jsonl.md` defines the POC journal storage backend.
+- `docs/specs/state/sqlite.md` defines the durable current-state backend.
 - `docs/specs/runtime-env.md` defines non-secret runtime environment config
   stored outside project repositories and injected into validation/actions.
 - `docs/specs/validation/runtime-requirements.md` defines runtime requirement
@@ -133,14 +141,15 @@ environment with access to:
 
 - a configured workspace directory,
 - a configured journal directory,
-- a configured data root that stores non-secret runtime env config,
+- a configured data root that stores non-secret runtime env config and SQLite
+  state,
 - git network access for registered repositories,
-- the target Docker/Swarm control surface required by project playbooks.
+- the target Docker/Swarm control surface used by HiveForge's deploy executor.
 
 The deploy container is self-contained for HiveForge runtime dependencies:
 Node.js, git, SSH client, CA certificates, and Ansible are installed in the
 image. The target host must provide only the Docker/Swarm control access needed
-by declared playbooks. The container contract lives in
+by HiveForge's deploy executor. The container contract lives in
 `docs/specs/runtime-container.md`.
 
 ## Observability

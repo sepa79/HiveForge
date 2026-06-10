@@ -465,8 +465,9 @@ function renderDeployments() {
     return \`<div class="notice muted">No deployments recorded for this environment.</div>\`;
   }
   return \`<div class="tableWrap"><table class="table">
-    <thead><tr><th>Project</th><th>Component</th><th>Profile</th><th>Status</th><th>Ref</th><th>Last action</th><th>Updated</th></tr></thead>
+    <thead><tr><th>Deployment</th><th>Project</th><th>Component</th><th>Profile</th><th>Status</th><th>Ref</th><th>Last action</th><th>Updated</th></tr></thead>
     <tbody>\${state.deployments.map((item) => \`<tr>
+      <td class="mono">\${escapeHtml(item.deploymentId)}</td>
       <td><strong>\${escapeHtml(item.project)}</strong></td>
       <td>\${escapeHtml(item.component)}</td>
       <td>\${escapeHtml(item.profile || "—")}</td>

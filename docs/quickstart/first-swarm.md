@@ -22,8 +22,8 @@ deployment.
 ## Install On A Swarm Manager
 
 Run this on a Swarm manager node. The current install mounts the manager's
-Docker socket, so HiveForge can validate Docker resources and run declared
-actions against that Docker environment.
+Docker socket, so HiveForge can validate Docker resources and run its Docker
+deploy executor against that environment.
 
 ```bash
 mkdir -p /opt/hiveforge

@@ -4,6 +4,12 @@ import type { ProjectValidationResult, ProjectValidationService } from "./projec
 import { managedFilesEnvironment, type ManagedFilesResult, type ManagedFilesService } from "./managed-files-service.js";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimeEnvScope } from "../config/runtime-env-store.js";
+import {
+  ACTIVE_LIFECYCLE_ACTIONS,
+  type DeploymentStateStore,
+  type EnsureDeploymentInput
+} from "./deployment-state-store.js";
+import type { DockerDeploymentService } from "./docker-deployment-service.js";
 
 export interface DeployRequest {
   projectId: string;
@@ -15,7 +21,7 @@ export interface DeployRequest {
   progress?: DeployProgressReporter;
 }
 
-export type DeployProgressStage = "inspect" | "validate" | "managed_files" | "action";
+export type DeployProgressStage = "inspect" | "validate" | "managed_files" | "action" | "docker_deploy";
 export type DeployProgressStatus = "running" | "succeeded";
 export type DeployProgressReporter = (event: {
   stage: DeployProgressStage;
@@ -41,7 +47,9 @@ export class DeployOrchestrator {
     private readonly actionService: ProjectActionService,
     private readonly managedFilesService?: ManagedFilesService,
     private readonly environment?: EnvironmentDefinition,
-    private readonly runtimeEnv?: RuntimeEnvProvider
+    private readonly runtimeEnv?: RuntimeEnvProvider,
+    private readonly deploymentState?: DeploymentStateStore,
+    private readonly dockerDeployment?: DockerDeploymentService
   ) {}
 
   async deploy(request: DeployRequest): Promise<DeployResult> {
@@ -119,7 +127,15 @@ export class DeployOrchestrator {
       action: request.action,
       environmentId: request.environmentId,
       profile: request.profile,
-      environment: actionEnvironment(resolvedRuntimeEnv, managedFiles, request.profile)
+      environment: actionEnvironment(resolvedRuntimeEnv, managedFiles, request.profile),
+      afterRun: async ({ operationId, endedAt }) =>
+        this.afterActionRendered({
+          request,
+          inspection,
+          managedFiles,
+          operationId,
+          updatedAt: endedAt
+        })
     });
     request.progress?.({
       stage: "action",
@@ -129,6 +145,90 @@ export class DeployOrchestrator {
 
     return { inspection, validation, managedFiles, action };
   }
+
+  private async afterActionRendered(input: AfterActionRenderedInput): Promise<{ deploymentId?: string }> {
+    if (!this.deploymentState) {
+      return {};
+    }
+    const environmentId = input.request.environmentId;
+    if (!environmentId) {
+      throw new Error("HiveForge-owned deployment requires environmentId.");
+    }
+
+    const stateInput = {
+      environment: environmentId,
+      project: input.inspection.projectId,
+      repository: input.inspection.repository,
+      gitRef: input.inspection.gitRef,
+      component: input.request.component,
+      ...(input.request.profile ? { profile: input.request.profile } : {}),
+      action: input.request.action,
+      operationId: input.operationId,
+      updatedAt: input.updatedAt
+    };
+    const deployment = await this.deploymentState.ensureDeployment(stateInput);
+
+    if (!ACTIVE_LIFECYCLE_ACTIONS.has(input.request.action)) {
+      await this.deploymentState.recordLifecycleAction(stateInput);
+      return { deploymentId: deployment.deploymentId };
+    }
+
+    if (!this.dockerDeployment) {
+      return recordFailureAndThrow(
+        this.deploymentState,
+        stateInput,
+        new Error("HiveForge-owned Docker deployment is not configured.")
+      );
+    }
+    if (!input.managedFiles?.renderedComposeFile) {
+      return recordFailureAndThrow(
+        this.deploymentState,
+        stateInput,
+        new Error("HiveForge-owned Docker deployment requires HIVEFORGE_RENDERED_COMPOSE_FILE.")
+      );
+    }
+
+    input.request.progress?.({
+      stage: "docker_deploy",
+      status: "running",
+      message: `Deploying ${deployment.deploymentId} through HiveForge Docker executor`
+    });
+    try {
+      await this.dockerDeployment.deploy({
+        deploymentId: deployment.deploymentId,
+        composeFile: input.managedFiles.renderedComposeFile
+      });
+    } catch (error) {
+      return recordFailureAndThrow(this.deploymentState, stateInput, error);
+    }
+    await this.deploymentState.recordLifecycleAction(stateInput);
+    input.request.progress?.({
+      stage: "docker_deploy",
+      status: "succeeded",
+      message: `Docker deployment completed: ${deployment.deploymentId}`
+    });
+    return { deploymentId: deployment.deploymentId };
+  }
+}
+
+interface AfterActionRenderedInput {
+  request: DeployRequest;
+  inspection: ProjectInspectionResult;
+  managedFiles?: ManagedFilesResult;
+  operationId: string;
+  updatedAt: string;
+}
+
+async function recordFailureAndThrow(
+  deploymentState: DeploymentStateStore,
+  input: EnsureDeploymentInput,
+  error: unknown
+): Promise<never> {
+  await deploymentState.recordDeploymentFailure({
+    ...input,
+    reason: error instanceof Error ? error.message : String(error)
+  });
+  throw error;
 }
 
 function actionEnvironment(

@@ -23,6 +23,7 @@ export interface RuntimePaths {
   journal: string;
   dataRoot: string;
   runtimeEnv: string;
+  stateDb: string;
 }
 
 export const runtimeFileNames = {
@@ -30,7 +31,8 @@ export const runtimeFileNames = {
   environments: "environments.yaml",
   authToken: "auth-token",
   operations: "operations.jsonl",
-  runtimeEnv: "runtime-env.json"
+  runtimeEnv: "runtime-env.json",
+  stateDb: "hiveforge.sqlite"
 } as const;
 
 export const HIVEFORGE_CONTAINER_RUNTIME_ROOT = "/hf";
@@ -76,7 +78,8 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
     workspace: required(options.workspace, "--workspace"),
     journal: required(options.journal, "--journal"),
     dataRoot: required(options.dataRoot, "--data-root"),
-    runtimeEnv: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.runtimeEnv)
+    runtimeEnv: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.runtimeEnv),
+    stateDb: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.stateDb)
   };
 }
 
@@ -108,7 +111,8 @@ async function initializeRuntimeRoot(
     workspace: path.join(runtimeRoot, WORKSPACE_DIR),
     journal: path.join(runtimeRoot, JOURNAL_DIR),
     dataRoot: path.join(runtimeRoot, DATA_DIR),
-    runtimeEnv: path.join(runtimeRoot, DATA_DIR, runtimeFileNames.runtimeEnv)
+    runtimeEnv: path.join(runtimeRoot, DATA_DIR, runtimeFileNames.runtimeEnv),
+    stateDb: path.join(runtimeRoot, DATA_DIR, runtimeFileNames.stateDb)
   };
 
   await readdir(runtimeRoot);

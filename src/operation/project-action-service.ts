@@ -9,6 +9,16 @@ import { isCommandExecutionError } from "../workspace/command-runner.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
 
+export interface ProjectActionAfterRunContext {
+  operationId: string;
+  environment: NodeJS.ProcessEnv;
+  endedAt: string;
+}
+
+export interface ProjectActionAfterRunResult {
+  deploymentId?: string;
+}
+
 export interface ProjectActionRequest {
   projectId: string;
   repository: string;
@@ -20,10 +30,12 @@ export interface ProjectActionRequest {
   environmentId?: string;
   profile?: string;
   environment?: NodeJS.ProcessEnv;
+  afterRun?: (context: ProjectActionAfterRunContext) => Promise<ProjectActionAfterRunResult | void>;
 }
 
 export interface ProjectActionResult {
   operationId: string;
+  deploymentId?: string;
   stdout: string;
   stderr: string;
 }
@@ -64,10 +76,12 @@ export class ProjectActionService {
       throw error;
     }
 
+    const runEnvironment = actionEnvironment(request);
     try {
-      const result = await this.runner.run(action, actionEnvironment(request));
+      const result = await this.runner.run(action, runEnvironment);
       const endedAt = this.clock.now().toISOString();
-      const artifacts = await collectActionArtifacts(request.environment, endedAt);
+      const afterRun = await request.afterRun?.({ operationId, environment: runEnvironment, endedAt });
+      const artifacts = await collectActionArtifacts(runEnvironment, endedAt);
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,
@@ -88,12 +102,13 @@ export class ProjectActionService {
 
       return {
         operationId,
+        ...(afterRun?.deploymentId ? { deploymentId: afterRun.deploymentId } : {}),
         stdout: result.stdout,
         stderr: result.stderr
       };
     } catch (error) {
       const endedAt = this.clock.now().toISOString();
-      const artifacts = await collectActionArtifacts(request.environment, endedAt);
+      const artifacts = await collectActionArtifacts(runEnvironment, endedAt);
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,

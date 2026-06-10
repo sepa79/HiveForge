@@ -24,6 +24,7 @@ export interface RuntimeDiagnosticsReport {
     journal: PathDiagnostic;
     dataRoot: PathDiagnostic;
     runtimeEnv: PathDiagnostic;
+    stateDb: PathDiagnostic;
   };
   environment?: {
     id: string;
@@ -69,7 +70,8 @@ export class RuntimeDiagnosticsService {
         workspace: await diagnosePath(this.runtimePaths.workspace),
         journal: await diagnosePath(this.runtimePaths.journal),
         dataRoot: await diagnosePath(this.runtimePaths.dataRoot),
-        runtimeEnv: await diagnosePath(this.runtimePaths.runtimeEnv)
+        runtimeEnv: await diagnosePath(this.runtimePaths.runtimeEnv),
+        stateDb: await diagnosePath(this.runtimePaths.stateDb)
       },
       ...(this.currentEnvironment
         ? {

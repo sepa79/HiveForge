@@ -6,6 +6,8 @@ import type { ProjectValidationService } from "../../src/operation/project-valid
 import type { ManagedFilesService } from "../../src/operation/managed-files-service.js";
 import type { ProjectRegistry } from "../../src/manifest/manifest-types.js";
 import type { EnvironmentDefinition } from "../../src/config/environment-types.js";
+import type { DeploymentStateStore } from "../../src/operation/deployment-state-store.js";
+import type { DockerDeploymentService } from "../../src/operation/docker-deployment-service.js";
 
 describe("deploy orchestrator", () => {
   it("runs checkout/inspect, validation, and declared action in order", async () => {
@@ -209,8 +211,118 @@ describe("deploy orchestrator", () => {
           HIVEFORGE_PROFILE: "test",
           HIVEFORGE_PROJECT_DIR: "/data/deployed/hivewatch",
           HIVEFORGE_STACK_DIR: "/data/deployed/hivewatch/stacks",
+          HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
           HIVEFORGE_ARTIFACTS_DIR: "/data/deployed/hivewatch/artifacts"
         })
+      })
+    });
+  });
+
+  it("deploys rendered compose through HiveForge after the action renders it", async () => {
+    const calls: unknown[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[]),
+      validationService(calls as string[]),
+      actionServiceThatRunsAfterHook(calls),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-single"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls),
+      dockerDeployment(calls)
+    );
+
+    const result = await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      environmentId: "local",
+      profile: "test"
+    });
+
+    expect(result.action).toEqual({
+      operationId: "action-op",
+      deploymentId: "deployment-1",
+      stdout: "changed=1",
+      stderr: ""
+    });
+    expect(calls).toEqual([
+      "inspect",
+      "validate",
+      "managed_files",
+      "run_action",
+      {
+        ensureDeployment: expect.objectContaining({
+          environment: "local",
+          project: "hivewatch",
+          component: "api",
+          profile: "test",
+          operationId: "action-op"
+        })
+      },
+      {
+        dockerDeploy: {
+          deploymentId: "deployment-1",
+          composeFile: "/data/deployed/hivewatch/stacks/compose.yml"
+        }
+      },
+      {
+        recordLifecycleAction: expect.objectContaining({
+          environment: "local",
+          project: "hivewatch",
+          component: "api",
+          action: "deploy",
+          operationId: "action-op"
+        })
+      }
+    ]);
+  });
+
+  it("records failed deployment state when HiveForge Docker deploy fails", async () => {
+    const calls: unknown[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[]),
+      validationService(calls as string[]),
+      actionServiceThatRunsAfterHook(calls),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-single"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls),
+      {
+        async deploy() {
+          calls.push("docker_deploy_failed");
+          throw new Error("Docker bind source path does not exist");
+        }
+      } as unknown as DockerDeploymentService
+    );
+
+    await expect(
+      orchestrator.deploy({
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        environmentId: "local"
+      })
+    ).rejects.toThrow("Docker bind source path does not exist");
+    expect(calls).toContainEqual({
+      recordDeploymentFailure: expect.objectContaining({
+        environment: "local",
+        project: "hivewatch",
+        component: "api",
+        action: "deploy",
+        operationId: "action-op",
+        reason: "Docker bind source path does not exist"
       })
     });
   });
@@ -260,6 +372,24 @@ function actionService(calls: string[]): ProjectActionService {
   } as unknown as ProjectActionService;
 }
 
+function actionServiceThatRunsAfterHook(calls: unknown[]): ProjectActionService {
+  return {
+    async run(request: { afterRun?: (context: { operationId: string; endedAt: string }) => Promise<{ deploymentId?: string } | void> }) {
+      calls.push("run_action");
+      const afterRun = await request.afterRun?.({
+        operationId: "action-op",
+        endedAt: "2026-05-17T10:00:00.000Z"
+      });
+      return {
+        operationId: "action-op",
+        ...(afterRun?.deploymentId ? { deploymentId: afterRun.deploymentId } : {}),
+        stdout: "changed=1",
+        stderr: ""
+      };
+    }
+  } as unknown as ProjectActionService;
+}
+
 function managedFilesService(calls: string[]): ManagedFilesService {
   return {
     async prepare() {
@@ -268,10 +398,88 @@ function managedFilesService(calls: string[]): ManagedFilesService {
         projectDir: "/data/deployed/hivewatch",
         stackDir: "/data/deployed/hivewatch/stacks",
         artifactsDir: "/data/deployed/hivewatch/artifacts",
+        renderedComposeFile: "/data/deployed/hivewatch/stacks/compose.yml",
         prepared: []
       };
     }
   } as unknown as ManagedFilesService;
+}
+
+function deploymentState(calls: unknown[]): DeploymentStateStore {
+  return {
+    async listDeployments() {
+      return [];
+    },
+    async getDeployment() {
+      return null;
+    },
+    async findDeployment() {
+      return null;
+    },
+    async ensureDeployment(input) {
+      calls.push({ ensureDeployment: input });
+      return {
+        deploymentId: "deployment-1",
+        environment: input.environment,
+        project: input.project,
+        repository: input.repository,
+        gitRef: input.gitRef,
+        component: input.component,
+        ...(input.profile ? { profile: input.profile } : {}),
+        status: "preparing",
+        lastAction: input.action,
+        operationId: input.operationId,
+        updatedAt: input.updatedAt
+      };
+    },
+    async recordLifecycleAction(input) {
+      calls.push({ recordLifecycleAction: input });
+      return {
+        deploymentId: "deployment-1",
+        environment: input.environment,
+        project: input.project,
+        repository: input.repository,
+        gitRef: input.gitRef,
+        component: input.component,
+        ...(input.profile ? { profile: input.profile } : {}),
+        status: "deployed",
+        lastAction: input.action,
+        operationId: input.operationId,
+        updatedAt: input.updatedAt
+      };
+    },
+    async recordDeploymentFailure(input) {
+      calls.push({ recordDeploymentFailure: input });
+      return {
+        deploymentId: "deployment-1",
+        environment: input.environment,
+        project: input.project,
+        repository: input.repository,
+        gitRef: input.gitRef,
+        component: input.component,
+        ...(input.profile ? { profile: input.profile } : {}),
+        status: "failed",
+        lastAction: input.action,
+        operationId: input.operationId,
+        updatedAt: input.updatedAt
+      };
+    }
+  };
+}
+
+function dockerDeployment(calls: unknown[]): DockerDeploymentService {
+  return {
+    async deploy(input: unknown) {
+      calls.push({ dockerDeploy: input });
+      return {
+        deploymentId: "deployment-1",
+        composeFile: "/data/deployed/hivewatch/stacks/compose.yml",
+        runtime: "docker-single",
+        stdout: "deployed",
+        stderr: ""
+      };
+    }
+  } as unknown as DockerDeploymentService;
 }
 
 function registry(): ProjectRegistry {

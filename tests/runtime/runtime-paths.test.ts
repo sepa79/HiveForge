@@ -21,7 +21,8 @@ describe("runtime paths", () => {
       workspace: path.join(baseDir, "workspace"),
       journal: path.join(baseDir, "journal"),
       dataRoot: path.join(baseDir, "data"),
-      runtimeEnv: path.join(baseDir, "data", "runtime-env.json")
+      runtimeEnv: path.join(baseDir, "data", "runtime-env.json"),
+      stateDb: path.join(baseDir, "data", "hiveforge.sqlite")
     });
     await expect(loadProjectRegistryConfig(paths.registry)).resolves.toEqual({ projects: [] });
     await expect(loadEnvironmentConfig(paths.environments ?? "")).resolves.toMatchObject({

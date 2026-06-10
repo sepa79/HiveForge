@@ -12,11 +12,12 @@ contains:
 - Node.js runtime for HiveForge,
 - git for registered repository checkout,
 - Ansible for declared `ansible` adapter actions,
-- Docker CLI for target Docker/Swarm requirement checks,
+- Docker CLI for target Docker/Swarm requirement checks and HiveForge-owned
+  deploy execution,
 - SSH client and CA certificates for repository access.
 
-The target host must provide Docker/Swarm control access required by the
-checked-out playbooks, but it must not be required to provide Ansible.
+The target host must provide Docker/Swarm control access required by HiveForge.
+Project action runners must not require Docker access.
 
 ## Required paths
 
@@ -95,8 +96,8 @@ Explicit runtime path mode remains supported for advanced installs:
 - `HIVEFORGE_ENVIRONMENTS_PATH` for environment policy config,
 - `HIVEFORGE_WORKSPACE_DIR` for checked-out repositories,
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
-- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files and non-secret
-  runtime env config.
+- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files, non-secret
+  runtime env config, and `hiveforge.sqlite` current-state DB.
 
 Explicit path mode is for maintainers and unusual packaging only. Normal Docker
 and Swarm installs should use the fixed `/hf` container root and configure the

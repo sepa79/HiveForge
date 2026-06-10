@@ -157,6 +157,35 @@ describe("project action service", () => {
     ]);
   });
 
+  it("runs the after-run hook before journaling success", async () => {
+    const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
+    const runner = new FakeActionRunner();
+    const service = serviceWith(journalDir, runner);
+    const calls: unknown[] = [];
+
+    const result = await service.run({
+      ...request("api", "deploy"),
+      environment: {
+        HIVEFORGE_RENDERED_COMPOSE_FILE: "/tmp/compose.yml"
+      },
+      async afterRun(context) {
+        calls.push(context);
+        return { deploymentId: "deployment-1" };
+      }
+    });
+
+    expect(result).toEqual({ operationId: "op-1", deploymentId: "deployment-1", stdout: "changed=1", stderr: "" });
+    expect(calls).toEqual([
+      {
+        operationId: "op-1",
+        environment: {
+          HIVEFORGE_RENDERED_COMPOSE_FILE: "/tmp/compose.yml"
+        },
+        endedAt: "2026-05-17T10:00:00.000Z"
+      }
+    ]);
+  });
+
   it("records rendered compose artifact evidence when the action writes it", async () => {
     const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
     const stackDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-stack-"));

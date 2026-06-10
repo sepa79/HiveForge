@@ -41,13 +41,12 @@ Guaranteed runner tools:
 
 Conditional runner tools:
 
-- `docker` CLI is available only for runner phases that explicitly receive
-  Docker control access.
 - `git` is available only for a HiveForge-controlled checkout phase. Normal
   action execution receives a prepared checkout instead of depending on git.
 
 Not guaranteed by the action contract:
 
+- `docker` CLI, Docker socket access, or any Docker/Swarm control surface,
 - `ssh` or SSH agent/socket access,
 - `python` as a project-callable CLI, even if Ansible depends on Python
   internally,
@@ -104,15 +103,16 @@ should be treated as incomplete. The contract guard exists first so HiveForge ca
 quick-fail repositories that still target the removed POC variable surface.
 
 HiveForge prepares the parent directories for both paths before the action
-runs. Project Ansible may write the rendered Compose/Stack file to
+runs. Project Ansible writes the rendered Compose/Stack file to
 `HIVEFORGE_RENDERED_COMPOSE_FILE` and may write project-owned bind-source
 content under `HIVEFORGE_BIND_SOURCE_DIR` when the connected environment
-declares `managedRoot.bindSourceRoot`.
+declares `managedRoot.bindSourceRoot`. Project Ansible must not deploy the
+Compose/Stack file itself.
 
-After a successful action, HiveForge records `HIVEFORGE_RENDERED_COMPOSE_FILE`
-as a compose artifact when the file exists. The compose inspection API/MCP tool
-returns that recorded artifact only; it does not re-render from the checkout or
-guess a path later.
+After a successful render action, HiveForge injects its deployment metadata into
+`HIVEFORGE_RENDERED_COMPOSE_FILE`, then runs the Docker deployment itself. The
+compose inspection API/MCP tool returns the recorded artifact only; it does not
+re-render from the checkout or guess a path later.
 
 When a profile is selected, HiveForge passes `HIVEFORGE_PROFILE`. Operator
 runtime env must not define `HIVEFORGE_*` keys.
@@ -123,7 +123,6 @@ Ansible adapter contract needs an explicit, typed variable surface for:
 - image tag or release ref,
 - stack name,
 - Compose or stack file path,
-- target host or Docker socket,
 - public URLs and externally visible service names.
 
 HiveForge must not infer these values from file names, branch names, Compose
