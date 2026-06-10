@@ -1,15 +1,18 @@
 import { pathToFileURL } from "node:url";
 import { AnsibleRunner } from "../action/ansible-runner.js";
+import { loadEnvironmentConfig } from "../config/environment-loader.js";
 import { loadProjectRegistryConfig } from "../config/project-registry-loader.js";
 import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
+import { DockerDeploymentService } from "../operation/docker-deployment-service.js";
 import { managedFilesEnvironment, ManagedFilesService } from "../operation/managed-files-service.js";
 import { SystemClock } from "../operation/clock.js";
 import { UuidGenerator } from "../operation/id-generator.js";
 import { ProjectActionService } from "../operation/project-action-service.js";
 import { ProjectInspectionService } from "../operation/project-inspection-service.js";
 import { ProjectValidationService } from "../operation/project-validation-service.js";
+import { SqliteDeploymentStateStore } from "../operation/sqlite-deployment-state-store.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
@@ -19,6 +22,7 @@ import { resolveRuntimePaths } from "../runtime/runtime-paths.js";
 interface CliOptions {
   runtimeRoot?: string;
   registry?: string;
+  environments?: string;
   workspace?: string;
   journal?: string;
   dataRoot?: string;
@@ -103,6 +107,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       ...requiredProjectRef(options),
       component: required(options.component, "--component"),
       action: required(options.action, "--action"),
+      environmentId: context.currentEnvironment?.id,
       profile: options.profile
     });
     writeJson(result);
@@ -133,6 +138,9 @@ function parseOptions(args: string[]): CliOptions {
         break;
       case "--registry":
         options.registry = value;
+        break;
+      case "--environments":
+        options.environments = value;
         break;
       case "--workspace":
         options.workspace = value;
@@ -170,11 +178,18 @@ async function buildContext(options: CliOptions) {
   const runtimePaths = await resolveRuntimePaths({
     runtimeRoot: options.runtimeRoot,
     registry: options.registry,
+    environments: options.environments,
     workspace: options.workspace,
     journal: options.journal,
-    dataRoot: options.dataRoot
+    dataRoot: options.dataRoot,
+    requireEnvironments: Boolean(options.environments)
   });
   const projectRegistry = await loadProjectRegistryConfig(runtimePaths.registry);
+  const environmentConfig = runtimePaths.environments ? await loadEnvironmentConfig(runtimePaths.environments) : undefined;
+  const currentEnvironment = environmentConfig?.environments.find((environment) => environment.id === environmentConfig.current);
+  if (environmentConfig && !currentEnvironment) {
+    throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
+  }
   const workspaceRoot = runtimePaths.workspace;
   const journal = new JsonlJournal(runtimePaths.journal);
   const dataRoot = runtimePaths.dataRoot;
@@ -182,6 +197,7 @@ async function buildContext(options: CliOptions) {
   const ids = new UuidGenerator();
   const clock = new SystemClock();
   const commandRunner = new NodeCommandRunner();
+  const deploymentState = new SqliteDeploymentStateStore(runtimePaths.stateDb, ids);
   const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
   const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
   const validation = new ProjectValidationService(
@@ -191,16 +207,27 @@ async function buildContext(options: CliOptions) {
     clock
   );
   const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
-  const managedFiles = new ManagedFilesService(dataRoot);
+  const managedFiles = new ManagedFilesService(dataRoot, currentEnvironment?.capabilities.managedRoot.bindSourceRoot);
+  const dockerDeployment = currentEnvironment ? new DockerDeploymentService(commandRunner, currentEnvironment) : undefined;
 
   return {
     journal,
+    currentEnvironment,
     inspection,
     validation,
     action,
     runtimeEnv,
     managedFiles,
-    deploy: new DeployOrchestrator(inspection, validation, action, managedFiles, undefined, runtimeEnv)
+    deploy: new DeployOrchestrator(
+      inspection,
+      validation,
+      action,
+      managedFiles,
+      currentEnvironment,
+      runtimeEnv,
+      deploymentState,
+      dockerDeployment
+    )
   };
 }
 

@@ -1,0 +1,11 @@
+services:
+  api:
+    image: nginx:1.27-alpine
+    ports:
+      - "{{ hivewatch_http_port }}:80"
+    volumes:
+      - hivewatch-api-data:/usr/share/nginx/html
+
+volumes:
+  hivewatch-api-data:
+    external: true

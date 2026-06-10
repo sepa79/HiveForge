@@ -21,11 +21,17 @@ The 0.5 deploy flow is:
 5. run the declared component lifecycle action as the render/preparation phase,
 6. for active deploy actions, inject HiveForge deployment metadata into the
    rendered Compose/Stack file,
-7. run the Docker deployment through HiveForge.
+7. validate rendered bind sources,
+8. run the Docker deployment through HiveForge.
 
 Each step is explicit. A failed step stops the flow; later steps do not run.
 The action journal records the lifecycle operation outcome. The SQLite state DB
 records the current deployment slot status and stable `deploymentId`.
+
+Rendered Compose/Stack validation rejects Docker bind sources unless the source
+is under `HIVEFORGE_BIND_SOURCE_DIR` or is an explicit system allowlist path such
+as `/var/run/docker.sock`. HiveForge internal paths such as `/hf/...` are never
+valid Docker bind sources.
 
 ## Non-goals
 

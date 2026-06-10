@@ -196,7 +196,8 @@ export class DeployOrchestrator {
     try {
       await this.dockerDeployment.deploy({
         deploymentId: deployment.deploymentId,
-        composeFile: input.managedFiles.renderedComposeFile
+        composeFile: input.managedFiles.renderedComposeFile,
+        ...(input.managedFiles.bindSourceDir ? { bindSourceDir: input.managedFiles.bindSourceDir } : {})
       });
     } catch (error) {
       return recordFailureAndThrow(this.deploymentState, stateInput, error);

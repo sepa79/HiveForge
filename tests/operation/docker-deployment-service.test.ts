@@ -66,6 +66,66 @@ describe("docker deployment service", () => {
       }
     ]);
   });
+
+  it("rejects bind sources outside the HiveForge bind source directory", async () => {
+    const composeFile = await writeCompose([
+      "services:",
+      "  api:",
+      "    image: hivewatch:test",
+      "    volumes:",
+      "      - /tmp/hivewatch:/data",
+      ""
+    ]);
+    const calls: unknown[] = [];
+    const service = new DockerDeploymentService(commandRunner(calls), environment(["docker-single"]));
+
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        composeFile,
+        bindSourceDir: "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch"
+      })
+    ).rejects.toThrow("outside HIVEFORGE_BIND_SOURCE_DIR");
+    expect(calls).toEqual([]);
+  });
+
+  it("rejects HiveForge internal bind sources", async () => {
+    const composeFile = await writeCompose([
+      "services:",
+      "  api:",
+      "    image: hivewatch:test",
+      "    volumes:",
+      "      - type: bind",
+      "        source: /hf/data/deployed/hivewatch",
+      "        target: /data",
+      ""
+    ]);
+    const service = new DockerDeploymentService(commandRunner([]), environment(["docker-single"]));
+
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        composeFile,
+        bindSourceDir: "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch"
+      })
+    ).rejects.toThrow("HiveForge internal bind source");
+  });
+
+  it("rejects bind sources when no HiveForge bind source directory is configured", async () => {
+    const composeFile = await writeCompose([
+      "services:",
+      "  api:",
+      "    image: hivewatch:test",
+      "    volumes:",
+      "      - /mnt/shared_nfs/hiveforge/data/deployed/hivewatch:/data",
+      ""
+    ]);
+    const service = new DockerDeploymentService(commandRunner([]), environment(["docker-single"]));
+
+    await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).rejects.toThrow(
+      "no HIVEFORGE_BIND_SOURCE_DIR"
+    );
+  });
 });
 
 async function writeCompose(content: string | string[]): Promise<string> {

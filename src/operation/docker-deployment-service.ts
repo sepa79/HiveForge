@@ -7,6 +7,7 @@ import { HIVEFORGE_DOCKER_LABELS } from "./deployment-runtime-status-service.js"
 export interface DockerDeploymentRequest {
   deploymentId: string;
   composeFile: string;
+  bindSourceDir?: string;
 }
 
 export interface DockerDeploymentResult extends CommandResult {
@@ -22,6 +23,7 @@ export class DockerDeploymentService {
   ) {}
 
   async deploy(request: DockerDeploymentRequest): Promise<DockerDeploymentResult> {
+    await validateComposeBindSources(request.composeFile, request.bindSourceDir);
     await injectDeploymentLabel(request.composeFile, request.deploymentId);
     const runtime = this.environment.capabilities.runtime.includes("docker-swarm") ? "docker-swarm" : "docker-single";
     const result =
@@ -42,6 +44,28 @@ export class DockerDeploymentService {
       deploymentId: request.deploymentId,
       runtime
     };
+  }
+}
+
+const ALLOWED_BIND_SOURCES = new Set(["/var/run/docker.sock"]);
+
+async function validateComposeBindSources(composeFile: string, bindSourceDir: string | undefined): Promise<void> {
+  const compose = YAML.parse(await readFile(composeFile, "utf8")) as unknown;
+  if (!isRecord(compose)) {
+    throw new Error("Rendered compose must be a YAML object.");
+  }
+  const services = compose.services;
+  if (!isRecord(services) || Object.keys(services).length === 0) {
+    throw new Error("Rendered compose must define at least one service.");
+  }
+
+  for (const [serviceName, serviceValue] of Object.entries(services)) {
+    if (!isRecord(serviceValue)) {
+      throw new Error(`Rendered compose service must be an object: ${serviceName}`);
+    }
+    for (const source of bindSources(serviceValue.volumes, serviceName)) {
+      validateBindSource(source, bindSourceDir, serviceName);
+    }
   }
 }
 
@@ -66,6 +90,74 @@ async function injectDeploymentLabel(composeFile: string, deploymentId: string):
   }
 
   await writeFile(composeFile, YAML.stringify(compose), "utf8");
+}
+
+function bindSources(value: unknown, serviceName: string): string[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`Compose service volumes must be a list: ${serviceName}`);
+  }
+
+  const sources: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === "string") {
+      const source = shortSyntaxBindSource(entry);
+      if (source) {
+        sources.push(source);
+      }
+      continue;
+    }
+    if (!isRecord(entry)) {
+      throw new Error(`Compose service volume entries must be strings or objects: ${serviceName}`);
+    }
+    const type = typeof entry.type === "string" ? entry.type : undefined;
+    const source = typeof entry.source === "string" ? entry.source : undefined;
+    if (type === "bind" && source) {
+      sources.push(source);
+      continue;
+    }
+    if (!type && source && looksLikeHostPath(source)) {
+      sources.push(source);
+    }
+  }
+  return sources;
+}
+
+function shortSyntaxBindSource(value: string): string | null {
+  const parts = value.split(":");
+  if (parts.length < 2) {
+    return null;
+  }
+  const source = parts[0];
+  if (!source || !looksLikeHostPath(source)) {
+    return null;
+  }
+  return source;
+}
+
+function looksLikeHostPath(value: string): boolean {
+  return value.startsWith("/") || value.startsWith("./") || value.startsWith("../") || value === "." || value === ".." || value.startsWith("~");
+}
+
+function validateBindSource(source: string, bindSourceDir: string | undefined, serviceName: string): void {
+  if (ALLOWED_BIND_SOURCES.has(source)) {
+    return;
+  }
+  if (source === "/hf" || source.startsWith("/hf/")) {
+    throw new Error(`Rendered compose service ${serviceName} uses HiveForge internal bind source: ${source}`);
+  }
+  if (!bindSourceDir) {
+    throw new Error(
+      `Rendered compose service ${serviceName} uses bind source ${source}, but the environment has no HIVEFORGE_BIND_SOURCE_DIR.`
+    );
+  }
+  if (source !== bindSourceDir && !source.startsWith(`${bindSourceDir}/`)) {
+    throw new Error(
+      `Rendered compose service ${serviceName} uses bind source outside HIVEFORGE_BIND_SOURCE_DIR: ${source}`
+    );
+  }
 }
 
 function labelsWithDeployment(value: unknown, deploymentId: string, path: string): Record<string, string> {

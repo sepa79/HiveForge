@@ -32,19 +32,22 @@ docker run --rm \
   hiveforge:local \
   sh -lc "git config --global --add safe.directory \"$ROOT_DIR/tmp/hivewatch-fixture.git\" && node /app/dist/src/cli/main.js deploy \
   --registry \"$ROOT_DIR/examples/hivewatch/projects.yaml\" \
+  --environments \"$ROOT_DIR/examples/hivewatch/environments.yaml\" \
   --workspace \"$ROOT_DIR/tmp/workspace\" \
   --journal \"$ROOT_DIR/tmp/journal\" \
   --data-root \"$ROOT_DIR/tmp/data\" \
   --project hivewatch-local \
   --ref main \
   --component api \
-  --action deploy"
+  --action deploy \
+  --profile normal"
 
 docker run --rm \
   -v "$ROOT_DIR:$ROOT_DIR" \
   hiveforge:local \
   node /app/dist/src/cli/main.js read-journal \
   --registry "$ROOT_DIR/examples/hivewatch/projects.yaml" \
+  --environments "$ROOT_DIR/examples/hivewatch/environments.yaml" \
   --workspace "$ROOT_DIR/tmp/workspace" \
   --journal "$ROOT_DIR/tmp/journal" \
   --data-root "$ROOT_DIR/tmp/data"

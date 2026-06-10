@@ -1,8 +1,20 @@
 ---
-- name: HiveWatch API placeholder deploy
+- name: Render HiveWatch API compose
   hosts: localhost
   gather_facts: false
+  vars:
+    hivewatch_compose_template: "{{ playbook_dir }}/templates/docker-compose.yml.j2"
+    hivewatch_compose_file: "{{ lookup('ansible.builtin.env', 'HIVEFORGE_RENDERED_COMPOSE_FILE') }}"
+    hivewatch_http_port: "{{ lookup('ansible.builtin.env', 'HIVEWATCH_API_PORT') | default('3000', true) }}"
   tasks:
-    - name: Confirm placeholder deploy path
-      ansible.builtin.debug:
-        msg: "HiveForge POC placeholder deploy for HiveWatch API"
+    - name: Require HiveForge rendered compose path
+      ansible.builtin.assert:
+        that:
+          - hivewatch_compose_file | length > 0
+        fail_msg: "HIVEFORGE_RENDERED_COMPOSE_FILE is required."
+
+    - name: Render HiveWatch Compose file
+      ansible.builtin.template:
+        src: "{{ hivewatch_compose_template }}"
+        dest: "{{ hivewatch_compose_file }}"
+        mode: "0644"
