@@ -12,23 +12,33 @@ export interface OperationLogEntry {
   message: string;
 }
 
+export type OperationKind = "lifecycle_action" | "repository_inspection" | "project_registration" | "project_inspection";
+
 export interface OperationRecord {
   operationId: string;
   status: OperationStatus;
-  kind: "lifecycle_action";
-  projectId: string;
+  kind: OperationKind;
+  projectId?: string;
+  repository?: string;
   gitRef: string;
-  component: string;
-  action: string;
+  component?: string;
+  action?: string;
   environmentId?: string;
   profile?: string;
   startedAt: string;
   endedAt?: string;
   logs: OperationLogEntry[];
   result?: {
-    actionOperationId: string;
+    actionOperationId?: string;
   };
   error?: string;
+}
+
+export interface PreDeployOperationRequest {
+  kind: Exclude<OperationKind, "lifecycle_action">;
+  gitRef: string;
+  projectId?: string;
+  repository?: string;
 }
 
 export class OperationLogService {
@@ -102,6 +112,48 @@ export class OperationLogService {
     return record;
   }
 
+  async runPreDeployAttempt<T>(
+    request: PreDeployOperationRequest,
+    run: () => Promise<T>,
+    failureReason?: (result: T) => string | null
+  ): Promise<{ operation: OperationRecord; result: T }> {
+    const operationId = this.ids.nextId("uiop");
+    const record: OperationRecord = {
+      operationId,
+      status: "running",
+      kind: request.kind,
+      ...(request.projectId ? { projectId: request.projectId } : {}),
+      ...(request.repository ? { repository: request.repository } : {}),
+      gitRef: request.gitRef,
+      startedAt: this.clock.now().toISOString(),
+      logs: []
+    };
+
+    this.operations.set(operationId, record);
+    this.append(operationId, "info", `Started ${formatKind(request.kind)} for ${formatTarget(request)}`);
+
+    try {
+      const result = await run();
+      const failedReason = failureReason ? failureReason(result) : null;
+      if (failedReason) {
+        this.append(operationId, "error", failedReason);
+        this.complete(operationId, "failed", undefined, failedReason);
+      } else {
+        this.append(operationId, "info", `Completed ${formatKind(request.kind)} for ${formatTarget(request)}`);
+        this.complete(operationId, "succeeded");
+      }
+      return {
+        operation: this.operations.get(operationId) ?? record,
+        result
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `${formatKind(request.kind)} failed`;
+      this.append(operationId, "error", message);
+      this.complete(operationId, "failed", undefined, message);
+      throw error;
+    }
+  }
+
   private append(operationId: string, level: OperationLogLevel, message: string): void {
     const record = this.operations.get(operationId);
     if (!record) {
@@ -136,4 +188,18 @@ export class OperationLogService {
       record.error = error;
     }
   }
+}
+
+function formatKind(kind: OperationKind): string {
+  return kind.replaceAll("_", " ");
+}
+
+function formatTarget(request: PreDeployOperationRequest): string {
+  if (request.projectId) {
+    return `${request.projectId}@${request.gitRef}`;
+  }
+  if (request.repository) {
+    return `${request.repository}@${request.gitRef}`;
+  }
+  return request.gitRef;
 }

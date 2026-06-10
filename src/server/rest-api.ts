@@ -207,23 +207,48 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       method: "POST",
       pattern: /^\/repositories\/inspect$/,
       async handle({ request }) {
-        if (!services.repositoryInspection) {
+        const repositoryInspection = services.repositoryInspection;
+        if (!repositoryInspection) {
           throw new HttpError(501, "Repository inspection is not configured");
         }
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
         const body = await readRepositoryInspectionRequest(request);
-        return services.repositoryInspection.inspect(body);
+        const { operation, result } = await services.operations.runPreDeployAttempt(
+          {
+            kind: "repository_inspection",
+            repository: body.repository,
+            gitRef: body.gitRef
+          },
+          () => repositoryInspection.inspect(body),
+          deployableFailureReason
+        );
+        return withOperationId(result, operation.operationId);
       }
     },
     {
       method: "POST",
       pattern: /^\/projects\/register$/,
       async handle({ request }) {
-        if (!services.projectRegistration) {
+        const projectRegistration = services.projectRegistration;
+        if (!projectRegistration) {
           throw new HttpError(501, "Project registration is not configured");
+        }
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
         }
         const body = await readRepositoryInspectionRequest(request);
         try {
-          return await services.projectRegistration.register(body);
+          const { operation, result } = await services.operations.runPreDeployAttempt(
+            {
+              kind: "project_registration",
+            repository: body.repository,
+            gitRef: body.gitRef
+          },
+            () => projectRegistration.register(body)
+          );
+          return withOperationId(result, operation.operationId);
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Project registration failed");
         }
@@ -304,13 +329,25 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       method: "POST",
       pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/inspect$/,
       async handle({ request, params }) {
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
         const body = await readRefRequest(request);
-        const result = await services.inspection.inspect({
-          projectId: params.projectId,
-          gitRef: body.gitRef
-        });
+        const { operation, result } = await services.operations.runPreDeployAttempt(
+          {
+            kind: "project_inspection",
+            projectId: params.projectId,
+            gitRef: body.gitRef
+          },
+          () =>
+            services.inspection.inspect({
+              projectId: params.projectId,
+              gitRef: body.gitRef
+            })
+        );
         return {
-          operationId: result.operationId,
+          operationId: operation.operationId,
+          inspectionOperationId: result.operationId,
           projectId: result.projectId,
           repository: result.repository,
           gitRef: result.gitRef,
@@ -464,6 +501,32 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       }
     }
   ];
+}
+
+function deployableFailureReason(result: unknown): string | null {
+  if (!isObjectRecord(result) || result.deployable !== false) {
+    return null;
+  }
+  return typeof result.reason === "string" && result.reason.length > 0
+    ? result.reason
+    : "Repository is not deployable by HiveForge";
+}
+
+function withOperationId(result: unknown, operationId: string): unknown {
+  if (isObjectRecord(result)) {
+    return {
+      ...result,
+      operationId
+    };
+  }
+  return {
+    operationId,
+    result
+  };
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function assertEnvironmentPolicy(

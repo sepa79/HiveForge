@@ -317,7 +317,7 @@ paths:
                 $ref: "#/components/schemas/RuntimeDiagnosticsReport"
   /operations:
     get:
-      summary: List lifecycle operations retained by this HiveForge process
+      summary: List operations retained by this HiveForge process
       operationId: listOperations
       responses:
         "200":
@@ -1299,8 +1299,10 @@ components:
           minLength: 1
     RepositoryInspectionResult:
       type: object
-      required: [repository, gitRef, deployable, components]
+      required: [operationId, repository, gitRef, deployable, components]
       properties:
+        operationId:
+          type: string
         repository:
           type: string
         gitRef:
@@ -1317,8 +1319,10 @@ components:
           type: string
     ProjectRegistrationResult:
       type: object
-      required: [project, deployable]
+      required: [operationId, project, deployable]
       properties:
+        operationId:
+          type: string
         project:
           $ref: "#/components/schemas/Project"
         deployable:
@@ -1326,9 +1330,11 @@ components:
           const: true
     InspectionResult:
       type: object
-      required: [operationId, projectId, repository, gitRef, components]
+      required: [operationId, inspectionOperationId, projectId, repository, gitRef, components]
       properties:
         operationId:
+          type: string
+        inspectionOperationId:
           type: string
         projectId:
           $ref: "#/components/schemas/Identifier"
@@ -1394,7 +1400,7 @@ components:
           format: date-time
     Operation:
       type: object
-      required: [operationId, status, kind, projectId, gitRef, component, action, startedAt, logs]
+      required: [operationId, status, kind, gitRef, startedAt, logs]
       properties:
         operationId:
           type: string
@@ -1403,9 +1409,11 @@ components:
           enum: [running, succeeded, failed]
         kind:
           type: string
-          enum: [lifecycle_action]
+          enum: [lifecycle_action, repository_inspection, project_registration, project_inspection]
         projectId:
           $ref: "#/components/schemas/Identifier"
+        repository:
+          type: string
         gitRef:
           type: string
         component:

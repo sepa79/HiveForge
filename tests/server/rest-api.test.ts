@@ -620,10 +620,49 @@ describe("REST API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
       repository: "https://github.com/sepa79/HiveWatch.git",
       gitRef: "main",
       deployable: true,
       components: []
+    });
+  });
+
+  it("records non-deployable repository inspections as failed operations", async () => {
+    const baseUrl = await startServer({
+      repositoryInspectionResult: {
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main",
+        deployable: false,
+        components: [],
+        reason: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+      }
+    });
+
+    const response = await fetch(`${baseUrl}/repositories/inspect`, {
+      method: "POST",
+      body: JSON.stringify({ repository: "https://github.com/sepa79/HiveWatch.git", gitRef: "main" })
+    });
+    const operations = await fetch(`${baseUrl}/operations`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      operationId: "uiop-1",
+      deployable: false,
+      reason: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+    });
+    expect(operations.status).toBe(200);
+    await expect(operations.json()).resolves.toMatchObject({
+      operations: [
+        {
+          operationId: "uiop-1",
+          status: "failed",
+          kind: "repository_inspection",
+          repository: "https://github.com/sepa79/HiveWatch.git",
+          gitRef: "main",
+          error: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+        }
+      ]
     });
   });
 
@@ -638,6 +677,7 @@ describe("REST API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
       deployable: true,
       project: {
         id: "hivewatch",
@@ -693,7 +733,8 @@ describe("REST API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      operationId: "inspect-op",
+      operationId: "uiop-1",
+      inspectionOperationId: "inspect-op",
       projectId: "hivewatch",
       repository: "https://github.com/sepa79/HiveWatch.git",
       gitRef: "main",
@@ -793,6 +834,7 @@ async function startServer(
     currentEnvironment?: EnvironmentDefinition;
     refreshedEnvironment?: EnvironmentDefinition;
     validationError?: string;
+    repositoryInspectionResult?: unknown;
   } = {}
 ): Promise<string> {
   const currentEnvironment = options.currentEnvironment ?? defaultEnvironment();
@@ -955,7 +997,7 @@ async function startServer(
       runtimeEnv: runtimeEnvService(options.calls),
       repositoryInspection: {
         async inspect(request: { repository: string; gitRef: string }) {
-          return {
+          return options.repositoryInspectionResult ?? {
             ...request,
             deployable: true,
             components: []
@@ -1061,6 +1103,7 @@ function releaseRequest() {
 
 function operationService(calls?: unknown[]) {
   const operations = new Map<string, unknown>();
+  let next = 1;
   return {
     list() {
       return { operations: [...operations.values()] };
@@ -1070,8 +1113,9 @@ function operationService(calls?: unknown[]) {
     },
     startLifecycleAction(request: unknown) {
       calls?.push(request);
+      const operationId = `uiop-${next++}`;
       const operation = {
-        operationId: "uiop-1",
+        operationId,
         status: "running",
         kind: "lifecycle_action",
         projectId: "hivewatch",
@@ -1081,9 +1125,9 @@ function operationService(calls?: unknown[]) {
         startedAt: "2026-05-17T10:00:00.000Z",
         logs: [{ at: "2026-05-17T10:00:00.000Z", level: "info", message: "Started deploy for hivewatch/api" }]
       };
-      operations.set("uiop-1", operation);
+      operations.set(operationId, operation);
       queueMicrotask(() => {
-        operations.set("uiop-1", {
+        operations.set(operationId, {
           ...operation,
           status: "succeeded",
           endedAt: "2026-05-17T10:00:01.000Z",
@@ -1095,6 +1139,57 @@ function operationService(calls?: unknown[]) {
         });
       });
       return operation;
+    },
+    async runPreDeployAttempt(request: Record<string, unknown>, run: () => Promise<unknown>, failureReason?: (result: unknown) => string | null) {
+      const operationId = `uiop-${next++}`;
+      const operation = {
+        operationId,
+        status: "running",
+        ...request,
+        startedAt: "2026-05-17T10:00:00.000Z",
+        logs: [
+          {
+            at: "2026-05-17T10:00:00.000Z",
+            level: "info",
+            message: `Started ${String(request.kind).replaceAll("_", " ")}`
+          }
+        ]
+      };
+      operations.set(operationId, operation);
+      try {
+        const result = await run();
+        const reason = failureReason ? failureReason(result) : null;
+        const completed = {
+          ...operation,
+          status: reason ? "failed" : "succeeded",
+          endedAt: "2026-05-17T10:00:01.000Z",
+          ...(reason ? { error: reason } : {}),
+          logs: [
+            ...operation.logs,
+            {
+              at: "2026-05-17T10:00:01.000Z",
+              level: reason ? "error" : "info",
+              message: reason ?? `Completed ${String(request.kind).replaceAll("_", " ")}`
+            }
+          ]
+        };
+        operations.set(operationId, completed);
+        return { operation: completed, result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Operation failed";
+        const failed = {
+          ...operation,
+          status: "failed",
+          endedAt: "2026-05-17T10:00:01.000Z",
+          error: message,
+          logs: [
+            ...operation.logs,
+            { at: "2026-05-17T10:00:01.000Z", level: "error", message }
+          ]
+        };
+        operations.set(operationId, failed);
+        throw error;
+      }
     }
   } as never;
 }

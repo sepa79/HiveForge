@@ -9,6 +9,64 @@ accepted tool shapes into `docs/specs/mcp/tools.md`, REST transport changes into
 `docs/specs/api/openapi.yaml`, and any workspace retention behavior into the
 relevant runtime/workspace spec.
 
+## Release Split
+
+### 0.5.0 MVP
+
+- UI shows failed inspect/register/pre-deploy attempts as visible history instead
+  of losing them before a deployment row exists.
+- Minimal project/operator UI view shows projects, deployments, operation
+  history, runtime diagnostics, and compose/artifact links for deployments.
+- Docker runtime diagnostics cover service/container status, Swarm task state,
+  basic restart/error reason, and exact bind-source validation errors.
+- Workspace visibility covers checkout/workspace listing and manual cleanup for
+  stale checkouts.
+- Update-in-place verification proves HiveForge redeploy keeps `projects.yaml`,
+  `environments.yaml`, SQLite state, journal, and runtime env data.
+- Consumer compatibility gates fail fast and visibly when a repository misses
+  `version: "0.5"`.
+- HomeLab smoke covers HiveForge install/reset/wait diagnostics through Ansible
+  and one compatible consumer smoke, initially HiveWatch after a compatible ref
+  is published.
+
+### 0.5.1
+
+- Execute release deploy/upgrade after `prepare_release_deploy`; no build
+  fallback and no repo/ref action fallback.
+- Add UI for deploy prerequisites: manual prerequisites, missing labels,
+  secrets, mounts, release vars, and image refs.
+- Improve compose/artifact UI with redaction, download/copy, and
+  operation-linked artifact history.
+
+### 0.5.2
+
+- Expand Docker diagnostics with expected-vs-actual resources, per-node mount
+  visibility, task placement mismatch, restart loops, and last exit/log hints.
+- Add a one-page deployment diagnostics report with project/component/profile
+  filters.
+
+### 0.5.3
+
+- Harden isolated action runner execution with per-operation runner containers,
+  narrow mounts, no Docker socket for project Ansible, and explicit allowed
+  tools.
+- Update security documentation around the action runner contract.
+
+### 0.5.4
+
+- Add HomeLab E2E suite with scripted MCP tests, a tiny YAML runner or Cucumber
+  if needed, HiveWatch -> HiveMind -> PocketHive scenarios, and artifact/log
+  collection.
+- Add a CI/lab bridge for branch images where practical.
+
+### Later 0.5.x
+
+- Advanced workspace retention policies.
+- Better project cleanup UX.
+- More UI polish around deployment comparison and history.
+- Multi-environment target UX improvements.
+- Broader consumer repository migration tooling.
+
 ## Goals
 
 - Make MCP tool names match actual behavior.

@@ -56,4 +56,39 @@ describe("operation log service", () => {
       ])
     });
   });
+
+  it("records failed pre-deploy attempts with the returned failure reason", async () => {
+    const deploy = {} as unknown as DeployOrchestrator;
+    const service = new OperationLogService(deploy, new SequenceIds(), new FixedClock());
+
+    const { operation, result } = await service.runPreDeployAttempt(
+      {
+        kind: "repository_inspection",
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main"
+      },
+      async () => ({
+        deployable: false,
+        reason: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+      }),
+      (inspection) => (inspection.deployable ? null : inspection.reason)
+    );
+
+    expect(result.deployable).toBe(false);
+    expect(operation).toMatchObject({
+      operationId: "uiop-1",
+      status: "failed",
+      kind: "repository_inspection",
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      gitRef: "main",
+      error: "Unsupported HiveForge project manifest version: missing. Expected 0.5.",
+      logs: expect.arrayContaining([
+        expect.objectContaining({ level: "info", message: "Started repository inspection for https://github.com/sepa79/HiveWatch.git@main" }),
+        expect.objectContaining({
+          level: "error",
+          message: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+        })
+      ])
+    });
+  });
 });
