@@ -150,6 +150,19 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "diagnose_deployment",
+    {
+      title: "Diagnose deployment",
+      description:
+        "Return one debug view with HiveForge deployment state, Docker runtime status, recorded compose, compose bind-source validation, and HiveForge path diagnostics.",
+      inputSchema: {
+        deploymentId: z.string().min(1)
+      }
+    },
+    runtime.diagnoseDeployment
+  );
+
+  server.registerTool(
     "get_deployment_compose",
     {
       title: "Get deployment compose",

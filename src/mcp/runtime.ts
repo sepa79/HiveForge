@@ -19,6 +19,7 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
       profile?: string;
     }) =>
       call(() => apiClient.checkDeploymentRuntimeStatus(input)),
+    diagnoseDeployment: (input: { deploymentId: string }) => call(() => apiClient.diagnoseDeployment(input)),
     listOperations: () => call(() => apiClient.listOperations()),
     getOperation: (input: { operationId: string }) => call(() => apiClient.getOperation(input.operationId)),
     readJournal: () => call(() => apiClient.readJournal()),

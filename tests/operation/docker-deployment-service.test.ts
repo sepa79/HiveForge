@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import YAML from "yaml";
-import { DockerDeploymentService } from "../../src/operation/docker-deployment-service.js";
+import { DockerDeploymentService, inspectComposeBindSources } from "../../src/operation/docker-deployment-service.js";
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
 import type { EnvironmentDefinition } from "../../src/config/environment-types.js";
 
@@ -125,6 +125,43 @@ describe("docker deployment service", () => {
     await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).rejects.toThrow(
       "no HIVEFORGE_BIND_SOURCE_DIR"
     );
+  });
+
+  it("returns a bind-source validation report without deploying", async () => {
+    const composeFile = await writeCompose([
+      "services:",
+      "  api:",
+      "    image: hivewatch:test",
+      "    volumes:",
+      "      - /hf/data/deployed/hivewatch:/bad",
+      "      - /mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config:/config",
+      ""
+    ]);
+
+    await expect(
+      inspectComposeBindSources(composeFile, "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch")
+    ).resolves.toEqual({
+      ok: false,
+      composeFile,
+      bindSourceDir: "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch",
+      allowedBindSources: ["/var/run/docker.sock"],
+      services: [
+        {
+          service: "api",
+          bindSources: [
+            "/hf/data/deployed/hivewatch",
+            "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config"
+          ]
+        }
+      ],
+      issues: [
+        {
+          service: "api",
+          source: "/hf/data/deployed/hivewatch",
+          reason: "Rendered compose service api uses HiveForge internal bind source: /hf/data/deployed/hivewatch"
+        }
+      ]
+    });
   });
 });
 

@@ -13,20 +13,28 @@ managed service flow is release-driven and is defined in
 
 The 0.5 deploy flow is:
 
-1. checkout registered project ref,
-2. inspect root and component manifests,
-3. resolve non-secret runtime env for the selected project/profile,
-4. validate selected profile eligibility for the current environment and
+1. sparse checkout only `hiveforge.yaml` and `deploy/hiveforge/` from the
+   registered project ref,
+2. validate that the root project manifest declares HiveForge contract
+   `version: "0.5"`,
+3. checkout the full registered project ref,
+4. inspect root and component manifests,
+5. resolve non-secret runtime env for the selected project/profile,
+6. validate selected profile eligibility for the current environment and
    declared runtime requirements,
-5. run the declared component lifecycle action as the render/preparation phase,
-6. for active deploy actions, inject HiveForge deployment metadata into the
+7. run the declared component lifecycle action as the render/preparation phase,
+8. for active deploy actions, inject HiveForge deployment metadata into the
    rendered Compose/Stack file,
-7. validate rendered bind sources,
-8. run the Docker deployment through HiveForge.
+9. validate rendered bind sources,
+10. run the Docker deployment through HiveForge.
 
 Each step is explicit. A failed step stops the flow; later steps do not run.
 The action journal records the lifecycle operation outcome. The SQLite state DB
 records the current deployment slot status and stable `deploymentId`.
+
+The contract version gate runs before full checkout and before any project
+action. A missing or unsupported root `version` is a breaking-change failure,
+not a compatibility path.
 
 Rendered Compose/Stack validation rejects Docker bind sources unless the source
 is under `HIVEFORGE_BIND_SOURCE_DIR` or is an explicit system allowlist path such

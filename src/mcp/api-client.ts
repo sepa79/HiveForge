@@ -116,6 +116,24 @@ export class HiveForgeApiClient {
     });
   }
 
+  diagnoseDeployment(input: {
+    deploymentId?: string;
+    projectId?: string;
+    component?: string;
+    profile?: string;
+  }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: "/deployments/diagnostics",
+      body: {
+        ...(input.deploymentId ? { deploymentId: input.deploymentId } : {}),
+        ...(input.projectId ? { projectId: input.projectId } : {}),
+        ...(input.component ? { component: input.component } : {}),
+        ...(input.profile ? { profile: input.profile } : {})
+      }
+    });
+  }
+
   listOperations(): Promise<unknown> {
     return this.request({ method: "GET", path: "/operations" });
   }

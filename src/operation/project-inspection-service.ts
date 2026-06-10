@@ -1,6 +1,6 @@
 import type { Journal } from "../journal/journal.js";
 import type { ProjectRegistry } from "../manifest/manifest-types.js";
-import { loadProjectRegistry } from "../manifest/project-registry.js";
+import { loadProjectRegistry, validateProjectManifestPreflight } from "../manifest/project-registry.js";
 import type { CheckoutRequest, WorkspaceManager } from "../workspace/workspace-manager.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
@@ -28,6 +28,8 @@ export class ProjectInspectionService {
     let checkout;
 
     try {
+      const preflight = await this.workspaceManager.checkoutManifestPreflight(request);
+      await validateProjectManifestPreflight(preflight.workspacePath);
       checkout = await this.workspaceManager.checkout(request);
     } catch (error) {
       await this.journal.append({

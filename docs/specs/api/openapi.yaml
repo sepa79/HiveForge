@@ -259,6 +259,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeploymentRuntimeStatusResult"
+  /deployments/diagnostics:
+    post:
+      summary: Diagnose one deployment across HiveForge state, Docker, compose, and runtime paths
+      description: >
+        Aggregates explicit HiveForge state, Docker runtime status selected by
+        hiveforge.deployment label, the recorded compose artifact, compose
+        bind-source validation, and HiveForge runtime diagnostics. This endpoint
+        does not infer ownership from Docker object names and does not re-render
+        compose from source.
+      operationId: diagnoseDeployment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
+      responses:
+        "200":
+          description: Deployment diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentDiagnosticsResult"
   /deployments/{operationId}/compose:
     get:
       summary: Read the rendered compose artifact recorded for an operation
@@ -749,7 +772,7 @@ components:
           $ref: "#/components/schemas/ReleaseArtifactTemplate"
         requiredFiles:
           type: array
-          description: Runtime files that must exist under HIVEFORGE_PROJECT_DIR after managedPaths preparation.
+          description: Runtime files that must exist under the managed project root after managedPaths preparation.
           items:
             type: string
             minLength: 1
@@ -1120,6 +1143,100 @@ components:
           type: object
           additionalProperties:
             type: string
+    DeploymentDiagnosticsResult:
+      type: object
+      additionalProperties: false
+      required: [selector, state, runtime, composeValidation, hiveforge]
+      properties:
+        selector:
+          $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
+        state:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [status, deployment]
+              properties:
+                status:
+                  type: string
+                  enum: [present]
+                deployment:
+                  $ref: "#/components/schemas/Deployment"
+            - type: object
+              additionalProperties: false
+              required: [status, reason]
+              properties:
+                status:
+                  type: string
+                  enum: [missing]
+                reason:
+                  type: string
+        runtime:
+          $ref: "#/components/schemas/DeploymentRuntimeStatusResult"
+        compose:
+          $ref: "#/components/schemas/DeploymentComposeResult"
+        composeValidation:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [status, result]
+              properties:
+                status:
+                  type: string
+                  enum: [checked]
+                result:
+                  $ref: "#/components/schemas/ComposeBindSourceValidationResult"
+            - type: object
+              additionalProperties: false
+              required: [status, reason]
+              properties:
+                status:
+                  type: string
+                  enum: [not_checked]
+                reason:
+                  type: string
+        hiveforge:
+          $ref: "#/components/schemas/RuntimeDiagnosticsReport"
+    ComposeBindSourceValidationResult:
+      type: object
+      additionalProperties: false
+      required: [ok, composeFile, allowedBindSources, services, issues]
+      properties:
+        ok:
+          type: boolean
+        composeFile:
+          type: string
+        bindSourceDir:
+          type: string
+        allowedBindSources:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [service, bindSources]
+            properties:
+              service:
+                type: string
+              bindSources:
+                type: array
+                items:
+                  type: string
+        issues:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [service, source, reason]
+            properties:
+              service:
+                type: string
+              source:
+                type: string
+              reason:
+                type: string
     DeploymentComposeResult:
       type: object
       additionalProperties: false

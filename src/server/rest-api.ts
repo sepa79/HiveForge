@@ -9,6 +9,7 @@ import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
 import type { DeploymentComposeService } from "../operation/deployment-compose-service.js";
+import type { DeploymentDiagnosticsService } from "../operation/deployment-diagnostics-service.js";
 import type {
   DeploymentRuntimeStatusRequest,
   DeploymentRuntimeStatusService
@@ -47,6 +48,7 @@ export interface RestApiServices {
   environmentPolicy?: EnvironmentPolicyService;
   deploymentInventory?: DeploymentInventoryService;
   deploymentCompose?: DeploymentComposeService;
+  deploymentDiagnostics?: DeploymentDiagnosticsService;
   deploymentRuntimeStatus?: DeploymentRuntimeStatusService;
   deployPrerequisites?: DeployPrerequisitesService;
   operations?: OperationLogService;
@@ -165,6 +167,16 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           throw new HttpError(501, "Deployment runtime status is not configured");
         }
         return services.deploymentRuntimeStatus.check(await readDeploymentRuntimeStatusRequest(request));
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/deployments\/diagnostics$/,
+      async handle({ request }) {
+        if (!services.deploymentDiagnostics) {
+          throw new HttpError(501, "Deployment diagnostics are not configured");
+        }
+        return services.deploymentDiagnostics.diagnose(await readDeploymentRuntimeStatusRequest(request));
       }
     },
     {

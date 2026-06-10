@@ -4,6 +4,7 @@ import { loadYamlFile, schemaPaths, validateContract } from "../contracts/schema
 import type { ComponentManifest, ProjectRegistry, RootManifest } from "./manifest-types.js";
 
 const ROOT_MANIFEST_FILE = "hiveforge.yaml";
+export const SUPPORTED_PROJECT_MANIFEST_VERSION = "0.5";
 const LEGACY_ACTION_CONTRACT_TOKENS = [
   "HIVEFORGE_PROJECT_DIR",
   "HIVEFORGE_STACK_DIR",
@@ -65,6 +66,12 @@ export async function loadProjectRegistry(workspacePath: string): Promise<Projec
   };
 }
 
+export async function validateProjectManifestPreflight(workspacePath: string): Promise<void> {
+  const rootPath = path.join(workspacePath, ROOT_MANIFEST_FILE);
+  const rootManifest = await loadAndValidateManifest<RootManifest>(rootPath, `Root manifest missing: ${ROOT_MANIFEST_FILE}`);
+  assertUniqueProjectProfiles(rootManifest);
+}
+
 function assertUniqueProjectProfiles(rootManifest: RootManifest): void {
   const seen = new Set<string>();
   for (const profile of rootManifest.project.profiles ?? []) {
@@ -108,8 +115,11 @@ function assertSupportedRootManifestVersion(manifest: unknown): void {
   if (!isRecord(manifest) || manifest.kind !== "project") {
     return;
   }
-  if (manifest.version !== "0.5") {
-    throw new Error("Unsupported HiveForge project manifest version: expected version \"0.5\"");
+  if (manifest.version !== SUPPORTED_PROJECT_MANIFEST_VERSION) {
+    const actual = typeof manifest.version === "string" && manifest.version.length > 0 ? manifest.version : "missing";
+    throw new Error(
+      `Unsupported HiveForge project manifest version: ${actual}. Expected ${SUPPORTED_PROJECT_MANIFEST_VERSION}.`
+    );
   }
 }
 

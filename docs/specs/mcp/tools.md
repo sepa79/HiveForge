@@ -212,6 +212,32 @@ Behavior: read-only. This tool does not infer ownership from container names,
 service names, stack names, or compose file names. If no labelled Docker objects
 match, the result is an explicit `missing` status with a reason.
 
+### `diagnose_deployment`
+
+Input:
+
+```json
+{
+  "deploymentId": "deployment-..."
+}
+```
+
+Preferred input is `deploymentId` from `list_deployments`. As with
+`check_deployment_runtime_status`, the REST transport can resolve `projectId`
+plus `component`, and optional `profile`; the MCP tool requires `deploymentId`
+so agents use the explicit deployment inventory object.
+
+Output: one read-only deployment debug view containing:
+
+- HiveForge deployment state from SQLite,
+- live Docker runtime status selected only by `hiveforge.deployment=<deploymentId>`,
+- recorded rendered Compose/Stack artifact for the deployment's last operation,
+- bind-source validation for that recorded Compose artifact,
+- HiveForge runtime path and managed-root diagnostics.
+
+Behavior: read-only. This tool does not re-render Compose, does not infer
+ownership from Docker object names, and does not run project actions.
+
 ### `get_deployment_compose`
 
 Input:
@@ -508,14 +534,14 @@ Behavior: validate and prepare a release/image-tag deployment plan. This tool
 does not build images, push images, infer `latest`, infer tags from branches, or
 execute deployment actions. When `gitRef` is supplied, HiveForge checks out the
 project, prepares declared `artifacts.managedPaths` into the managed project
-root, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`, and validates
-`requiredFiles` before returning the plan. When `gitRef` is omitted, callers must
-provide explicit `project` metadata for pure plan preparation.
+root, writes the release vars file under the managed artifacts tree, and
+validates `requiredFiles` before returning the plan. When `gitRef` is omitted,
+callers must provide explicit `project` metadata for pure plan preparation.
 
 Output: resolved release deployment plan, including merged vars and rendered
 image refs. When `artifact.env` is supplied, output also includes rendered env
 values such as `DOCKER_REGISTRY` and `POCKETHIVE_VERSION`. Checkout-backed
-output also includes managed root env values and `HIVEFORGE_RELEASE_VARS_FILE`.
+output also includes action contract path values and `HIVEFORGE_RELEASE_VARS_FILE`.
 
 ### `read_journal`
 

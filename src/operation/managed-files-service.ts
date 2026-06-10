@@ -96,14 +96,8 @@ async function replaceDirectoryContents(source: string, target: string): Promise
 
 export function managedFilesEnvironment(result: ManagedFilesResult): NodeJS.ProcessEnv {
   return {
-    HIVEFORGE_PROJECT_DIR: result.projectDir,
-    HIVEFORGE_STACK_DIR: result.stackDir,
-    HIVEFORGE_ARTIFACTS_DIR: result.artifactsDir,
     HIVEFORGE_RENDERED_COMPOSE_FILE: result.renderedComposeFile,
-    ...(result.bindSourceDir ? { HIVEFORGE_BIND_SOURCE_DIR: result.bindSourceDir } : {}),
-    ...(result.projectHostDir ? { HIVEFORGE_PROJECT_HOST_DIR: result.projectHostDir } : {}),
-    ...(result.stackHostDir ? { HIVEFORGE_STACK_HOST_DIR: result.stackHostDir } : {}),
-    ...(result.artifactsHostDir ? { HIVEFORGE_ARTIFACTS_HOST_DIR: result.artifactsHostDir } : {})
+    ...(result.bindSourceDir ? { HIVEFORGE_BIND_SOURCE_DIR: result.bindSourceDir } : {})
   };
 }
 

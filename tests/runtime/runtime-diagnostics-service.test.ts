@@ -32,7 +32,15 @@ describe("runtime diagnostics service", () => {
       "HIVEFORGE_RENDERED_COMPOSE_FILE",
       "HIVEFORGE_BIND_SOURCE_DIR"
     ]);
-    expect(report.actionContractPaths.hiddenFromProjectActions).toContain("HIVEFORGE_DATA_ROOT");
+    expect(report.actionContractPaths.hiddenFromProjectActions).toEqual([
+      "HIVEFORGE_DATA_ROOT",
+      "HIVEFORGE_PROJECT_DIR",
+      "HIVEFORGE_STACK_DIR",
+      "HIVEFORGE_ARTIFACTS_DIR",
+      "HIVEFORGE_PROJECT_HOST_DIR",
+      "HIVEFORGE_STACK_HOST_DIR",
+      "HIVEFORGE_ARTIFACTS_HOST_DIR"
+    ]);
   });
 
   it("reports configured managed-root mapping without claiming per-node verification", async () => {

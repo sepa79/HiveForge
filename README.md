@@ -87,6 +87,7 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    validate_requirements
    start_action
    get_operation
+   diagnose_deployment
    read_journal
    ```
 

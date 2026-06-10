@@ -472,7 +472,7 @@ describe("manifest schema", () => {
     await writeFile(path.join(workspace, "components/api/ansible/deploy.yml"), "---\n- hosts: localhost\n");
 
     await expect(loadProjectRegistry(workspace)).rejects.toThrow(
-      'Unsupported HiveForge project manifest version: expected version "0.5"'
+      "Unsupported HiveForge project manifest version: missing. Expected 0.5."
     );
   });
 

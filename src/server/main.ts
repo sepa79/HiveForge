@@ -10,6 +10,7 @@ import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { SystemClock } from "../operation/clock.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import { DeploymentComposeService } from "../operation/deployment-compose-service.js";
+import { DeploymentDiagnosticsService } from "../operation/deployment-diagnostics-service.js";
 import { DeployPrerequisitesService } from "../operation/deploy-prerequisites-service.js";
 import { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
 import { DeploymentRuntimeStatusService } from "../operation/deployment-runtime-status-service.js";
@@ -142,6 +143,13 @@ const deploymentCompose = new DeploymentComposeService(journal);
 const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
 const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
+const deploymentDiagnostics = new DeploymentDiagnosticsService(
+  deploymentState,
+  deploymentRuntimeStatus,
+  deploymentCompose,
+  runtimeDiagnostics,
+  currentEnvironment.id
+);
 
 createHttpServer(
   [
@@ -159,6 +167,7 @@ createHttpServer(
       environmentPolicy,
       deploymentInventory,
       deploymentCompose,
+      deploymentDiagnostics,
       deploymentRuntimeStatus,
       deployPrerequisites,
       operations,

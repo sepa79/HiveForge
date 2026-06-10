@@ -101,4 +101,52 @@ describe("workspace manager", () => {
     );
     expect(runner.calls).toEqual([]);
   });
+
+  it("checks out only HiveForge preflight paths before full inspection", async () => {
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-workspace-"));
+    const runner = new RecordingRunner();
+    const manager = new WorkspaceManager(
+      workspaceRoot,
+      {
+        projects: [
+          {
+            id: "hivewatch",
+            name: "HiveWatch",
+            source: "github",
+            repository: "https://github.com/sepa79/HiveWatch.git",
+            approvedRefs: ["main"]
+          }
+        ]
+      },
+      runner
+    );
+
+    const result = await manager.checkoutManifestPreflight({ projectId: "hivewatch", gitRef: "main" });
+
+    expect(result.workspacePath.startsWith(path.join(workspaceRoot, "hivewatch", "bWFpbg-preflight-"))).toBe(true);
+    expect(runner.calls).toEqual([
+      {
+        command: "git",
+        args: [
+          "clone",
+          "--no-checkout",
+          "--filter=blob:none",
+          "--sparse",
+          "https://github.com/sepa79/HiveWatch.git",
+          result.workspacePath
+        ],
+        cwd: undefined
+      },
+      {
+        command: "git",
+        args: ["sparse-checkout", "set", "hiveforge.yaml", "deploy/hiveforge"],
+        cwd: result.workspacePath
+      },
+      {
+        command: "git",
+        args: ["checkout", "main"],
+        cwd: result.workspacePath
+      }
+    ]);
+  });
 });

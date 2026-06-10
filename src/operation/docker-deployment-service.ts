@@ -16,6 +16,22 @@ export interface DockerDeploymentResult extends CommandResult {
   runtime: "docker-single" | "docker-swarm";
 }
 
+export interface ComposeBindSourceValidationResult {
+  ok: boolean;
+  composeFile: string;
+  bindSourceDir?: string;
+  allowedBindSources: string[];
+  services: Array<{
+    service: string;
+    bindSources: string[];
+  }>;
+  issues: Array<{
+    service: string;
+    source: string;
+    reason: string;
+  }>;
+}
+
 export class DockerDeploymentService {
   constructor(
     private readonly commandRunner: CommandRunner,
@@ -50,6 +66,17 @@ export class DockerDeploymentService {
 const ALLOWED_BIND_SOURCES = new Set(["/var/run/docker.sock"]);
 
 async function validateComposeBindSources(composeFile: string, bindSourceDir: string | undefined): Promise<void> {
+  const result = await inspectComposeBindSources(composeFile, bindSourceDir);
+  if (!result.ok) {
+    const issue = result.issues[0];
+    throw new Error(issue ? issue.reason : "Rendered compose bind-source validation failed.");
+  }
+}
+
+export async function inspectComposeBindSources(
+  composeFile: string,
+  bindSourceDir: string | undefined
+): Promise<ComposeBindSourceValidationResult> {
   const compose = YAML.parse(await readFile(composeFile, "utf8")) as unknown;
   if (!isRecord(compose)) {
     throw new Error("Rendered compose must be a YAML object.");
@@ -59,14 +86,38 @@ async function validateComposeBindSources(composeFile: string, bindSourceDir: st
     throw new Error("Rendered compose must define at least one service.");
   }
 
+  const result: ComposeBindSourceValidationResult = {
+    ok: true,
+    composeFile,
+    ...(bindSourceDir ? { bindSourceDir } : {}),
+    allowedBindSources: [...ALLOWED_BIND_SOURCES],
+    services: [],
+    issues: []
+  };
+
   for (const [serviceName, serviceValue] of Object.entries(services)) {
     if (!isRecord(serviceValue)) {
       throw new Error(`Rendered compose service must be an object: ${serviceName}`);
     }
-    for (const source of bindSources(serviceValue.volumes, serviceName)) {
-      validateBindSource(source, bindSourceDir, serviceName);
+    const sources = bindSources(serviceValue.volumes, serviceName);
+    result.services.push({
+      service: serviceName,
+      bindSources: sources
+    });
+    for (const source of sources) {
+      const issue = bindSourceIssue(source, bindSourceDir, serviceName);
+      if (issue) {
+        result.issues.push({
+          service: serviceName,
+          source,
+          reason: issue
+        });
+      }
     }
   }
+
+  result.ok = result.issues.length === 0;
+  return result;
 }
 
 async function injectDeploymentLabel(composeFile: string, deploymentId: string): Promise<void> {
@@ -141,23 +192,20 @@ function looksLikeHostPath(value: string): boolean {
   return value.startsWith("/") || value.startsWith("./") || value.startsWith("../") || value === "." || value === ".." || value.startsWith("~");
 }
 
-function validateBindSource(source: string, bindSourceDir: string | undefined, serviceName: string): void {
+function bindSourceIssue(source: string, bindSourceDir: string | undefined, serviceName: string): string | null {
   if (ALLOWED_BIND_SOURCES.has(source)) {
-    return;
+    return null;
   }
   if (source === "/hf" || source.startsWith("/hf/")) {
-    throw new Error(`Rendered compose service ${serviceName} uses HiveForge internal bind source: ${source}`);
+    return `Rendered compose service ${serviceName} uses HiveForge internal bind source: ${source}`;
   }
   if (!bindSourceDir) {
-    throw new Error(
-      `Rendered compose service ${serviceName} uses bind source ${source}, but the environment has no HIVEFORGE_BIND_SOURCE_DIR.`
-    );
+    return `Rendered compose service ${serviceName} uses bind source ${source}, but the environment has no HIVEFORGE_BIND_SOURCE_DIR.`;
   }
   if (source !== bindSourceDir && !source.startsWith(`${bindSourceDir}/`)) {
-    throw new Error(
-      `Rendered compose service ${serviceName} uses bind source outside HIVEFORGE_BIND_SOURCE_DIR: ${source}`
-    );
+    return `Rendered compose service ${serviceName} uses bind source outside HIVEFORGE_BIND_SOURCE_DIR: ${source}`;
   }
+  return null;
 }
 
 function labelsWithDeployment(value: unknown, deploymentId: string, path: string): Record<string, string> {

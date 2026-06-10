@@ -322,6 +322,25 @@ describe("REST API", () => {
     expect(calls).toContainEqual({ runtimeStatus: { deploymentId: "deployment-1" } });
   });
 
+  it("diagnoses a deployment", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/deployments/diagnostics`, {
+      method: "POST",
+      body: JSON.stringify({ deploymentId: "deployment-1" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      selector: { deploymentId: "deployment-1" },
+      state: { status: "present" },
+      runtime: { summary: "running" },
+      composeValidation: { status: "checked" }
+    });
+    expect(calls).toContainEqual({ deploymentDiagnostics: { deploymentId: "deployment-1" } });
+  });
+
   it("returns runtime diagnostics through the configured service", async () => {
     const baseUrl = await startServer();
 
@@ -885,6 +904,17 @@ async function startServer(
           return {
             ...(request as Record<string, unknown>),
             summary: "missing"
+          };
+        }
+      } as never,
+      deploymentDiagnostics: {
+        async diagnose(request: unknown) {
+          options.calls?.push({ deploymentDiagnostics: request });
+          return {
+            selector: request,
+            state: { status: "present" },
+            runtime: { summary: "running" },
+            composeValidation: { status: "checked" }
           };
         }
       } as never,

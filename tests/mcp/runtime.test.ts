@@ -18,6 +18,7 @@ describe("HiveForge MCP runtime", () => {
       "list_deployments",
       "diagnose_hiveforge_runtime",
       "check_deployment_runtime_status",
+      "diagnose_deployment",
       "get_deployment_compose",
       "inspect_repository",
       "register_project",
@@ -34,6 +35,14 @@ describe("HiveForge MCP runtime", () => {
       "list_operations",
       "read_journal"
     ]);
+  });
+
+  it("requires deploymentId for deployment diagnostics in the MCP tool schema", async () => {
+    const source = await readFile(new URL("../../src/mcp/server.ts", import.meta.url), "utf8");
+    const toolBlock = source.slice(source.indexOf('"diagnose_deployment"'), source.indexOf('"get_deployment_compose"'));
+
+    expect(toolBlock).toContain("deploymentId: z.string().min(1)");
+    expect(toolBlock).not.toContain("deploymentId: z.string().min(1).optional()");
   });
 
   it("resolves package metadata from the built server location", async () => {
@@ -131,6 +140,21 @@ describe("HiveForge MCP runtime", () => {
 
     expect(result.structuredContent).toEqual({
       summary: "running",
+      input: { deploymentId: "deployment-1" }
+    });
+  });
+
+  it("diagnoses deployments through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async diagnoseDeployment(input: unknown) {
+        return { state: { status: "present" }, input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.diagnoseDeployment({ deploymentId: "deployment-1" });
+
+    expect(result.structuredContent).toEqual({
+      state: { status: "present" },
       input: { deploymentId: "deployment-1" }
     });
   });

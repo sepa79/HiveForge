@@ -209,13 +209,17 @@ describe("deploy orchestrator", () => {
           IMAGE_TAG: "latest",
           PUBLIC_URL: "http://local",
           HIVEFORGE_PROFILE: "test",
-          HIVEFORGE_PROJECT_DIR: "/data/deployed/hivewatch",
-          HIVEFORGE_STACK_DIR: "/data/deployed/hivewatch/stacks",
           HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
-          HIVEFORGE_ARTIFACTS_DIR: "/data/deployed/hivewatch/artifacts"
+          HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch"
         })
       })
     });
+    const runCall = calls.find((call): call is { run: { environment: Record<string, string> } } =>
+      typeof call === "object" && call !== null && "run" in call
+    );
+    expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_PROJECT_DIR");
+    expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_STACK_DIR");
+    expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_ARTIFACTS_DIR");
   });
 
   it("deploys rendered compose through HiveForge after the action renders it", async () => {
@@ -268,7 +272,8 @@ describe("deploy orchestrator", () => {
       {
         dockerDeploy: {
           deploymentId: "deployment-1",
-          composeFile: "/data/deployed/hivewatch/stacks/compose.yml"
+          composeFile: "/data/deployed/hivewatch/stacks/compose.yml",
+          bindSourceDir: "/srv/hiveforge/data/deployed/hivewatch"
         }
       },
       {
@@ -399,6 +404,7 @@ function managedFilesService(calls: string[]): ManagedFilesService {
         stackDir: "/data/deployed/hivewatch/stacks",
         artifactsDir: "/data/deployed/hivewatch/artifacts",
         renderedComposeFile: "/data/deployed/hivewatch/stacks/compose.yml",
+        bindSourceDir: "/srv/hiveforge/data/deployed/hivewatch",
         prepared: []
       };
     }

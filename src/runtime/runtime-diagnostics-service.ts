@@ -98,7 +98,11 @@ export class RuntimeDiagnosticsService {
         hiddenFromProjectActions: [
           "HIVEFORGE_DATA_ROOT",
           "HIVEFORGE_PROJECT_DIR",
-          "HIVEFORGE_PROJECT_HOST_DIR"
+          "HIVEFORGE_STACK_DIR",
+          "HIVEFORGE_ARTIFACTS_DIR",
+          "HIVEFORGE_PROJECT_HOST_DIR",
+          "HIVEFORGE_STACK_HOST_DIR",
+          "HIVEFORGE_ARTIFACTS_HOST_DIR"
         ]
       }
     };

@@ -141,17 +141,15 @@ describe("project action service", () => {
       ...request("api", "deploy"),
       profile: "test",
       environment: {
-        HIVEFORGE_PROJECT_DIR: "/data/deployed/hivewatch",
-        HIVEFORGE_STACK_DIR: "/data/deployed/hivewatch/stacks",
-        HIVEFORGE_ARTIFACTS_DIR: "/data/deployed/hivewatch/artifacts"
+        HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
+        HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch"
       }
     });
 
     expect(runner.environments).toEqual([
       {
-        HIVEFORGE_PROJECT_DIR: "/data/deployed/hivewatch",
-        HIVEFORGE_STACK_DIR: "/data/deployed/hivewatch/stacks",
-        HIVEFORGE_ARTIFACTS_DIR: "/data/deployed/hivewatch/artifacts",
+        HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
+        HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch",
         HIVEFORGE_PROFILE: "test"
       }
     ]);
