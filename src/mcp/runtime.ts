@@ -27,11 +27,23 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     unsetProjectRuntimeEnv: (input: { projectId: string; profile?: string; keys: string[] }) =>
       call(() => apiClient.unsetProjectRuntimeEnv(input)),
     inspectProject: (input: { projectId: string; gitRef: string }) => call(() => apiClient.inspectProject(input)),
+    explainDeployPrerequisites: (input: {
+      projectId: string;
+      gitRef: string;
+      component: string;
+      action: string;
+      profile?: string;
+      deploymentMode?: "action" | "release";
+      vars?: Record<string, string>;
+      releaseVars?: Record<string, string>;
+      images?: unknown[];
+      artifact?: unknown;
+    }) => call(() => apiClient.explainDeployPrerequisites(input)),
     validateRequirements: (input: { projectId: string; gitRef: string; profile?: string }) =>
       call(() => apiClient.validateRequirements(input)),
     startAction: (input: { projectId: string; gitRef: string; component: string; action: string; profile?: string }) =>
       call(() => apiClient.startAction(input)),
-    deployRelease: (input: ReleaseDeployApiInput) => call(() => apiClient.deployRelease(input))
+    prepareReleaseDeploy: (input: ReleaseDeployApiInput) => call(() => apiClient.prepareReleaseDeploy(input))
   };
 }
 

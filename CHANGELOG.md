@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0-alpha.0 - 2026-06-10
+
+- Breaking MCP change: rename `deploy_release` to `prepare_release_deploy`.
+  The old tool name is not kept as an alias; clients that call it receive an
+  unknown-tool failure.
+- Require root project manifests to declare `version: "0.5"` and reject removed
+  POC action path variables before running project actions.
+- Allow managed components to declare per-component lifecycle action subsets
+  instead of requiring every component to implement the full root action set.
+
 ## 0.4.8 - 2026-06-08
 
 - Add MCP `refresh_environment` and `list_environment_nodes` tools so agents can

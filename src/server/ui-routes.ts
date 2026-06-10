@@ -270,6 +270,7 @@ const state = {
   token: localStorage.getItem(TOKEN_KEY) || "",
   environment: null,
   projects: [],
+  inspectedComponents: [],
   deployments: [],
   journal: [],
   selectedProject: "",
@@ -325,7 +326,8 @@ async function refreshAll(options = {}) {
     const policyProject = state.environment?.policy?.projects?.[0];
     state.selectedProject ||= policyProject?.id || state.projects[0]?.id || "";
     state.selectedProfile ||= policyProject?.profiles?.[0] || "";
-    state.selectedAction = policyProject?.actions?.includes(state.selectedAction) ? state.selectedAction : policyProject?.actions?.[0] || "deploy";
+    const actions = availableActionsForSelectedComponent(policyProject);
+    state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || "deploy";
   } catch (error) {
     state.error = error instanceof Error ? error.message : "Request failed";
   }
@@ -351,13 +353,16 @@ async function inspectSelectedProject() {
       method: "POST",
       body: JSON.stringify({ gitRef: state.selectedRef })
     });
-    state.selectedComponent = result.components[0] || state.selectedComponent;
+    state.inspectedComponents = result.components;
+    state.selectedComponent = result.components[0]?.name || state.selectedComponent;
+    const actions = availableActionsForSelectedComponent();
+    state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || state.selectedAction;
     state.message = \`Inspection loaded \${result.components.length} component(s).\`;
     state.operation = {
       ...state.operation,
       status: "succeeded",
       title: \`Inspection completed: \${result.operationId}\`,
-      steps: [{ label: \`Loaded \${result.components.length} component(s): \${result.components.join(", ") || "none"}\`, state: "done" }]
+      steps: [{ label: \`Loaded \${result.components.length} component(s): \${componentNames(result.components).join(", ") || "none"}\`, state: "done" }]
     };
   } catch (error) {
     state.error = error instanceof Error ? error.message : "Inspection failed";
@@ -566,7 +571,7 @@ function renderActionForm() {
   const projectPolicy = currentPolicyProject();
   const projects = state.projects;
   const profiles = projectPolicy?.profiles || [];
-  const actions = projectPolicy?.actions || ACTIONS;
+  const actions = availableActionsForSelectedComponent(projectPolicy);
   return \`<div class="grid">
   <div class="card">
     <div class="cardHeader"><h2 class="h2">Lifecycle action</h2><span class="muted2">current policy enforced</span></div>
@@ -700,15 +705,35 @@ function render() {
     state.selectedProject = event.target.value;
     const policy = currentPolicyProject();
     state.selectedProfile = policy?.profiles?.[0] || "";
-    state.selectedAction = policy?.actions?.[0] || "deploy";
+    state.inspectedComponents = [];
+    state.selectedComponent = "";
+    const actions = availableActionsForSelectedComponent(policy);
+    state.selectedAction = actions[0] || "deploy";
     render();
   });
   document.getElementById("refInput")?.addEventListener("change", (event) => { state.selectedRef = event.target.value.trim(); });
-  document.getElementById("componentInput")?.addEventListener("change", (event) => { state.selectedComponent = event.target.value.trim(); });
+  document.getElementById("componentInput")?.addEventListener("change", (event) => {
+    state.selectedComponent = event.target.value.trim();
+    const actions = availableActionsForSelectedComponent();
+    state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || state.selectedAction;
+    render();
+  });
   document.getElementById("profileSelect")?.addEventListener("change", (event) => { state.selectedProfile = event.target.value; });
   document.getElementById("actionSelect")?.addEventListener("change", (event) => { state.selectedAction = event.target.value; });
   document.getElementById("inspectButton")?.addEventListener("click", inspectSelectedProject);
   document.getElementById("runButton")?.addEventListener("click", runLifecycleAction);
+}
+
+function componentNames(components) {
+  return components.map((component) => component.name);
+}
+
+function availableActionsForSelectedComponent(policyProject = currentPolicyProject()) {
+  const inspectedComponent = state.inspectedComponents.find((component) => component.name === state.selectedComponent);
+  if (inspectedComponent) {
+    return inspectedComponent.actions;
+  }
+  return policyProject?.actions || ACTIONS;
 }
 
 render();

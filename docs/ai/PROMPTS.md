@@ -50,7 +50,7 @@ Do not use REST.
 ## Prepare Release Deployment
 
 ```text
-Use HiveForge MCP deploy_release to prepare a release deployment for project <project-id>,
+Use HiveForge MCP prepare_release_deploy to prepare a release deployment for project <project-id>,
 ref <ref>, component <component>, action <action>, profile <profile>.
 Use release.imageTag=<tag> and imageRepository.project=<registry/namespace>.
 Use a release artifact template when available instead of manually inventing image lists.

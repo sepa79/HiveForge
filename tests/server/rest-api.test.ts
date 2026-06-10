@@ -613,6 +613,72 @@ describe("REST API", () => {
     expect(accepted.status).toBe(200);
   });
 
+  it("returns project inspection components with declared action subsets", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/inspect`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      operationId: "inspect-op",
+      projectId: "hivewatch",
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      gitRef: "main",
+      components: [
+        {
+          name: "api",
+          actions: ["deploy"]
+        }
+      ]
+    });
+  });
+
+  it("explains deploy prerequisites through the configured service", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/deploy-prerequisites`, {
+      method: "POST",
+      body: JSON.stringify({
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        profile: "normal",
+        deploymentMode: "release",
+        releaseVars: { "release.imageTag": "dev-1" }
+      })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ready: false,
+      manualPrerequisites: [],
+      hiveforgePrerequisites: [],
+      releasePrerequisites: [
+        {
+          type: "registry_var",
+          required: "imageRepository.project",
+          status: "missing",
+          reason: "Project image repository must be supplied explicitly"
+        }
+      ]
+    });
+    expect(calls).toContainEqual({
+      explainDeployPrerequisites: {
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        profile: "normal",
+        deploymentMode: "release",
+        releaseVars: { "release.imageTag": "dev-1" }
+      }
+    });
+  });
+
   it("returns 400 for missing gitRef", async () => {
     const baseUrl = await startServer();
 
@@ -746,6 +812,24 @@ async function startServer(
                 project: "hivewatch",
                 component: "api",
                 status: "deployed"
+              }
+            ]
+          };
+        }
+      } as never,
+      deployPrerequisites: {
+        async explain(request: unknown) {
+          options.calls?.push({ explainDeployPrerequisites: request });
+          return {
+            ready: false,
+            manualPrerequisites: [],
+            hiveforgePrerequisites: [],
+            releasePrerequisites: [
+              {
+                type: "registry_var",
+                required: "imageRepository.project",
+                status: "missing",
+                reason: "Project image repository must be supplied explicitly"
               }
             ]
           };

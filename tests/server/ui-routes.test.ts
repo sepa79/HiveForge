@@ -119,6 +119,20 @@ describe("UI routes", () => {
     expect(body).toContain("Refresh nodes");
     expect(body).toContain('api("/environments/refresh", { method: "POST" })');
   });
+
+  it("uses inspected component action subsets for the lifecycle action selector", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain("inspectedComponents: []");
+    expect(body).toContain("function availableActionsForSelectedComponent");
+    expect(body).toContain("const inspectedComponent = state.inspectedComponents.find");
+    expect(body).toContain("state.inspectedComponents = result.components");
+    expect(body).toContain("state.selectedComponent = result.components[0]?.name");
+  });
 });
 
 async function startServer(): Promise<string> {

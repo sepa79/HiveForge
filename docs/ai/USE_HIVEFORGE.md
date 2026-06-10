@@ -54,16 +54,18 @@ Use MCP tools in this order:
    environment, actions, and profiles for that project
 11. `set_project_runtime_env` for non-secret values that must stay outside git
 12. `inspect_project`
-13. `validate_requirements`
-14. `deploy_release` for release/image-tag prepare checks, or `start_action` for
-   the current repo/ref POC lifecycle path
-15. `get_operation`
-16. `read_journal`
+13. `explain_deploy_prerequisites`
+14. `validate_requirements`
+15. `prepare_release_deploy` for release/image-tag prepare checks, or
+   `start_action` for the current repo/ref POC lifecycle path
+16. `get_operation`
+17. `read_journal`
 
-`deploy_release` currently prepares and validates a release plan only. It does
-not build images, push images, or execute deployment actions. With `gitRef`, it
-also checks out the project, prepares declared `artifacts.managedPaths`, writes
-`HIVEFORGE_ARTIFACTS_DIR/release-vars.json`, and validates explicit
+`prepare_release_deploy` currently prepares and validates a release plan only.
+It does not build images, push images, or execute deployment actions. With
+`gitRef`, it also checks out the project, prepares declared
+`artifacts.managedPaths`, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`,
+and validates explicit
 `requiredFiles`.
 
 ## Required Inputs
@@ -77,17 +79,25 @@ Before starting an action, confirm:
 - action,
 - profile,
 - non-secret runtime env required by manifest `requirements.environment`,
-- git ref when using checkout-backed `deploy_release`,
-- release vars such as `release.imageTag` when using `deploy_release`,
-- registry vars such as `imageRepository.project` when using `deploy_release`,
+- git ref when using checkout-backed `prepare_release_deploy`,
+- release vars such as `release.imageTag` when using
+  `prepare_release_deploy`,
+- registry vars such as `imageRepository.project` when using
+  `prepare_release_deploy`,
 - release image templates or a release artifact template when using
-  `deploy_release`,
+  `prepare_release_deploy`,
 - required runtime files under `HIVEFORGE_PROJECT_DIR` when the release deploy
   depends on copied files,
 - expected health/evidence check.
 
 Missing inputs are blockers. Do not guess project ids, refs, components,
 profiles, actions, or health checks.
+
+Use `explain_deploy_prerequisites` before `start_action` or
+`prepare_release_deploy` when a project/ref/component/action/profile is known.
+It reports manual prerequisites such as Docker volumes and secrets by name, plus
+HiveForge-managed prerequisites such as policy, approved refs, profile
+eligibility, and runtime env keys. It does not create missing resources.
 
 ## Evidence
 

@@ -23,9 +23,10 @@ describe("HiveForge MCP runtime", () => {
       "set_project_runtime_env",
       "unset_project_runtime_env",
       "inspect_project",
+      "explain_deploy_prerequisites",
       "validate_requirements",
       "start_action",
-      "deploy_release",
+      "prepare_release_deploy",
       "get_operation",
       "list_operations",
       "read_journal"
@@ -130,12 +131,12 @@ describe("HiveForge MCP runtime", () => {
 
   it("returns release deployment prepare results through the runtime", async () => {
     const runtime = createHiveForgeMcpRuntime({
-      async deployRelease() {
+      async prepareReleaseDeploy() {
         return { plan: { projectId: "pockethive", images: [] } };
       }
     } as unknown as HiveForgeApiClient);
 
-    const result = await runtime.deployRelease({
+    const result = await runtime.prepareReleaseDeploy({
       projectId: "pockethive",
       component: "stack",
       action: "deploy",
@@ -147,6 +148,33 @@ describe("HiveForge MCP runtime", () => {
     });
 
     expect(result.structuredContent).toEqual({ plan: { projectId: "pockethive", images: [] } });
+  });
+
+  it("returns deploy prerequisites through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async explainDeployPrerequisites(input: unknown) {
+        return { ready: false, input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.explainDeployPrerequisites({
+      projectId: "pockethive",
+      gitRef: "v1.2.3",
+      component: "stack",
+      action: "deploy",
+      profile: "swarm-reduced"
+    });
+
+    expect(result.structuredContent).toEqual({
+      ready: false,
+      input: {
+        projectId: "pockethive",
+        gitRef: "v1.2.3",
+        component: "stack",
+        action: "deploy",
+        profile: "swarm-reduced"
+      }
+    });
   });
 
   it("sets environment project policy through the runtime", async () => {

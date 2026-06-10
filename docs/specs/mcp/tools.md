@@ -326,6 +326,51 @@ Output: operation ID, `ok`, and validation issues. Ineligible profiles are
 explicit validation failures; for example a `docker-swarm` profile is rejected
 on a `docker-single` environment before an action can start.
 
+### `explain_deploy_prerequisites`
+
+Input:
+
+```json
+{
+  "projectId": "pockethive",
+  "gitRef": "v1.2.3",
+  "component": "stack",
+  "action": "deploy",
+  "profile": "swarm-reduced",
+  "deploymentMode": "release"
+}
+```
+
+Behavior: return a read-only checklist before calling `start_action` or
+`prepare_release_deploy`. This tool does not create Docker labels, secrets,
+volumes, runtime env values, managed files, or mounts.
+
+The first 0.5 slice reports:
+
+- project registration and approved ref status,
+- project manifest load status,
+- component and component action declaration status,
+- environment policy status,
+- profile eligibility status,
+- missing Docker volumes and secrets by name only,
+- missing non-secret runtime env keys,
+- release-mode presence checks for `release.imageTag`,
+  `imageRepository.project`, and image/artifact templates.
+
+Output:
+
+```json
+{
+  "ready": false,
+  "manualPrerequisites": [],
+  "hiveforgePrerequisites": [],
+  "releasePrerequisites": []
+}
+```
+
+`deploymentMode` defaults to `action`. Use `deploymentMode: "release"` when the
+next operation is `prepare_release_deploy`.
+
 ### `start_action`
 
 Input:
@@ -354,7 +399,7 @@ operation error includes the failed command, exit status, and working directory;
 operation logs also include redacted stdout/stderr tails when the command
 captured output.
 
-### `deploy_release`
+### `prepare_release_deploy`
 
 Input:
 
@@ -430,7 +475,7 @@ Target MCP additions:
   using the structured capability contract.
 - `match_project_profiles` - return eligible and ineligible profile/environment
   pairs with explicit missing capability issues.
-- `deploy_release` - currently validates and prepares an explicit release/image
-  tag set. Action execution is intentionally deferred until release artifact
-  rendering is explicit. This tool must not build, push, infer `latest`, infer
-  tags from branches, or select fallback profiles.
+- `prepare_release_deploy` - currently validates and prepares an explicit
+  release/image tag set. Action execution is intentionally deferred until
+  release artifact rendering is explicit. This tool must not build, push, infer
+  `latest`, infer tags from branches, or select fallback profiles.

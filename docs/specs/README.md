@@ -85,7 +85,9 @@ docs/specs/
 
 ## Next Spec Work
 
-1. Implement release deploy/upgrade API and MCP operations from `releases.md`.
-2. Define repository bootstrap/edit tools for MCP.
-3. Extend UI operator console actions and failure states.
-4. Decide SQLite journal/inventory contract.
+1. Promote accepted 0.5.x MCP readiness changes from
+   `docs/ai/HIVEFORGE_0_5_PLAN.md` into `mcp/tools.md` and OpenAPI.
+2. Implement release deploy/upgrade API and MCP operations from `releases.md`.
+3. Define repository bootstrap/edit tools for MCP.
+4. Extend UI operator console actions and failure states.
+5. Decide SQLite journal/inventory contract.

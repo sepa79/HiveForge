@@ -9,6 +9,7 @@ import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { SystemClock } from "../operation/clock.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
+import { DeployPrerequisitesService } from "../operation/deploy-prerequisites-service.js";
 import { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
 import { ManagedFilesService } from "../operation/managed-files-service.js";
 import { OperationLogService } from "../operation/operation-log-service.js";
@@ -111,6 +112,13 @@ const releaseDeploy = new ReleaseDeployService({
   inspection,
   managedFiles
 });
+const deployPrerequisites = new DeployPrerequisitesService(
+  projectRegistry,
+  inspection,
+  new RequirementValidator(new DockerCliProbe(commandRunner)),
+  runtimeEnv,
+  currentEnvironment
+);
 const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
 const operations = new OperationLogService(deploy, ids, clock);
 
@@ -129,6 +137,7 @@ createHttpServer(
       currentEnvironment,
       environmentPolicy,
       deploymentInventory,
+      deployPrerequisites,
       operations,
       runtimeEnv,
       repositoryInspection,

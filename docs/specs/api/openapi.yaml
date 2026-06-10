@@ -305,7 +305,7 @@ paths:
   /operations/projects/{projectId}/releases/{component}/{action}:
     post:
       summary: Prepare a release/image-tag deployment plan
-      description: Internal transport for MCP deploy_release. This validates and resolves release inputs but does not execute deployment actions.
+      description: Internal transport for MCP prepare_release_deploy. This validates and resolves release inputs but does not execute deployment actions.
       operationId: prepareReleaseDeployment
       parameters:
         - $ref: "#/components/parameters/projectId"
@@ -370,6 +370,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationResult"
+  /projects/{projectId}/deploy-prerequisites:
+    post:
+      summary: Explain deploy prerequisites without provisioning resources
+      operationId: explainDeployPrerequisites
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeployPrerequisitesRequest"
+      responses:
+        "200":
+          description: Deploy prerequisites checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeployPrerequisitesReport"
   /projects/{projectId}/actions/{component}/{action}:
     post:
       summary: Checkout, inspect, validate, and run a declared component action
@@ -479,6 +498,81 @@ components:
           minLength: 1
         profile:
           $ref: "#/components/schemas/Identifier"
+    DeployPrerequisitesRequest:
+      type: object
+      additionalProperties: false
+      required: [gitRef, component, action]
+      properties:
+        gitRef:
+          type: string
+          minLength: 1
+        component:
+          $ref: "#/components/schemas/Identifier"
+        action:
+          $ref: "#/components/schemas/LifecycleAction"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        deploymentMode:
+          type: string
+          enum: [action, release]
+        vars:
+          type: object
+          additionalProperties:
+            type: string
+        releaseVars:
+          type: object
+          additionalProperties:
+            type: string
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReleaseImageTemplate"
+        artifact:
+          $ref: "#/components/schemas/ReleaseArtifactTemplate"
+    PrerequisiteItem:
+      type: object
+      additionalProperties: false
+      required: [type, status, reason]
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+          enum: [present, missing, unknown, not_applicable]
+        required:
+          type: string
+        reason:
+          type: string
+    DeployPrerequisitesReport:
+      type: object
+      additionalProperties: false
+      required: [ready, manualPrerequisites, hiveforgePrerequisites, releasePrerequisites]
+      properties:
+        ready:
+          type: boolean
+        environment:
+          type: object
+          additionalProperties: false
+          required: [id, name, kind]
+          properties:
+            id:
+              $ref: "#/components/schemas/Identifier"
+            name:
+              type: string
+            kind:
+              type: string
+        manualPrerequisites:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrerequisiteItem"
+        hiveforgePrerequisites:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrerequisiteItem"
+        releasePrerequisites:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrerequisiteItem"
     RuntimeEnvName:
       type: string
       pattern: "^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$"

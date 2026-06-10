@@ -226,7 +226,7 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await client.deployRelease({
+    await client.prepareReleaseDeploy({
       projectId: "pockethive",
       component: "stack",
       action: "deploy",
@@ -284,6 +284,43 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("explains deploy prerequisites through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { ready: false });
+      }
+    });
+
+    await client.explainDeployPrerequisites({
+      projectId: "pockethive",
+      gitRef: "v1.2.3",
+      component: "stack",
+      action: "deploy",
+      profile: "swarm-reduced",
+      deploymentMode: "release",
+      releaseVars: { "release.imageTag": "dev-1" }
+    });
+
+    expect(calls[0]).toMatchObject({
+      url: "http://127.0.0.1:3000/projects/pockethive/deploy-prerequisites",
+      init: {
+        method: "POST",
+        body: JSON.stringify({
+          gitRef: "v1.2.3",
+          component: "stack",
+          action: "deploy",
+          profile: "swarm-reduced",
+          deploymentMode: "release",
+          releaseVars: { "release.imageTag": "dev-1" }
+        })
+      }
+    });
+  });
+
   it("can prepare release deployments from an artifact template", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({
@@ -295,7 +332,7 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await client.deployRelease({
+    await client.prepareReleaseDeploy({
       projectId: "pockethive",
       component: "stack",
       action: "deploy",
@@ -350,7 +387,7 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await client.deployRelease({
+    await client.prepareReleaseDeploy({
       projectId: "pockethive",
       gitRef: "v1.2.3",
       component: "stack",

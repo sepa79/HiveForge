@@ -8,6 +8,11 @@ import type { EnvironmentRefreshResult } from "../config/environment-refresh-ser
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
+import type {
+  DeploymentMode,
+  DeployPrerequisitesRequest,
+  DeployPrerequisitesService
+} from "../operation/deploy-prerequisites-service.js";
 import type { OperationLogService } from "../operation/operation-log-service.js";
 import type { ProjectInspectionService } from "../operation/project-inspection-service.js";
 import type { ProjectValidationService } from "../operation/project-validation-service.js";
@@ -35,6 +40,7 @@ export interface RestApiServices {
   currentEnvironment?: EnvironmentDefinition;
   environmentPolicy?: EnvironmentPolicyService;
   deploymentInventory?: DeploymentInventoryService;
+  deployPrerequisites?: DeployPrerequisitesService;
   operations?: OperationLogService;
   runtimeEnv?: RuntimeEnvStore;
   repositoryInspection?: {
@@ -257,7 +263,10 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           projectId: result.projectId,
           repository: result.repository,
           gitRef: result.gitRef,
-          components: result.registry.components.map((component) => component.name)
+          components: result.registry.components.map((component) => ({
+            name: component.name,
+            actions: Object.keys(component.manifest.deployment.actions)
+          }))
         };
       }
     },
@@ -296,6 +305,21 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           };
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Requirement validation failed");
+        }
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/deploy-prerequisites$/,
+      async handle({ request, params }) {
+        if (!services.deployPrerequisites) {
+          throw new HttpError(501, "Deploy prerequisites are not configured");
+        }
+        const body = await readDeployPrerequisitesRequest(request, params.projectId);
+        try {
+          return await services.deployPrerequisites.explain(body);
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Deploy prerequisites check failed");
         }
       }
     },
@@ -490,6 +514,50 @@ async function readRuntimeEnvUnsetRequest(
   return {
     ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
     keys: readStringArray(body.keys, "keys")
+  };
+}
+
+async function readDeployPrerequisitesRequest(
+  request: Parameters<typeof readJsonBody>[0],
+  projectId: string
+): Promise<DeployPrerequisitesRequest> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid deploy prerequisites request body");
+  }
+  if (typeof body.gitRef !== "string" || body.gitRef.length === 0) {
+    throw new HttpError(400, "Missing required field: gitRef");
+  }
+  if (typeof body.component !== "string" || body.component.length === 0) {
+    throw new HttpError(400, "Missing required field: component");
+  }
+  if (typeof body.action !== "string" || !LIFECYCLE_ACTIONS.has(body.action)) {
+    throw new HttpError(400, `Unsupported lifecycle action: ${String(body.action)}`);
+  }
+  if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
+    throw new HttpError(400, "Invalid field: profile");
+  }
+  if ("deploymentMode" in body && body.deploymentMode !== "action" && body.deploymentMode !== "release") {
+    throw new HttpError(400, "Invalid field: deploymentMode");
+  }
+  if ("vars" in body && !isStringRecord(body.vars)) {
+    throw new HttpError(400, "Invalid field: vars");
+  }
+  if ("releaseVars" in body && !isStringRecord(body.releaseVars)) {
+    throw new HttpError(400, "Invalid field: releaseVars");
+  }
+
+  return {
+    projectId,
+    gitRef: body.gitRef,
+    component: body.component,
+    action: body.action,
+    ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
+    ...(typeof body.deploymentMode === "string" ? { deploymentMode: body.deploymentMode as DeploymentMode } : {}),
+    ...(isStringRecord(body.vars) ? { vars: body.vars } : {}),
+    ...(isStringRecord(body.releaseVars) ? { releaseVars: body.releaseVars } : {}),
+    ...(Array.isArray(body.images) ? { images: body.images } : {}),
+    ...(isObject(body.artifact) ? { artifact: body.artifact } : {})
   };
 }
 

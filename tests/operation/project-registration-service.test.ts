@@ -67,6 +67,7 @@ async function writeDeployableFixture(): Promise<string> {
     path.join(fixture, "hiveforge.yaml"),
     [
       "kind: project",
+      'version: "0.5"',
       "project:",
       "  name: hivewatch",
       "  repository: https://github.com/sepa79/HiveWatch.git",

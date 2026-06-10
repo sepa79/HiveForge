@@ -157,15 +157,16 @@ start_action(
 ```
 
 For release-driven managed-service projects such as HiveMind, use
-`deploy_release` only where the project contract says release preparation is
-sufficient. The current `deploy_release` tool prepares and validates a release
-plan; execution of release deploy/upgrade actions is still a separate contract
-gap.
+`prepare_release_deploy` only where the project contract says release
+preparation is sufficient. The current `prepare_release_deploy` tool prepares
+and validates a release plan; execution of release deploy/upgrade actions is
+still a separate contract gap.
 
 ## Current Gaps
 
 - Runtime env supports non-secret values only; secret provisioning is not
   implemented.
-- `deploy_release` prepares release plans but does not execute release actions.
+- `prepare_release_deploy` prepares release plans but does not execute release
+  actions.
 - External HiveWatch/HiveMind repositories must carry their own HiveForge
   manifests before they can be deployed by this flow.

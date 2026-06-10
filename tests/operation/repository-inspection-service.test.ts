@@ -76,6 +76,7 @@ async function writeDeployableProject(workspace: string): Promise<void> {
     path.join(workspace, "hiveforge.yaml"),
     [
       "kind: project",
+      'version: "0.5"',
       "project:",
       "  name: hivewatch",
       "  repository: https://github.com/sepa79/HiveWatch.git",

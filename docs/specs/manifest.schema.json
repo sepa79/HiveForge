@@ -129,9 +129,13 @@
     "rootManifest": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "project", "components"],
+      "required": ["kind", "version", "project", "components"],
       "properties": {
         "kind": { "const": "project" },
+        "version": {
+          "type": "string",
+          "const": "0.5"
+        },
         "project": {
           "type": "object",
           "additionalProperties": false,

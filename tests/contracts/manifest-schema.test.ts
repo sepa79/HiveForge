@@ -9,6 +9,7 @@ describe("manifest schema", () => {
   it("accepts explicit HiveWatch root and component manifests", async () => {
     const rootManifest = {
       kind: "project",
+      version: "0.5",
       project: {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
@@ -85,6 +86,7 @@ describe("manifest schema", () => {
   it("rejects implicit component manifest locations", async () => {
     const rootManifest = {
       kind: "project",
+      version: "0.5",
       project: {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git"
@@ -120,6 +122,7 @@ describe("manifest schema", () => {
   it("rejects non-shared managed root requirements without an explicit node", async () => {
     const rootManifest = {
       kind: "project",
+      version: "0.5",
       project: {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
@@ -147,6 +150,7 @@ describe("manifest schema", () => {
   it("rejects shared managed root requirements with node placement", async () => {
     const rootManifest = {
       kind: "project",
+      version: "0.5",
       project: {
         name: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
@@ -179,6 +183,7 @@ describe("manifest schema", () => {
       path.join(workspace, "hiveforge.yaml"),
       [
         "kind: project",
+        'version: "0.5"',
         "project:",
         "  name: hivewatch",
         "  repository: https://github.com/sepa79/HiveWatch.git",
@@ -241,6 +246,98 @@ describe("manifest schema", () => {
     expect(registry.components.map((component) => component.name)).toEqual(["api"]);
   });
 
+  it("allows components to implement different lifecycle action subsets", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
+    await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "hiveforge.yaml"),
+      [
+        "kind: project",
+        'version: "0.5"',
+        "project:",
+        "  name: hivewatch",
+        "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "    - remove",
+        "    - update",
+        "components:",
+        "  - name: api",
+        "    manifest: components/api/hiveforge.yaml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(
+      path.join(workspace, "components/api/hiveforge.yaml"),
+      [
+        "kind: component",
+        "component:",
+        "  name: api",
+        "  project: hivewatch",
+        "deployment:",
+        "  adapter: ansible",
+        "  actions:",
+        "    deploy:",
+        "      playbook: ansible/deploy.yml",
+        "    remove:",
+        "      playbook: ansible/remove.yml",
+        ""
+      ].join("\n")
+    );
+    for (const action of ["deploy", "remove"]) {
+      await writeFile(path.join(workspace, `components/api/ansible/${action}.yml`), "---\n- hosts: localhost\n");
+    }
+
+    const registry = await loadProjectRegistry(workspace);
+
+    expect(Object.keys(registry.components[0]?.manifest.deployment.actions ?? {})).toEqual(["deploy", "remove"]);
+  });
+
+  it("fails explicitly when a component action is outside the root lifecycle vocabulary", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
+    await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "hiveforge.yaml"),
+      [
+        "kind: project",
+        'version: "0.5"',
+        "project:",
+        "  name: hivewatch",
+        "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "components:",
+        "  - name: api",
+        "    manifest: components/api/hiveforge.yaml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(
+      path.join(workspace, "components/api/hiveforge.yaml"),
+      [
+        "kind: component",
+        "component:",
+        "  name: api",
+        "  project: hivewatch",
+        "deployment:",
+        "  adapter: ansible",
+        "  actions:",
+        "    deploy:",
+        "      playbook: ansible/deploy.yml",
+        "    remove:",
+        "      playbook: ansible/remove.yml",
+        ""
+      ].join("\n")
+    );
+    for (const action of ["deploy", "remove"]) {
+      await writeFile(path.join(workspace, `components/api/ansible/${action}.yml`), "---\n- hosts: localhost\n");
+    }
+
+    await expect(loadProjectRegistry(workspace)).rejects.toThrow(
+      "Component api declares action(s) outside the project lifecycle vocabulary: remove"
+    );
+  });
+
   it("fails explicitly when a declared action file is missing", async () => {
     const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
     await mkdir(path.join(workspace, "components/api"), { recursive: true });
@@ -248,6 +345,7 @@ describe("manifest schema", () => {
       path.join(workspace, "hiveforge.yaml"),
       [
         "kind: project",
+        'version: "0.5"',
         "project:",
         "  name: hivewatch",
         "  repository: https://github.com/sepa79/HiveWatch.git",
@@ -293,6 +391,7 @@ describe("manifest schema", () => {
       path.join(workspace, "hiveforge.yaml"),
       [
         "kind: project",
+        'version: "0.5"',
         "project:",
         "  name: hivewatch",
         "  repository: https://github.com/sepa79/HiveWatch.git",
@@ -335,5 +434,89 @@ describe("manifest schema", () => {
     const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
 
     await expect(loadProjectRegistry(workspace)).rejects.toThrow("Root manifest missing: hiveforge.yaml");
+  });
+
+  it("fails explicitly when the root manifest does not declare the 0.5 contract version", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
+    await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "hiveforge.yaml"),
+      [
+        "kind: project",
+        "project:",
+        "  name: hivewatch",
+        "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "components:",
+        "  - name: api",
+        "    manifest: components/api/hiveforge.yaml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(
+      path.join(workspace, "components/api/hiveforge.yaml"),
+      [
+        "kind: component",
+        "component:",
+        "  name: api",
+        "  project: hivewatch",
+        "deployment:",
+        "  adapter: ansible",
+        "  actions:",
+        "    deploy:",
+        "      playbook: ansible/deploy.yml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(path.join(workspace, "components/api/ansible/deploy.yml"), "---\n- hosts: localhost\n");
+
+    await expect(loadProjectRegistry(workspace)).rejects.toThrow(
+      'Unsupported HiveForge project manifest version: expected version "0.5"'
+    );
+  });
+
+  it("fails explicitly when action files use removed HiveForge path variables", async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
+    await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });
+    await writeFile(
+      path.join(workspace, "hiveforge.yaml"),
+      [
+        "kind: project",
+        'version: "0.5"',
+        "project:",
+        "  name: hivewatch",
+        "  repository: https://github.com/sepa79/HiveWatch.git",
+        "  actions:",
+        "    - deploy",
+        "components:",
+        "  - name: api",
+        "    manifest: components/api/hiveforge.yaml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(
+      path.join(workspace, "components/api/hiveforge.yaml"),
+      [
+        "kind: component",
+        "component:",
+        "  name: api",
+        "  project: hivewatch",
+        "deployment:",
+        "  adapter: ansible",
+        "  actions:",
+        "    deploy:",
+        "      playbook: ansible/deploy.yml",
+        ""
+      ].join("\n")
+    );
+    await writeFile(
+      path.join(workspace, "components/api/ansible/deploy.yml"),
+      "---\n- hosts: localhost\n  tasks:\n    - debug:\n        msg: '{{ lookup(\"env\", \"HIVEFORGE_ARTIFACTS_DIR\") }}'\n"
+    );
+
+    await expect(loadProjectRegistry(workspace)).rejects.toThrow(
+      "Removed HiveForge action contract variable HIVEFORGE_ARTIFACTS_DIR used in components/api/ansible/deploy.yml"
+    );
   });
 });

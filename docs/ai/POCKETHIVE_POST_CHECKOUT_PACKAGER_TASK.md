@@ -110,7 +110,7 @@ HIVEFORGE_RELEASE_VARS_FILE=<HIVEFORGE_ARTIFACTS_DIR>/release-vars.json
 ```
 
 The JSON file should contain the resolved deployment vars used by
-`deploy_release`, for example:
+`prepare_release_deploy`, for example:
 
 ```json
 {

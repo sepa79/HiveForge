@@ -218,6 +218,28 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "explain_deploy_prerequisites",
+    {
+      title: "Explain deploy prerequisites",
+      description:
+        "Return a read-only checklist of manual and HiveForge-managed prerequisites before start_action or prepare_release_deploy.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        gitRef: z.string().min(1),
+        component: z.string().min(1),
+        action: lifecycleAction,
+        profile: z.string().min(1).optional(),
+        deploymentMode: z.enum(["action", "release"]).optional(),
+        vars: releaseVarsSchema.optional(),
+        releaseVars: releaseVarsSchema.optional(),
+        images: z.array(releaseImageSchema).min(1).optional(),
+        artifact: releaseArtifactSchema.optional()
+      }
+    },
+    runtime.explainDeployPrerequisites
+  );
+
+  server.registerTool(
     "validate_requirements",
     {
       title: "Validate project requirements",
@@ -248,7 +270,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
-    "deploy_release",
+    "prepare_release_deploy",
     {
       title: "Prepare a release deployment",
       description:
@@ -271,7 +293,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
         requiredFiles: z.array(z.string().min(1)).optional()
       }
     },
-    runtime.deployRelease
+    runtime.prepareReleaseDeploy
   );
 
   server.registerTool(

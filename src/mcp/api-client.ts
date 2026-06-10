@@ -181,6 +181,35 @@ export class HiveForgeApiClient {
     });
   }
 
+  explainDeployPrerequisites(input: {
+    projectId: string;
+    gitRef: string;
+    component: string;
+    action: string;
+    profile?: string;
+    deploymentMode?: "action" | "release";
+    vars?: Record<string, string>;
+    releaseVars?: Record<string, string>;
+    images?: unknown[];
+    artifact?: unknown;
+  }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: `/projects/${encodeURIComponent(input.projectId)}/deploy-prerequisites`,
+      body: {
+        gitRef: input.gitRef,
+        component: input.component,
+        action: input.action,
+        ...(input.profile ? { profile: input.profile } : {}),
+        ...(input.deploymentMode ? { deploymentMode: input.deploymentMode } : {}),
+        ...(input.vars ? { vars: input.vars } : {}),
+        ...(input.releaseVars ? { releaseVars: input.releaseVars } : {}),
+        ...(input.images ? { images: input.images } : {}),
+        ...(input.artifact ? { artifact: input.artifact } : {})
+      }
+    });
+  }
+
   startAction(input: {
     projectId: string;
     gitRef: string;
@@ -200,7 +229,7 @@ export class HiveForgeApiClient {
     });
   }
 
-  deployRelease(input: ReleaseDeployApiInput): Promise<unknown> {
+  prepareReleaseDeploy(input: ReleaseDeployApiInput): Promise<unknown> {
     return this.request({
       method: "POST",
       path: `/operations/projects/${encodeURIComponent(input.projectId)}/releases/${encodeURIComponent(
