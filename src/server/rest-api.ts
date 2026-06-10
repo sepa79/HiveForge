@@ -8,6 +8,11 @@ import type { EnvironmentRefreshResult } from "../config/environment-refresh-ser
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
+import type { DeploymentComposeService } from "../operation/deployment-compose-service.js";
+import type {
+  DeploymentRuntimeStatusRequest,
+  DeploymentRuntimeStatusService
+} from "../operation/deployment-runtime-status-service.js";
 import type {
   DeploymentMode,
   DeployPrerequisitesRequest,
@@ -41,6 +46,8 @@ export interface RestApiServices {
   currentEnvironment?: EnvironmentDefinition;
   environmentPolicy?: EnvironmentPolicyService;
   deploymentInventory?: DeploymentInventoryService;
+  deploymentCompose?: DeploymentComposeService;
+  deploymentRuntimeStatus?: DeploymentRuntimeStatusService;
   deployPrerequisites?: DeployPrerequisitesService;
   operations?: OperationLogService;
   runtimeEnv?: RuntimeEnvStore;
@@ -138,6 +145,26 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           throw new HttpError(501, "Deployment inventory is not configured");
         }
         return services.deploymentInventory.list();
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/deployments\/(?<operationId>[A-Za-z0-9_-]+)\/compose$/,
+      async handle({ params }) {
+        if (!services.deploymentCompose) {
+          throw new HttpError(501, "Deployment compose lookup is not configured");
+        }
+        return services.deploymentCompose.get(params.operationId);
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/deployments\/runtime-status$/,
+      async handle({ request }) {
+        if (!services.deploymentRuntimeStatus) {
+          throw new HttpError(501, "Deployment runtime status is not configured");
+        }
+        return services.deploymentRuntimeStatus.check(await readDeploymentRuntimeStatusRequest(request));
       }
     },
     {
@@ -653,6 +680,30 @@ async function readReleaseDeployRequest(
     ...(Array.isArray(body.images) ? { images: body.images.map(readReleaseImageTemplate) } : {}),
     ...(isObject(body.artifact) ? { artifact: readReleaseArtifactTemplate(body.artifact) } : {}),
     ...(Array.isArray(body.requiredFiles) ? { requiredFiles: readStringArray(body.requiredFiles, "requiredFiles") } : {})
+  };
+}
+
+async function readDeploymentRuntimeStatusRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<DeploymentRuntimeStatusRequest> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid deployment runtime status request body");
+  }
+  if (typeof body.projectId !== "string" || body.projectId.length === 0) {
+    throw new HttpError(400, "Missing required field: projectId");
+  }
+  if ("component" in body && (typeof body.component !== "string" || body.component.length === 0)) {
+    throw new HttpError(400, "Invalid field: component");
+  }
+  if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
+    throw new HttpError(400, "Invalid field: profile");
+  }
+
+  return {
+    projectId: body.projectId,
+    ...(typeof body.component === "string" ? { component: body.component } : {}),
+    ...(typeof body.profile === "string" ? { profile: body.profile } : {})
   };
 }
 

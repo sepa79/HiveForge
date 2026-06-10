@@ -170,22 +170,27 @@ Behavior rules:
 
 ## 3. Runtime Container Status
 
+Status: initial MCP/REST implementation exists as
+`check_deployment_runtime_status`, backed by explicit Docker label lookup.
+Follow-up work remains for task-level Swarm details, restart/exit diagnostics,
+expected-resource comparison, and UI presentation.
+
 Current `check_health` and `/health` only report the HiveForge process health.
 They do not prove that project containers are running. `list_deployments` is
 journal-derived inventory, not live Docker runtime state.
 
 Add an authenticated REST endpoint and MCP tool for live runtime status.
 
-Candidate MCP tool:
+MCP tool:
 
 ```text
 check_deployment_runtime_status
 ```
 
-Candidate REST endpoint:
+REST endpoint:
 
 ```text
-GET /deployments/runtime-status
+POST /deployments/runtime-status
 ```
 
 Expected inputs:
@@ -205,27 +210,26 @@ Expected output shape:
   "projectId": "pockethive",
   "component": "stack",
   "profile": "swarm-reduced",
-  "runtime": "docker-swarm",
-  "status": "degraded",
-  "resources": [
+  "summary": "running",
+  "requiredLabels": {
+    "hiveforge.project": "pockethive",
+    "hiveforge.component": "stack",
+    "hiveforge.profile": "swarm-reduced"
+  },
+  "containers": [
     {
-      "kind": "container",
+      "id": "abc123",
       "name": "pockethive_orchestrator.1.x",
       "image": "registry.lan:5000/pockethive/orchestrator:dev-1",
       "state": "running",
       "health": "healthy",
-      "node": "swarm-1"
-    },
-    {
-      "kind": "container",
-      "name": "pockethive_ui-v2.1.y",
-      "image": "registry.lan:5000/pockethive/ui-v2:dev-1",
-      "state": "exited",
-      "health": "unknown",
-      "node": "swarm-2",
-      "reason": "Exited with status 1"
+      "labels": {
+        "hiveforge.project": "pockethive"
+      },
+      "mounts": []
     }
-  ]
+  ],
+  "services": []
 }
 ```
 
@@ -269,30 +273,34 @@ Implementation notes:
 
 ## 4. Rendered Deployment Artifact Preview
 
+Status: initial compose-specific MCP/REST implementation exists as
+`get_deployment_compose`, backed by `run_action` journal artifacts recorded from
+`HIVEFORGE_RENDERED_COMPOSE_FILE`. Follow-up work remains for parsed bind-source
+metadata, additional artifact types, immutable artifact storage decisions, and
+UI presentation.
+
 Operators need to see the deployment artifact HiveForge actually used, especially
 the rendered Compose/Stack file for PocketHive-style release deployment.
 
 Add an authenticated REST endpoint and MCP tool for rendered artifact evidence.
 
-Candidate MCP tool:
+MCP tool:
 
 ```text
-get_deployment_artifact
+get_deployment_compose
 ```
 
-Candidate REST endpoint:
+REST endpoint:
 
 ```text
-GET /deployments/{operationId}/artifacts/{artifactName}
+GET /deployments/{operationId}/compose
 ```
 
 Expected inputs:
 
 ```json
 {
-  "operationId": "uiop-123",
-  "artifactName": "compose",
-  "redacted": true
+  "operationId": "uiop-123"
 }
 ```
 
@@ -301,9 +309,15 @@ Expected output shape:
 ```json
 {
   "operationId": "uiop-123",
-  "artifactName": "compose",
-  "contentType": "application/yaml",
-  "sha256": "9f...",
+  "status": "present",
+  "source": "operation_artifact",
+  "artifact": {
+    "name": "compose",
+    "mediaType": "application/yaml",
+    "sha256": "9f...",
+    "currentSha256": "9f...",
+    "digestMatchesJournal": true
+  },
   "redacted": true,
   "content": "services:\n  orchestrator:\n    image: registry.lan:5000/pockethive/orchestrator:dev-1\n"
 }

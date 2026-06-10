@@ -58,7 +58,11 @@ Use MCP tools in this order:
 15. `prepare_release_deploy` for release/image-tag prepare checks, or
    `start_action` for the current repo/ref POC lifecycle path
 16. `get_operation`
-17. `read_journal`
+17. `get_deployment_compose` when the action recorded a rendered Compose/Stack
+   artifact
+18. `check_deployment_runtime_status` after deployment execution, using the
+   known project/component/profile labels
+19. `read_journal`
 
 `prepare_release_deploy` currently prepares and validates a release plan only.
 It does not build images, push images, or execute deployment actions. With
@@ -66,6 +70,11 @@ It does not build images, push images, or execute deployment actions. With
 `artifacts.managedPaths`, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`,
 and validates explicit
 `requiredFiles`.
+
+`get_deployment_compose` returns the recorded rendered Compose/Stack artifact
+for one operation. It does not re-render current source. `check_deployment_runtime_status`
+checks Docker containers/services by explicit HiveForge labels only; it does not
+infer ownership from names.
 
 ## Required Inputs
 
@@ -85,8 +94,8 @@ Before starting an action, confirm:
   `prepare_release_deploy`,
 - release image templates or a release artifact template when using
   `prepare_release_deploy`,
-- required runtime files under `HIVEFORGE_PROJECT_DIR` when the release deploy
-  depends on copied files,
+- required runtime files under `HIVEFORGE_BIND_SOURCE_DIR` when the release
+  deploy depends on managed bind-source files,
 - expected health/evidence check.
 
 Missing inputs are blockers. Do not guess project ids, refs, components,
@@ -108,6 +117,8 @@ Report:
 - project id,
 - ref/release,
 - component,
+- recorded compose artifact digest/status when available,
+- live Docker runtime summary from `check_deployment_runtime_status`,
 - action,
 - profile,
 - operation id,

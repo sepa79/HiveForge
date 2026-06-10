@@ -124,6 +124,56 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("reads deployment compose through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { status: "present" });
+      }
+    });
+
+    await expect(client.getDeploymentCompose({ operationId: "op-1" })).resolves.toEqual({ status: "present" });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/deployments/op-1/compose",
+      init: {
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
+  it("checks deployment runtime status through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { summary: "missing" });
+      }
+    });
+
+    await expect(
+      client.checkDeploymentRuntimeStatus({ projectId: "hivewatch", component: "api" })
+    ).resolves.toEqual({ summary: "missing" });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/deployments/runtime-status",
+      init: {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ projectId: "hivewatch", component: "api" })
+      }
+    });
+  });
+
   it("maps REST errors without hiding the original message", async () => {
     const client = new HiveForgeApiClient({
       baseUrl: "http://127.0.0.1:3000",

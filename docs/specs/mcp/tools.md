@@ -183,6 +183,56 @@ Output: read-only diagnostics for the connected HiveForge service:
 This does not verify every Swarm node can access `managedRoot.bindSourceRoot`; active
 per-node probing is a separate runtime diagnostics slice.
 
+### `check_deployment_runtime_status`
+
+Input:
+
+```json
+{
+  "projectId": "hivewatch",
+  "component": "api",
+  "profile": "dev"
+}
+```
+
+`component` and `profile` are optional. `projectId` is required.
+
+Output: live Docker runtime status for objects matching the exact HiveForge
+labels:
+
+- `hiveforge.project=<projectId>`,
+- `hiveforge.component=<component>` when a component is provided,
+- `hiveforge.profile=<profile>` when a profile is provided.
+
+The result includes the required label map, matching containers, matching Swarm
+services when the connected environment has Docker Swarm capability, and a
+summary of `running`, `unhealthy`, `exited`, `missing`, or `unknown`.
+
+Behavior: read-only. This tool does not infer ownership from container names,
+service names, stack names, or compose file names. If no labelled Docker objects
+match, the result is an explicit `missing` status with a reason.
+
+### `get_deployment_compose`
+
+Input:
+
+```json
+{
+  "operationId": "op-..."
+}
+```
+
+Output: the rendered Compose/Stack artifact recorded for a completed lifecycle
+operation. The response includes artifact path, recorded digest/size, current
+digest/size, whether the current digest still matches the journal, redacted
+content when the artifact is readable, and an explicit `missing` result when no
+artifact was recorded or the recorded file is no longer readable.
+
+Behavior: read-only. HiveForge returns only the artifact recorded by the action
+journal. It does not re-render Compose from the current checkout and does not
+guess artifact paths. Secret-looking lines are redacted before content is
+returned through MCP.
+
 ### `list_operations`
 
 Input: none.

@@ -27,7 +27,8 @@ describe("managed files service", () => {
     expect(managedFilesEnvironment(result)).toEqual({
       HIVEFORGE_PROJECT_DIR: path.join(dataRoot, "deployed/hivewatch"),
       HIVEFORGE_STACK_DIR: path.join(dataRoot, "deployed/hivewatch/stacks"),
-      HIVEFORGE_ARTIFACTS_DIR: path.join(dataRoot, "deployed/hivewatch/artifacts")
+      HIVEFORGE_ARTIFACTS_DIR: path.join(dataRoot, "deployed/hivewatch/artifacts"),
+      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(dataRoot, "deployed/hivewatch/stacks/compose.yml")
     });
   });
 
@@ -70,6 +71,8 @@ describe("managed files service", () => {
       HIVEFORGE_PROJECT_DIR: path.join(dataRoot, "deployed/hivewatch"),
       HIVEFORGE_STACK_DIR: path.join(dataRoot, "deployed/hivewatch/stacks"),
       HIVEFORGE_ARTIFACTS_DIR: path.join(dataRoot, "deployed/hivewatch/artifacts"),
+      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(dataRoot, "deployed/hivewatch/stacks/compose.yml"),
+      HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch",
       HIVEFORGE_PROJECT_HOST_DIR: "/srv/hiveforge/data/deployed/hivewatch",
       HIVEFORGE_STACK_HOST_DIR: "/srv/hiveforge/data/deployed/hivewatch/stacks",
       HIVEFORGE_ARTIFACTS_HOST_DIR: "/srv/hiveforge/data/deployed/hivewatch/artifacts"

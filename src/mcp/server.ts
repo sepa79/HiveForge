@@ -134,6 +134,33 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "check_deployment_runtime_status",
+    {
+      title: "Check deployment runtime status",
+      description:
+        "Inspect Docker containers/services matching explicit HiveForge deployment labels for a project/component/profile.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        component: z.string().min(1).optional(),
+        profile: z.string().min(1).optional()
+      }
+    },
+    runtime.checkDeploymentRuntimeStatus
+  );
+
+  server.registerTool(
+    "get_deployment_compose",
+    {
+      title: "Get deployment compose",
+      description: "Read the recorded Compose/Stack artifact for one deployment operation without re-rendering source.",
+      inputSchema: {
+        operationId: z.string().min(1)
+      }
+    },
+    runtime.getDeploymentCompose
+  );
+
+  server.registerTool(
     "inspect_repository",
     {
       title: "Inspect a candidate repository",

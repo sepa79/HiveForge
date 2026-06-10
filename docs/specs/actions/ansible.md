@@ -103,6 +103,17 @@ Until the isolated runner implementation lands, deploy execution on this branch
 should be treated as incomplete. The contract guard exists first so HiveForge can
 quick-fail repositories that still target the removed POC variable surface.
 
+HiveForge prepares the parent directories for both paths before the action
+runs. Project Ansible may write the rendered Compose/Stack file to
+`HIVEFORGE_RENDERED_COMPOSE_FILE` and may write project-owned bind-source
+content under `HIVEFORGE_BIND_SOURCE_DIR` when the connected environment
+declares `managedRoot.bindSourceRoot`.
+
+After a successful action, HiveForge records `HIVEFORGE_RENDERED_COMPOSE_FILE`
+as a compose artifact when the file exists. The compose inspection API/MCP tool
+returns that recorded artifact only; it does not re-render from the checkout or
+guess a path later.
+
 When a profile is selected, HiveForge passes `HIVEFORGE_PROFILE`. Operator
 runtime env must not define `HIVEFORGE_*` keys.
 
@@ -121,4 +132,5 @@ content, or environment-specific conventions.
 ## Journal
 
 Action outcomes are recorded as `run_action` journal events with component,
-action, adapter, target ref, status, and reason.
+action, adapter, target ref, status, reason, and recorded deployment artifacts
+when present.

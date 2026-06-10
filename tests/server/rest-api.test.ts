@@ -290,6 +290,38 @@ describe("REST API", () => {
     });
   });
 
+  it("returns recorded deployment compose by operation id", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/deployments/op-1/compose`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      operationId: "op-1",
+      status: "present",
+      source: "operation_artifact",
+      content: "services: {}\n"
+    });
+  });
+
+  it("checks deployment runtime status", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/deployments/runtime-status`, {
+      method: "POST",
+      body: JSON.stringify({ projectId: "hivewatch", component: "api" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      projectId: "hivewatch",
+      component: "api",
+      summary: "missing"
+    });
+    expect(calls).toContainEqual({ runtimeStatus: { projectId: "hivewatch", component: "api" } });
+  });
+
   it("returns runtime diagnostics through the configured service", async () => {
     const baseUrl = await startServer();
 
@@ -833,6 +865,25 @@ async function startServer(
                 status: "deployed"
               }
             ]
+          };
+        }
+      } as never,
+      deploymentCompose: {
+        async get(operationId: string) {
+          return {
+            operationId,
+            status: "present",
+            source: "operation_artifact",
+            content: "services: {}\n"
+          };
+        }
+      } as never,
+      deploymentRuntimeStatus: {
+        async check(request: unknown) {
+          options.calls?.push({ runtimeStatus: request });
+          return {
+            ...(request as Record<string, unknown>),
+            summary: "missing"
           };
         }
       } as never,

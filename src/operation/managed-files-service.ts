@@ -6,6 +6,8 @@ export interface ManagedFilesResult {
   projectDir: string;
   stackDir: string;
   artifactsDir: string;
+  renderedComposeFile: string;
+  bindSourceDir?: string;
   projectHostDir?: string;
   stackHostDir?: string;
   artifactsHostDir?: string;
@@ -26,6 +28,7 @@ export class ManagedFilesService {
     const projectDir = path.join(this.dataRoot, "deployed", request.projectId);
     const stackDir = path.join(projectDir, "stacks");
     const artifactsDir = path.join(projectDir, "artifacts");
+    const renderedComposeFile = path.join(stackDir, "compose.yml");
     const managedDataBindSourceRoot = this.bindSourceRoot ? path.join(this.bindSourceRoot, "data") : undefined;
     const projectHostDir = managedDataBindSourceRoot
       ? path.join(managedDataBindSourceRoot, "deployed", request.projectId)
@@ -57,6 +60,8 @@ export class ManagedFilesService {
       projectDir,
       stackDir,
       artifactsDir,
+      renderedComposeFile,
+      ...(projectHostDir ? { bindSourceDir: projectHostDir } : {}),
       ...(projectHostDir ? { projectHostDir } : {}),
       ...(stackHostDir ? { stackHostDir } : {}),
       ...(artifactsHostDir ? { artifactsHostDir } : {}),
@@ -94,6 +99,8 @@ export function managedFilesEnvironment(result: ManagedFilesResult): NodeJS.Proc
     HIVEFORGE_PROJECT_DIR: result.projectDir,
     HIVEFORGE_STACK_DIR: result.stackDir,
     HIVEFORGE_ARTIFACTS_DIR: result.artifactsDir,
+    HIVEFORGE_RENDERED_COMPOSE_FILE: result.renderedComposeFile,
+    ...(result.bindSourceDir ? { HIVEFORGE_BIND_SOURCE_DIR: result.bindSourceDir } : {}),
     ...(result.projectHostDir ? { HIVEFORGE_PROJECT_HOST_DIR: result.projectHostDir } : {}),
     ...(result.stackHostDir ? { HIVEFORGE_STACK_HOST_DIR: result.stackHostDir } : {}),
     ...(result.artifactsHostDir ? { HIVEFORGE_ARTIFACTS_HOST_DIR: result.artifactsHostDir } : {})

@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -155,6 +155,77 @@ describe("project action service", () => {
         HIVEFORGE_PROFILE: "test"
       }
     ]);
+  });
+
+  it("records rendered compose artifact evidence when the action writes it", async () => {
+    const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
+    const stackDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-stack-"));
+    const renderedComposeFile = path.join(stackDir, "compose.yml");
+    await mkdir(stackDir, { recursive: true });
+    await writeFile(renderedComposeFile, "services:\n  api:\n    image: hivewatch:test\n", "utf8");
+    const runner = new FakeActionRunner();
+    const service = serviceWith(journalDir, runner);
+
+    await service.run({
+      ...request("api", "deploy"),
+      environment: {
+        HIVEFORGE_RENDERED_COMPOSE_FILE: renderedComposeFile
+      }
+    });
+
+    const events = await new JsonlJournal(journalDir).readAll();
+    expect(events[0].artifacts).toEqual([
+      {
+        name: "compose",
+        path: renderedComposeFile,
+        mediaType: "application/yaml",
+        sha256: "d23ae86842d20c99a6827d688b859a2c9d4c449dd6ac9940c223fc30307d5627",
+        bytes: 43,
+        recordedAt: "2026-05-17T10:00:00.000Z"
+      }
+    ]);
+  });
+
+  it("records rendered compose artifact evidence when the action fails after writing it", async () => {
+    const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
+    const stackDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-stack-"));
+    const renderedComposeFile = path.join(stackDir, "compose.yml");
+    await writeFile(renderedComposeFile, "services:\n  api:\n    image: hivewatch:test\n", "utf8");
+    const service = serviceWith(
+      journalDir,
+      new FakeActionRunner(
+        new CommandExecutionError("ansible-playbook", ["ansible/deploy.yml"], {
+          cwd: "/workspace/components/api",
+          exitCode: 2,
+          stdout: "compose rendered",
+          stderr: "bind source path does not exist"
+        })
+      )
+    );
+
+    await expect(
+      service.run({
+        ...request("api", "deploy"),
+        environment: {
+          HIVEFORGE_RENDERED_COMPOSE_FILE: renderedComposeFile
+        }
+      })
+    ).rejects.toThrow("bind source path does not exist");
+
+    const events = await new JsonlJournal(journalDir).readAll();
+    expect(events[0]).toMatchObject({
+      status: "failed",
+      artifacts: [
+        {
+          name: "compose",
+          path: renderedComposeFile,
+          mediaType: "application/yaml",
+          sha256: "d23ae86842d20c99a6827d688b859a2c9d4c449dd6ac9940c223fc30307d5627",
+          bytes: 43,
+          recordedAt: "2026-05-17T10:00:00.000Z"
+        }
+      ]
+    });
   });
 });
 

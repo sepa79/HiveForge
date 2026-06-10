@@ -91,6 +91,25 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/diagnostics/runtime" });
   }
 
+  getDeploymentCompose(input: { operationId: string }): Promise<unknown> {
+    return this.request({
+      method: "GET",
+      path: `/deployments/${encodeURIComponent(input.operationId)}/compose`
+    });
+  }
+
+  checkDeploymentRuntimeStatus(input: { projectId: string; component?: string; profile?: string }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: "/deployments/runtime-status",
+      body: {
+        projectId: input.projectId,
+        ...(input.component ? { component: input.component } : {}),
+        ...(input.profile ? { profile: input.profile } : {})
+      }
+    });
+  }
+
   listOperations(): Promise<unknown> {
     return this.request({ method: "GET", path: "/operations" });
   }

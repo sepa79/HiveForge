@@ -238,6 +238,49 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Deployment"
+  /deployments/runtime-status:
+    post:
+      summary: Check live Docker runtime status for a labelled deployment
+      description: >
+        Looks up Docker containers and, on Swarm environments, services by the
+        explicit HiveForge labels only. This endpoint does not infer deployment
+        ownership from names.
+      operationId: checkDeploymentRuntimeStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
+      responses:
+        "200":
+          description: Live runtime status for matching Docker objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentRuntimeStatusResult"
+  /deployments/{operationId}/compose:
+    get:
+      summary: Read the rendered compose artifact recorded for an operation
+      description: >
+        Returns the compose artifact recorded in the action journal. HiveForge
+        does not re-render compose from current source when no artifact exists.
+        Secret-looking lines are redacted before response content is returned.
+      operationId: getDeploymentCompose
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Recorded rendered compose artifact, or an explicit missing result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentComposeResult"
   /diagnostics/runtime:
     get:
       summary: Diagnose HiveForge runtime paths and managed-root mapping
@@ -945,6 +988,8 @@ components:
               type: string
             bindSourceRoot:
               type: string
+            managedDataBindSourceRoot:
+              type: string
             shared:
               type: boolean
             nodes:
@@ -969,6 +1014,154 @@ components:
               type: array
               items:
                 type: string
+    DeploymentRuntimeStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [projectId]
+      properties:
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        component:
+          $ref: "#/components/schemas/Identifier"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+    DeploymentRuntimeStatusResult:
+      type: object
+      additionalProperties: false
+      required: [projectId, summary, requiredLabels, containers, services]
+      properties:
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        component:
+          $ref: "#/components/schemas/Identifier"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        summary:
+          type: string
+          enum: [running, unhealthy, exited, missing, unknown]
+        requiredLabels:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Exact Docker labels used for lookup, currently hiveforge.project,
+            hiveforge.component, and hiveforge.profile when those inputs are
+            provided.
+        containers:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeContainerStatus"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeServiceStatus"
+        reason:
+          type: string
+    RuntimeContainerStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, image, state, status, labels, mounts]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image:
+          type: string
+        state:
+          type: string
+        status:
+          type: string
+        health:
+          type: string
+        ports:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        mounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              source:
+                type: string
+              destination:
+                type: string
+              mode:
+                type: string
+              type:
+                type: string
+    RuntimeServiceStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, image, labels]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image:
+          type: string
+        mode:
+          type: string
+        replicas:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+    DeploymentComposeResult:
+      type: object
+      additionalProperties: false
+      required: [operationId, status, source, redacted]
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+          enum: [present, missing]
+        source:
+          type: string
+          enum: [operation_artifact, none]
+        artifact:
+          $ref: "#/components/schemas/DeploymentComposeArtifact"
+        content:
+          type: string
+        redacted:
+          type: boolean
+        reason:
+          type: string
+    DeploymentComposeArtifact:
+      type: object
+      additionalProperties: false
+      required:
+        [name, path, mediaType, sha256, bytes, recordedAt, currentSha256, currentBytes, digestMatchesJournal]
+      properties:
+        name:
+          type: string
+          enum: [compose]
+        path:
+          type: string
+        mediaType:
+          type: string
+        sha256:
+          type: string
+        bytes:
+          type: integer
+          minimum: 0
+        recordedAt:
+          type: string
+          format: date-time
+        currentSha256:
+          type: string
+        currentBytes:
+          type: integer
+          minimum: 0
+        digestMatchesJournal:
+          type: boolean
     RepositoryInspectionRequest:
       type: object
       additionalProperties: false

@@ -48,6 +48,7 @@ describe("runtime diagnostics service", () => {
     expect(report.managedRoot).toEqual({
       controlPlanePath: paths.dataRoot,
       bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+      managedDataBindSourceRoot: "/mnt/shared_nfs/hiveforge/data",
       shared: true,
       visibilityStatus: "configured",
       reason:

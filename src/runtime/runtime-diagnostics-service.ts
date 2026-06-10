@@ -1,5 +1,6 @@
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
+import path from "node:path";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimePaths } from "./runtime-paths.js";
 
@@ -32,6 +33,7 @@ export interface RuntimeDiagnosticsReport {
   managedRoot: {
     controlPlanePath: string;
     bindSourceRoot?: string;
+    managedDataBindSourceRoot?: string;
     shared: boolean;
     nodes?: string[];
     visibilityStatus: ManagedRootVisibilityStatus;
@@ -53,6 +55,7 @@ export class RuntimeDiagnosticsService {
     const managedRoot = this.currentEnvironment?.capabilities.managedRoot;
     const controlPlanePath = this.runtimePaths.dataRoot;
     const bindSourceRoot = managedRoot?.bindSourceRoot;
+    const managedDataBindSourceRoot = bindSourceRoot ? path.join(bindSourceRoot, "data") : undefined;
 
     return {
       ...(this.runtimePaths.runtimeRoot
@@ -80,6 +83,7 @@ export class RuntimeDiagnosticsService {
       managedRoot: {
         controlPlanePath,
         ...(bindSourceRoot ? { bindSourceRoot } : {}),
+        ...(managedDataBindSourceRoot ? { managedDataBindSourceRoot } : {}),
         shared: managedRoot?.shared ?? false,
         ...(managedRoot?.nodes ? { nodes: managedRoot.nodes } : {}),
         visibilityStatus: bindSourceRoot ? "configured" : "unknown",

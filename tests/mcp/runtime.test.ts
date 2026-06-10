@@ -17,6 +17,8 @@ describe("HiveForge MCP runtime", () => {
       "list_environment_nodes",
       "list_deployments",
       "diagnose_hiveforge_runtime",
+      "check_deployment_runtime_status",
+      "get_deployment_compose",
       "inspect_repository",
       "register_project",
       "set_environment_project_policy",
@@ -115,6 +117,36 @@ describe("HiveForge MCP runtime", () => {
         bindSourceRoot: "/mnt/shared_nfs/hiveforge",
         visibilityStatus: "configured"
       }
+    });
+  });
+
+  it("checks deployment runtime status through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async checkDeploymentRuntimeStatus(input: unknown) {
+        return { summary: "running", input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.checkDeploymentRuntimeStatus({ projectId: "hivewatch", component: "api" });
+
+    expect(result.structuredContent).toEqual({
+      summary: "running",
+      input: { projectId: "hivewatch", component: "api" }
+    });
+  });
+
+  it("gets deployment compose through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async getDeploymentCompose(input: unknown) {
+        return { status: "present", input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.getDeploymentCompose({ operationId: "op-1" });
+
+    expect(result.structuredContent).toEqual({
+      status: "present",
+      input: { operationId: "op-1" }
     });
   });
 
