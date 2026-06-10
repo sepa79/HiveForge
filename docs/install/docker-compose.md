@@ -1,8 +1,8 @@
 # Install HiveForge With Docker Compose Or Swarm
 
 HiveForge installs into one operator-owned directory. The container mounts that
-directory at `/hf`, records the matching host-visible data root, and initializes
-missing runtime files there on first start.
+directory at `/hf`; the HiveForge server always uses `/hf` as its container
+runtime root and initializes missing runtime files there on first start.
 
 ## Docker Compose On One Swarm Manager
 
@@ -31,8 +31,8 @@ docker stack deploy -c docker-stack.hiveforge.yml hiveforge
 For Portainer, paste the contents of
 `deploy/docker-stack.hiveforge.yml` as a Swarm stack. The service is constrained
 to manager nodes because it mounts `/var/run/docker.sock`.
-Override `HIVEFORGE_HOST_BASE_DIR` and `HIVEFORGE_HOST_DATA_ROOT` only when the
-host path is not `/opt/hiveforge`.
+If the host path is not `/opt/hiveforge`, edit the left side of the `/hf` bind
+mount in the Compose or Stack file before deploy.
 
 Read the generated token from the running task:
 
@@ -60,8 +60,8 @@ Read the generated token on the host:
 cat /opt/hiveforge/auth-token
 ```
 
-For Swarm stack installs, the token is also under the configured host base dir,
-for example `/opt/hiveforge/auth-token`, unless you intentionally provide
+For Swarm stack installs, the token is also under the configured host
+runtime-root directory, for example `/opt/hiveforge/auth-token`, unless you intentionally provide
 `HIVEFORGE_AUTH_TOKEN`.
 
 API and MCP clients use it as a bearer token. The UI shell loads without auth,
@@ -94,9 +94,8 @@ docker run --rm -i \
   npm run hiveforge-mcp
 ```
 
-MCP connects to the HiveForge REST endpoint. It does not use
-`HIVEFORGE_BASE_DIR` and does not read `projects.yaml`, `environments.yaml`,
-`workspace/`, `journal/`, or `data/` directly.
+MCP connects to the HiveForge REST endpoint. It does not read `projects.yaml`,
+`environments.yaml`, `workspace/`, `journal/`, or `data/` directly.
 
 ## Operator-Provided Token
 
@@ -113,7 +112,7 @@ If `HIVEFORGE_AUTH_TOKEN` is set, HiveForge uses it and does not create
 If `auth-token` already exists from an earlier start and you later set
 `HIVEFORGE_AUTH_TOKEN`, the environment token wins. HiveForge keeps the old file
 in place, logs `HiveForge auth token source: environment`, and logs that the
-base-dir token file is ignored without printing either token value.
+runtime-root token file is ignored without printing either token value.
 
 ## Corporate Proxy
 
@@ -165,6 +164,13 @@ project registry and environment policy entries.
 Non-secret project runtime env is stored in `data/runtime-env.json` and is
 managed through REST/MCP. Do not put secrets in this file.
 
+The generated environment derives the HiveForge container's managed root
+internally as `/hf/data`. When project deployments need Docker bind sources, set
+`capabilities.managedRoot.bindSourceRoot` to the host-side runtime root as seen
+by the target Docker node, for example `/opt/hiveforge` or
+`/mnt/shared_nfs/hiveforge`. HiveForge reports this mapping through
+runtime diagnostics; it does not infer or repair host mount points.
+
 ## Docker Access
 
 The Compose file mounts `/var/run/docker.sock` because the current HiveForge POC
@@ -172,7 +178,7 @@ validates Docker requirements and runs declared actions that target Docker or
 Swarm. This gives the HiveForge container Docker control on the host. If that is
 not acceptable, do not install this Compose file as-is.
 
-On a Swarm worker, HiveForge startup fails when creating a new base-dir
+On a Swarm worker, HiveForge startup fails when creating a new runtime-root
 environment file. Run HiveForge on a manager node or provide an explicit
 `environments.yaml`.
 

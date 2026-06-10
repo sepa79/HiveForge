@@ -290,6 +290,25 @@ describe("REST API", () => {
     });
   });
 
+  it("returns runtime diagnostics through the configured service", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/diagnostics/runtime`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      runtimeRoot: {
+        path: "/hf",
+        status: "present"
+      },
+      managedRoot: {
+        controlPlanePath: "/hf/data",
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        visibilityStatus: "configured"
+      }
+    });
+  });
+
   it("starts async lifecycle operations and exposes operation logs", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -832,6 +851,21 @@ async function startServer(
                 reason: "Project image repository must be supplied explicitly"
               }
             ]
+          };
+        }
+      } as never,
+      runtimeDiagnostics: {
+        async diagnose() {
+          return {
+            runtimeRoot: {
+              path: "/hf",
+              status: "present"
+            },
+            managedRoot: {
+              controlPlanePath: "/hf/data",
+              bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+              visibilityStatus: "configured"
+            }
           };
         }
       } as never,

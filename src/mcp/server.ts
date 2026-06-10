@@ -123,6 +123,17 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "diagnose_hiveforge_runtime",
+    {
+      title: "Diagnose HiveForge runtime",
+      description:
+        "Read HiveForge runtime-root, derived path, and managed-root mapping diagnostics without exposing secrets.",
+      inputSchema: {}
+    },
+    runtime.diagnoseHiveForgeRuntime
+  );
+
+  server.registerTool(
     "inspect_repository",
     {
       title: "Inspect a candidate repository",

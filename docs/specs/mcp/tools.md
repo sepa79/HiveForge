@@ -21,7 +21,7 @@ The MCP process fails fast unless both variables are set:
 - `HIVEFORGE_AUTH_TOKEN`
 
 For the default Docker Compose install, `HIVEFORGE_AUTH_TOKEN` can be read from
-the generated base-dir token file:
+the generated runtime-root token file:
 
 ```bash
 HIVEFORGE_BASE_URL=http://<host>:3000 \
@@ -29,8 +29,8 @@ HIVEFORGE_AUTH_TOKEN="$(cat /opt/hiveforge/auth-token)" \
 npm run hiveforge-mcp
 ```
 
-MCP does not use `HIVEFORGE_BASE_DIR`. Only the HiveForge REST server owns the
-base directory and runtime files.
+MCP does not read runtime files directly. Only the HiveForge REST server owns
+the runtime root and runtime files.
 
 The optional client-side target launcher reads the selected endpoint from a
 local known-targets file instead of requiring those variables directly:
@@ -163,6 +163,25 @@ Input: none.
 
 Output: deployment inventory for the current environment, derived from
 succeeded lifecycle actions in the journal.
+
+### `diagnose_hiveforge_runtime`
+
+Input: none.
+
+Output: read-only diagnostics for the connected HiveForge service:
+
+- fixed HiveForge runtime root and derived paths,
+- derived registry, environment, workspace, journal, data, and runtime-env
+  paths with local read/write status,
+- current environment id/name/kind,
+- managed-root mapping from control-plane path to node-visible path when
+  configured,
+- `configured` vs `unknown` visibility status for runtime-node bind-source
+  access,
+- action contract path names exposed to project actions.
+
+This does not verify every Swarm node can access `managedRoot.bindSourceRoot`; active
+per-node probing is a separate runtime diagnostics slice.
 
 ### `list_operations`
 

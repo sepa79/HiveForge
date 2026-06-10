@@ -17,7 +17,7 @@ import { WorkspaceManager } from "../workspace/workspace-manager.js";
 import { resolveRuntimePaths } from "../runtime/runtime-paths.js";
 
 interface CliOptions {
-  baseDir?: string;
+  runtimeRoot?: string;
   registry?: string;
   workspace?: string;
   journal?: string;
@@ -128,8 +128,8 @@ function parseOptions(args: string[]): CliOptions {
     }
 
     switch (key) {
-      case "--base-dir":
-        options.baseDir = value;
+      case "--runtime-root":
+        options.runtimeRoot = value;
         break;
       case "--registry":
         options.registry = value;
@@ -168,7 +168,7 @@ function parseOptions(args: string[]): CliOptions {
 
 async function buildContext(options: CliOptions) {
   const runtimePaths = await resolveRuntimePaths({
-    baseDir: options.baseDir,
+    runtimeRoot: options.runtimeRoot,
     registry: options.registry,
     workspace: options.workspace,
     journal: options.journal,

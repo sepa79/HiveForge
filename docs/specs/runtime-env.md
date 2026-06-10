@@ -20,13 +20,14 @@ store.
 
 The canonical file format is `docs/specs/config/runtime-env.schema.json`.
 
-The default runtime container stores the file at:
+The default runtime container stores the file under the derived runtime data
+root:
 
 ```text
-<HIVEFORGE_DATA_ROOT>/runtime-env.json
+<runtime-root>/data/runtime-env.json
 ```
 
-For the default base-dir install this resolves to:
+For the default runtime-root install this resolves to:
 
 ```text
 /hf/data/runtime-env.json

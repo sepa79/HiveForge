@@ -31,8 +31,7 @@ npm run hiveforge-mcp
 ```
 
 Use the installed host's `auth-token` file when HiveForge generated the token
-on first start. MCP connects to REST and does not use `HIVEFORGE_BASE_DIR` or
-read runtime files directly.
+on first start. MCP connects to REST and does not read runtime files directly.
 
 Do not invent endpoints or tokens.
 

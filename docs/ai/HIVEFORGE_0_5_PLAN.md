@@ -43,7 +43,7 @@ relevant runtime/workspace spec.
   can verify or clearly report the basis for that claim.
 - Do not run project-owned Ansible/playbook code in the HiveForge control-plane
   container once the isolated runner contract exists.
-- Do not mount the full HiveForge base directory, auth token, registry,
+- Do not mount the full HiveForge runtime root, auth token, registry,
   environment config, journal, or runtime-env store into project action runners.
 - Do not make the UI implement separate deploy, readiness, diagnostics, artifact,
   or cleanup logic outside the REST/application services.
@@ -370,13 +370,12 @@ Expected output shape:
 {
   "hiveforge": {
     "version": "0.5.0",
-    "baseDir": "/hf",
+    "runtimeRoot": "/hf",
     "registryPath": "/hf/projects.yaml",
     "environmentsPath": "/hf/environments.yaml",
     "workspaceDir": "/hf/workspace",
     "journalDir": "/hf/journal",
     "dataRoot": "/hf/data",
-    "hostDataRoot": "/opt/hiveforge/data",
     "authTokenSource": "file"
   },
   "paths": [
@@ -388,6 +387,8 @@ Expected output shape:
     }
   ],
   "managedRoot": {
+    "controlPlanePath": "/hf/data",
+    "bindSourceRoot": "/mnt/shared_nfs/hiveforge",
     "declaredShared": true,
     "verifiedShared": false,
     "status": "unknown",
@@ -398,23 +399,24 @@ Expected output shape:
 
 The tool should report at least:
 
-- resolved runtime paths: base dir, registry, environments, workspace, journal,
-  data root, host data root, runtime env file,
+- resolved runtime paths: runtime root, registry, environments, workspace,
+  journal, data root, runtime env file,
 - which auth token source is active, without token values,
 - whether each path exists, is a directory or file as expected, and is readable
   and writable by the HiveForge process,
 - filesystem owner/mode when useful for diagnosing write failures,
 - configured environment id/kind and managedRoot capability,
 - node inventory age/source when available,
-- whether `HIVEFORGE_HOST_DATA_ROOT` is configured when actions need host-visible
-  bind sources,
+- whether `managedRoot.bindSourceRoot` is configured when actions need
+  host-visible bind sources,
 - warnings when an upgrade appears to have started against an empty or different
-  base dir.
+  runtime root.
 
 Managed-root accessibility checks:
 
-- For single Docker, verify that the configured host data root can be mounted or
-  is otherwise usable by the local Docker engine before reporting it usable.
+- For single Docker, verify that the configured `managedRoot.bindSourceRoot` can be
+  mounted or is otherwise usable by the local Docker engine before reporting it
+  usable.
 - For Swarm with `managedRoot.shared: true`, verify access from every eligible
   node before reporting `verifiedShared: true`.
 - For Swarm with `managedRoot.shared: false`, verify or report only the listed
@@ -445,7 +447,7 @@ Acceptance:
 - Diagnostics distinguish configured, assumed, verified, failed, and unknown
   managed-root states.
 - Diagnostics can explain a concrete bind mount failure such as
-  `/opt/hiveforge/data/...` existing on the HiveForge node but missing from the
+  `/opt/hiveforge/...` existing on the HiveForge node but missing from the
   node where a PocketHive task was scheduled.
 - `explain_deploy_prerequisites` can reference these diagnostics when a profile
   requires shared or node-local managed root access.
@@ -457,7 +459,7 @@ Acceptance:
 Redeploying or upgrading HiveForge itself must preserve existing operator data.
 This covers `docker compose up -d` with a newer image, Swarm stack redeploys,
 Portainer stack updates, and replacing the HiveForge container while keeping the
-same configured base directory.
+same configured runtime root and host bind source.
 
 Data that must be retained:
 
@@ -475,7 +477,7 @@ Required behavior:
 - Runtime initialization may create missing files/directories, but must not
   overwrite existing files.
 - The Compose and Stack install templates must keep stable host mounts for the
-  HiveForge base directory and host data root.
+  HiveForge runtime root and its configured `managedRoot.bindSourceRoot`.
 - Startup should report the selected paths and token source without printing
   token values.
 - If a configured mount/path changes during upgrade, HiveForge should fail or
@@ -488,7 +490,7 @@ Required behavior:
 ```text
 capture: check_health, list_projects, list_environments, list_deployments,
          list_project_runtime_env, read_journal
-redeploy HiveForge with a newer image using the same base dir
+redeploy HiveForge with a newer image using the same runtime root
 verify:  check_health, list_projects, list_environments, list_deployments,
          list_project_runtime_env, read_journal
 compare: no data loss except process-local operations from list_operations
@@ -497,12 +499,13 @@ compare: no data loss except process-local operations from list_operations
 Acceptance:
 
 - Automated or scripted smoke coverage proves HiveForge data survives a
-  container recreate with the same mounted base directory.
+  container recreate with the same mounted runtime root.
 - The test explicitly proves `list_operations` is process-local and may reset,
   while the journal and deployment inventory remain durable.
-- Install docs state that changing `HIVEFORGE_HOST_BASE_DIR`,
-  `HIVEFORGE_BASE_DIR`, `HIVEFORGE_HOST_DATA_ROOT`, or `HIVEFORGE_DATA_ROOT`
-  changes where HiveForge looks for persisted state.
+- Install docs state that editing the host side of the `/hf` bind mount changes
+  where HiveForge persisted state lives. The container-side runtime root is
+  fixed at `/hf`; explicit runtime path variables are maintainer/packaging
+  escape hatches, not the normal install contract.
 
 ## 7. Isolated Project Action Runner
 
@@ -514,7 +517,7 @@ other projects' deployment data.
 
 This also makes path contracts confusing: Ansible runs with container-visible
 paths such as `/hf/data/...`, while Docker/Swarm bind sources must be paths that
-exist on the runtime nodes, such as `/mnt/shared_nfs/hiveforge/data/...`.
+exist on the runtime nodes, such as `/mnt/shared_nfs/hiveforge/...`.
 
 0.5.x should move project action execution into an isolated action runner
 container per operation.
@@ -525,7 +528,7 @@ Runner boundary:
   auth token, runtime-env store, journal, and API state.
 - The action runner container receives only the selected checkout and the
   selected project deployment directory.
-- The runner must not receive the full HiveForge base directory.
+- The runner must not receive the full HiveForge runtime root.
 - The runner must not receive the HiveForge auth token, registry,
   environments file, journal, or runtime-env store.
 - The runner should be ephemeral per operation and removed after completion,
@@ -593,10 +596,10 @@ at the same absolute path that Docker/Swarm nodes see. Example:
 
 ```text
 host/runtime node:
-  /mnt/shared_nfs/hiveforge/data/deployed/<projectId>/
+  /mnt/shared_nfs/hiveforge/deployed/<projectId>/
 
 action runner:
-  /mnt/shared_nfs/hiveforge/data/deployed/<projectId>/
+  /mnt/shared_nfs/hiveforge/deployed/<projectId>/
 ```
 
 This avoids exposing both internal `/hf/...` paths and host-visible
@@ -722,7 +725,7 @@ Behavior rules:
 - No implicit cleanup that hides evidence of a failed deploy.
 - Cleanup decisions should be auditable.
 - Do not delete HiveForge-managed deployed runtime files under
-  `HIVEFORGE_DATA_ROOT/deployed/<projectId>/`; workspace cleanup is only for git
+  `<runtime-root>/data/deployed/<projectId>/`; workspace cleanup is only for git
   checkout workspaces.
 
 ## 10. Project Operator UI View

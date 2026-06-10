@@ -99,6 +99,31 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("reads runtime diagnostics through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { managedRoot: { visibilityStatus: "configured" } });
+      }
+    });
+
+    await expect(client.diagnoseHiveForgeRuntime()).resolves.toEqual({
+      managedRoot: { visibilityStatus: "configured" }
+    });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/diagnostics/runtime",
+      init: {
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
   it("maps REST errors without hiding the original message", async () => {
     const client = new HiveForgeApiClient({
       baseUrl: "http://127.0.0.1:3000",

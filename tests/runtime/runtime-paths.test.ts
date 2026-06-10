@@ -8,14 +8,14 @@ import { loadProjectRegistryConfig } from "../../src/config/project-registry-loa
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
 
 describe("runtime paths", () => {
-  it("initializes missing base dir files beside an existing compose file", async () => {
+  it("initializes missing runtime root files beside an existing compose file", async () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
     await writeFile(path.join(baseDir, "docker-compose.yml"), "services: {}\n", "utf8");
 
-    const paths = await resolveRuntimePaths({ baseDir, requireEnvironments: true });
+    const paths = await resolveRuntimePaths({ runtimeRoot: baseDir, requireEnvironments: true });
 
     expect(paths).toEqual({
-      baseDir,
+      runtimeRoot: baseDir,
       registry: path.join(baseDir, "projects.yaml"),
       environments: path.join(baseDir, "environments.yaml"),
       workspace: path.join(baseDir, "workspace"),
@@ -29,6 +29,11 @@ describe("runtime paths", () => {
       environments: [
         {
           id: "docker",
+          capabilities: {
+            managedRoot: {
+              shared: true
+            }
+          },
           policy: { projects: [] }
         }
       ]
@@ -70,7 +75,7 @@ describe("runtime paths", () => {
     );
 
     await resolveRuntimePaths({
-      baseDir,
+      runtimeRoot: baseDir,
       requireEnvironments: true,
       defaultEnvironmentDocker: failingCommandRunner()
     });
@@ -83,7 +88,7 @@ describe("runtime paths", () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
 
     const paths = await resolveRuntimePaths({
-      baseDir,
+      runtimeRoot: baseDir,
       requireEnvironments: true,
       defaultEnvironmentDocker: scriptedCommandRunner([
         {
@@ -162,7 +167,7 @@ describe("runtime paths", () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
 
     const paths = await resolveRuntimePaths({
-      baseDir,
+      runtimeRoot: baseDir,
       requireEnvironments: true,
       defaultEnvironmentDocker: scriptedCommandRunner([
         {
@@ -186,13 +191,13 @@ describe("runtime paths", () => {
     });
   });
 
-  it("rejects base dir autodetection on an active Swarm worker", async () => {
+  it("rejects runtime-root autodetection on an active Swarm worker", async () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
     const environmentsPath = path.join(baseDir, "environments.yaml");
 
     await expect(
       resolveRuntimePaths({
-        baseDir,
+        runtimeRoot: baseDir,
         requireEnvironments: true,
         defaultEnvironmentDocker: scriptedCommandRunner([
           {
@@ -205,35 +210,12 @@ describe("runtime paths", () => {
     await expect(stat(environmentsPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("keeps an explicit host data root separate from the container data root", async () => {
+  it("rejects mixed runtime root and explicit path modes", async () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
 
-    const paths = await resolveRuntimePaths({
-      baseDir,
-      hostDataRoot: "/srv/hiveforge/data",
-      requireEnvironments: true
-    });
-
-    expect(paths).toMatchObject({
-      dataRoot: path.join(baseDir, "data"),
-      hostDataRoot: "/srv/hiveforge/data"
-    });
-  });
-
-  it("rejects relative host data roots", async () => {
-    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
-
-    await expect(resolveRuntimePaths({ baseDir, hostDataRoot: "data" })).rejects.toThrow(
-      "Host data root must be an absolute path: data"
-    );
-  });
-
-  it("rejects mixed base dir and explicit path modes", async () => {
-    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
-
-    await expect(resolveRuntimePaths({ baseDir, registry: path.join(baseDir, "projects.yaml") })).rejects.toThrow(
-      "Use either --base-dir/HIVEFORGE_BASE_DIR or explicit runtime paths, not both."
-    );
+    await expect(
+      resolveRuntimePaths({ runtimeRoot: baseDir, registry: path.join(baseDir, "projects.yaml") })
+    ).rejects.toThrow("Use either --runtime-root or explicit runtime paths, not both.");
   });
 
   it("requires environments for server runtime explicit mode", async () => {
@@ -248,10 +230,12 @@ describe("runtime paths", () => {
     ).rejects.toThrow("Missing required runtime option(s): --environments.");
   });
 
-  it("fails when base dir is missing", async () => {
+  it("fails when runtime root is missing", async () => {
     const baseDir = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-")), "missing");
 
-    await expect(resolveRuntimePaths({ baseDir })).rejects.toThrow(`Base dir does not exist: ${baseDir}`);
+    await expect(resolveRuntimePaths({ runtimeRoot: baseDir })).rejects.toThrow(
+      `Runtime root does not exist: ${baseDir}`
+    );
   });
 });
 

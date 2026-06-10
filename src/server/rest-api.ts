@@ -21,6 +21,7 @@ import type { ReleaseDeployOperationRequest } from "../release/release-deploy-se
 import type { ReleaseImageTemplate } from "../release/release-deploy-contract.js";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
+import type { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
@@ -43,6 +44,7 @@ export interface RestApiServices {
   deployPrerequisites?: DeployPrerequisitesService;
   operations?: OperationLogService;
   runtimeEnv?: RuntimeEnvStore;
+  runtimeDiagnostics?: RuntimeDiagnosticsService;
   repositoryInspection?: {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
@@ -116,6 +118,16 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Environment refresh failed");
         }
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/diagnostics\/runtime$/,
+      async handle() {
+        if (!services.runtimeDiagnostics) {
+          throw new HttpError(501, "Runtime diagnostics are not configured");
+        }
+        return await services.runtimeDiagnostics.diagnose();
       }
     },
     {

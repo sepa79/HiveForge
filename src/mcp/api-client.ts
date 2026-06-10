@@ -87,6 +87,10 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/deployments" });
   }
 
+  diagnoseHiveForgeRuntime(): Promise<unknown> {
+    return this.request({ method: "GET", path: "/diagnostics/runtime" });
+  }
+
   listOperations(): Promise<unknown> {
     return this.request({ method: "GET", path: "/operations" });
   }

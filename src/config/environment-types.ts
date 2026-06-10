@@ -33,6 +33,7 @@ export interface EnvironmentCapabilities {
 export interface ManagedRootCapability {
   shared: boolean;
   nodes?: string[];
+  bindSourceRoot?: string;
 }
 
 export interface EnvironmentPolicy {

@@ -71,7 +71,7 @@ Root manifests may declare `artifacts.managedPaths`. Before running a lifecycle
 action, HiveForge prepares each managed path under:
 
 ```text
-<HIVEFORGE_DATA_ROOT>/deployed/<projectId>/
+<runtime-root>/data/deployed/<projectId>/
 ```
 
 For the current contract, each managed path uses `mode: replace`: HiveForge

@@ -16,6 +16,7 @@ describe("HiveForge MCP runtime", () => {
       "refresh_environment",
       "list_environment_nodes",
       "list_deployments",
+      "diagnose_hiveforge_runtime",
       "inspect_repository",
       "register_project",
       "set_environment_project_policy",
@@ -91,6 +92,30 @@ describe("HiveForge MCP runtime", () => {
     const result = await runtime.refreshEnvironment();
 
     expect(result.structuredContent).toEqual({ current: { id: "swarm", name: "Docker Swarm" }, known: [] });
+  });
+
+  it("returns HiveForge runtime diagnostics through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async diagnoseHiveForgeRuntime() {
+        return {
+          managedRoot: {
+            controlPlanePath: "/hf/data",
+            bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+            visibilityStatus: "configured"
+          }
+        };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.diagnoseHiveForgeRuntime();
+
+    expect(result.structuredContent).toEqual({
+      managedRoot: {
+        controlPlanePath: "/hf/data",
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        visibilityStatus: "configured"
+      }
+    });
   });
 
   it("lists current environment nodes with labels through the runtime", async () => {

@@ -238,6 +238,17 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Deployment"
+  /diagnostics/runtime:
+    get:
+      summary: Diagnose HiveForge runtime paths and managed-root mapping
+      operationId: diagnoseHiveForgeRuntime
+      responses:
+        "200":
+          description: Runtime diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeDiagnosticsReport"
   /operations:
     get:
       summary: List lifecycle operations retained by this HiveForge process
@@ -872,6 +883,92 @@ components:
           items:
             type: string
           uniqueItems: true
+        bindSourceRoot:
+          type: string
+    PathDiagnostic:
+      type: object
+      additionalProperties: false
+      required: [path, status, readable, writable]
+      properties:
+        path:
+          type: string
+        status:
+          type: string
+          enum: [present, missing, inaccessible]
+        readable:
+          type: boolean
+        writable:
+          type: boolean
+        reason:
+          type: string
+    RuntimeDiagnosticsReport:
+      type: object
+      additionalProperties: false
+      required: [derivedPaths, managedRoot, actionContractPaths]
+      properties:
+        runtimeRoot:
+          $ref: "#/components/schemas/PathDiagnostic"
+        derivedPaths:
+          type: object
+          additionalProperties: false
+          required: [registry, workspace, journal, dataRoot, runtimeEnv]
+          properties:
+            registry:
+              $ref: "#/components/schemas/PathDiagnostic"
+            environments:
+              $ref: "#/components/schemas/PathDiagnostic"
+            workspace:
+              $ref: "#/components/schemas/PathDiagnostic"
+            journal:
+              $ref: "#/components/schemas/PathDiagnostic"
+            dataRoot:
+              $ref: "#/components/schemas/PathDiagnostic"
+            runtimeEnv:
+              $ref: "#/components/schemas/PathDiagnostic"
+        environment:
+          type: object
+          additionalProperties: false
+          required: [id, name, kind]
+          properties:
+            id:
+              $ref: "#/components/schemas/Identifier"
+            name:
+              type: string
+            kind:
+              type: string
+        managedRoot:
+          type: object
+          additionalProperties: false
+          required: [controlPlanePath, shared, visibilityStatus, reason]
+          properties:
+            controlPlanePath:
+              type: string
+            bindSourceRoot:
+              type: string
+            shared:
+              type: boolean
+            nodes:
+              type: array
+              items:
+                type: string
+            visibilityStatus:
+              type: string
+              enum: [configured, unknown]
+            reason:
+              type: string
+        actionContractPaths:
+          type: object
+          additionalProperties: false
+          required: [exposedToProjectActions, hiddenFromProjectActions]
+          properties:
+            exposedToProjectActions:
+              type: array
+              items:
+                type: string
+            hiddenFromProjectActions:
+              type: array
+              items:
+                type: string
     RepositoryInspectionRequest:
       type: object
       additionalProperties: false

@@ -21,7 +21,8 @@ import { RepositoryInspectionService } from "../operation/repository-inspection-
 import { ProjectValidationService } from "../operation/project-validation-service.js";
 import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { resolveAuthToken } from "../runtime/auth-token.js";
-import { resolveRuntimePaths } from "../runtime/runtime-paths.js";
+import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
+import { HIVEFORGE_CONTAINER_RUNTIME_ROOT, resolveRuntimePaths } from "../runtime/runtime-paths.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
@@ -31,31 +32,32 @@ import { createRestRoutes } from "./rest-api.js";
 import { createUiRoutes, uiPublicPaths } from "./ui-routes.js";
 
 interface ServerOptions {
-  baseDir?: string;
   registry?: string;
   environments?: string;
   workspace?: string;
   journal?: string;
   dataRoot?: string;
-  hostDataRoot?: string;
 }
 
 const serverOptions = parseServerOptions(process.argv.slice(2));
 const commandRunner = new NodeCommandRunner();
-const runtimePaths = await resolveRuntimePaths({
-  baseDir: serverOptions.baseDir ?? process.env.HIVEFORGE_BASE_DIR,
+const explicitRuntimePaths = {
   registry: serverOptions.registry ?? process.env.HIVEFORGE_PROJECT_REGISTRY_PATH,
   environments: serverOptions.environments ?? process.env.HIVEFORGE_ENVIRONMENTS_PATH,
   workspace: serverOptions.workspace ?? process.env.HIVEFORGE_WORKSPACE_DIR,
   journal: serverOptions.journal ?? process.env.HIVEFORGE_JOURNAL_DIR,
-  dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT,
-  hostDataRoot: serverOptions.hostDataRoot ?? process.env.HIVEFORGE_HOST_DATA_ROOT,
+  dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT
+};
+const usesExplicitRuntimePaths = Object.values(explicitRuntimePaths).some((value) => value !== undefined);
+const runtimePaths = await resolveRuntimePaths({
+  runtimeRoot: usesExplicitRuntimePaths ? undefined : HIVEFORGE_CONTAINER_RUNTIME_ROOT,
+  ...explicitRuntimePaths,
   requireEnvironments: true,
   defaultEnvironmentDocker: commandRunner
 });
 const auth = await resolveAuthToken({
   authToken: process.env.HIVEFORGE_AUTH_TOKEN,
-  baseDir: runtimePaths.baseDir
+  runtimeRoot: runtimePaths.runtimeRoot
 });
 process.stdout.write(`HiveForge auth token source: ${auth.source}\n`);
 if (auth.source === "environment" && auth.ignoredTokenPath) {
@@ -73,7 +75,6 @@ const environmentsPath = required(runtimePaths.environments, "--environments");
 const workspaceRoot = runtimePaths.workspace;
 const journalDir = runtimePaths.journal;
 const dataRoot = runtimePaths.dataRoot;
-const hostDataRoot = runtimePaths.hostDataRoot;
 const runtimeEnvPath = runtimePaths.runtimeEnv;
 const port = Number.parseInt(process.env.HIVEFORGE_PORT ?? "3000", 10);
 const host = process.env.HIVEFORGE_BIND_HOST ?? "127.0.0.1";
@@ -93,13 +94,14 @@ const validation = new ProjectValidationService(
   clock
 );
 const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
-const managedFiles = new ManagedFilesService(dataRoot, hostDataRoot);
 const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner);
 const projectRegistration = new ProjectRegistrationService(projectRegistryPath, projectRegistry, repositoryInspection);
 const currentEnvironment = environmentConfig.environments.find((environment) => environment.id === environmentConfig.current);
 if (!currentEnvironment) {
   throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
 }
+const managedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
+const managedFiles = new ManagedFilesService(dataRoot, managedRootBindSourceRoot);
 const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment, runtimeEnv);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
@@ -121,6 +123,7 @@ const deployPrerequisites = new DeployPrerequisitesService(
 );
 const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
 const operations = new OperationLogService(deploy, ids, clock);
+const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
 
 createHttpServer(
   [
@@ -140,6 +143,7 @@ createHttpServer(
       deployPrerequisites,
       operations,
       runtimeEnv,
+      runtimeDiagnostics,
       repositoryInspection,
       projectRegistration,
       environmentPolicyEditor,
@@ -166,9 +170,6 @@ function parseServerOptions(args: string[]): ServerOptions {
     }
 
     switch (key) {
-      case "--base-dir":
-        options.baseDir = value;
-        break;
       case "--registry":
         options.registry = value;
         break;
@@ -183,9 +184,6 @@ function parseServerOptions(args: string[]): ServerOptions {
         break;
       case "--data-root":
         options.dataRoot = value;
-        break;
-      case "--host-data-root":
-        options.hostDataRoot = value;
         break;
       default:
         throw new Error(`Unknown option: ${key}`);

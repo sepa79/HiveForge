@@ -2,8 +2,6 @@ services:
   hiveforge:
     image: ${HIVEFORGE_IMAGE:-ghcr.io/sepa79/hiveforge:latest}
     environment:
-      HIVEFORGE_BASE_DIR: /hf
-      HIVEFORGE_HOST_DATA_ROOT: ${HIVEFORGE_HOST_DATA_ROOT:-/opt/hiveforge/data}
       HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:-}
       HIVEFORGE_BIND_HOST: 0.0.0.0
       HIVEFORGE_PORT: "3000"
@@ -20,7 +18,8 @@ services:
         mode: ingress
     volumes:
       - type: bind
-        source: ${HIVEFORGE_HOST_BASE_DIR:-/opt/hiveforge}
+        # Change this host path before deploy when HiveForge data should live elsewhere.
+        source: /opt/hiveforge
         target: /hf
       - /var/run/docker.sock:/var/run/docker.sock
     deploy:

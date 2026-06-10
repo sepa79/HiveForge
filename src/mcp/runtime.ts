@@ -10,6 +10,7 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     refreshEnvironment: () => call(() => apiClient.refreshEnvironment()),
     listEnvironmentNodes: () => call(() => listEnvironmentNodes(apiClient)),
     listDeployments: () => call(() => apiClient.listDeployments()),
+    diagnoseHiveForgeRuntime: () => call(() => apiClient.diagnoseHiveForgeRuntime()),
     listOperations: () => call(() => apiClient.listOperations()),
     getOperation: (input: { operationId: string }) => call(() => apiClient.getOperation(input.operationId)),
     readJournal: () => call(() => apiClient.readJournal()),

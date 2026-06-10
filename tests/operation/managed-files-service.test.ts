@@ -53,14 +53,14 @@ describe("managed files service", () => {
     await expect(readFile(path.join(target, "old.txt"), "utf8")).rejects.toThrow();
   });
 
-  it("exposes host-visible managed paths when a host data root is configured", async () => {
+  it("derives host-visible managed paths under data when a bind source root is configured", async () => {
     const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-managed-workspace-"));
     const dataRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-managed-data-"));
-    const hostDataRoot = "/srv/hiveforge/data";
+    const bindSourceRoot = "/srv/hiveforge";
     await mkdir(path.join(workspace, "deploy/config"), { recursive: true });
     await writeFile(path.join(workspace, "deploy/config/app.yml"), "mode: poc\n");
 
-    const result = await new ManagedFilesService(dataRoot, hostDataRoot).prepare({
+    const result = await new ManagedFilesService(dataRoot, bindSourceRoot).prepare({
       projectId: "hivewatch",
       workspacePath: workspace,
       registry: registry([{ name: "api-config", source: "deploy/config", target: "artifacts/config", mode: "replace" }])

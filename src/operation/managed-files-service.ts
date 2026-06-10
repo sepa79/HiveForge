@@ -19,14 +19,17 @@ export interface ManagedFilesResult {
 export class ManagedFilesService {
   constructor(
     private readonly dataRoot: string,
-    private readonly hostDataRoot?: string
+    private readonly bindSourceRoot?: string
   ) {}
 
   async prepare(request: { projectId: string; workspacePath: string; registry: ProjectRegistry }): Promise<ManagedFilesResult> {
     const projectDir = path.join(this.dataRoot, "deployed", request.projectId);
     const stackDir = path.join(projectDir, "stacks");
     const artifactsDir = path.join(projectDir, "artifacts");
-    const projectHostDir = this.hostDataRoot ? path.join(this.hostDataRoot, "deployed", request.projectId) : undefined;
+    const managedDataBindSourceRoot = this.bindSourceRoot ? path.join(this.bindSourceRoot, "data") : undefined;
+    const projectHostDir = managedDataBindSourceRoot
+      ? path.join(managedDataBindSourceRoot, "deployed", request.projectId)
+      : undefined;
     const stackHostDir = projectHostDir ? path.join(projectHostDir, "stacks") : undefined;
     const artifactsHostDir = projectHostDir ? path.join(projectHostDir, "artifacts") : undefined;
     const managedPaths = request.registry.artifacts?.managedPaths ?? [];

@@ -8,6 +8,9 @@ import type { CommandRunner } from "../workspace/command-runner.js";
 
 export interface DefaultEnvironmentOptions {
   docker?: CommandRunner;
+  managedRoot?: {
+    bindSourceRoot?: string;
+  };
 }
 
 interface DockerSwarmInfo {
@@ -38,12 +41,12 @@ export async function createDefaultEnvironmentConfig(
   options: DefaultEnvironmentOptions = {}
 ): Promise<EnvironmentConfig> {
   if (!options.docker) {
-    return dockerHostEnvironmentConfig();
+    return dockerHostEnvironmentConfig(options.managedRoot);
   }
 
   const swarm = await inspectDockerSwarm(options.docker);
   if (!swarm.active) {
-    return dockerHostEnvironmentConfig();
+    return dockerHostEnvironmentConfig(options.managedRoot);
   }
 
   if (!swarm.manager) {
@@ -53,10 +56,10 @@ export async function createDefaultEnvironmentConfig(
   }
 
   const nodes = await inspectDockerSwarmNodes(options.docker);
-  return dockerSwarmEnvironmentConfig(nodes);
+  return dockerSwarmEnvironmentConfig(nodes, options.managedRoot);
 }
 
-function dockerHostEnvironmentConfig(): EnvironmentConfig {
+function dockerHostEnvironmentConfig(managedRootPaths: DefaultEnvironmentOptions["managedRoot"]): EnvironmentConfig {
   return {
     current: "docker",
     environments: [
@@ -67,7 +70,8 @@ function dockerHostEnvironmentConfig(): EnvironmentConfig {
         capabilities: {
           runtime: ["docker-single"],
           managedRoot: {
-            shared: true
+            shared: true,
+            ...managedRootPaths
           }
         },
         policy: {
@@ -78,7 +82,10 @@ function dockerHostEnvironmentConfig(): EnvironmentConfig {
   };
 }
 
-function dockerSwarmEnvironmentConfig(nodes: EnvironmentNode[]): EnvironmentConfig {
+function dockerSwarmEnvironmentConfig(
+  nodes: EnvironmentNode[],
+  managedRootPaths: DefaultEnvironmentOptions["managedRoot"]
+): EnvironmentConfig {
   return {
     current: "swarm",
     environments: [
@@ -89,7 +96,8 @@ function dockerSwarmEnvironmentConfig(nodes: EnvironmentNode[]): EnvironmentConf
         capabilities: {
           runtime: ["docker-swarm"],
           managedRoot: {
-            shared: true
+            shared: true,
+            ...managedRootPaths
           },
           placement: true
         },

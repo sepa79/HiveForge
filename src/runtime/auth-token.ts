@@ -12,21 +12,21 @@ export interface AuthTokenResolution {
 
 export async function resolveAuthToken(options: {
   authToken?: string;
-  baseDir?: string;
+  runtimeRoot?: string;
 }): Promise<AuthTokenResolution> {
   if (options.authToken) {
     return {
       authToken: options.authToken,
       source: "environment",
-      ...(options.baseDir ? await ignoredBaseDirToken(options.baseDir) : {})
+      ...(options.runtimeRoot ? await ignoredRuntimeRootToken(options.runtimeRoot) : {})
     };
   }
 
-  if (!options.baseDir) {
+  if (!options.runtimeRoot) {
     throw new Error("Missing required environment variable: HIVEFORGE_AUTH_TOKEN");
   }
 
-  const tokenPath = path.join(options.baseDir, runtimeFileNames.authToken);
+  const tokenPath = path.join(options.runtimeRoot, runtimeFileNames.authToken);
   const existingToken = await readTokenFile(tokenPath);
   if (existingToken) {
     return { authToken: existingToken, source: "file", tokenPath };
@@ -49,8 +49,8 @@ export async function resolveAuthToken(options: {
   };
 }
 
-async function ignoredBaseDirToken(baseDir: string): Promise<Pick<AuthTokenResolution, "ignoredTokenPath">> {
-  const tokenPath = path.join(baseDir, runtimeFileNames.authToken);
+async function ignoredRuntimeRootToken(runtimeRoot: string): Promise<Pick<AuthTokenResolution, "ignoredTokenPath">> {
+  const tokenPath = path.join(runtimeRoot, runtimeFileNames.authToken);
   return (await readTokenFile(tokenPath)) ? { ignoredTokenPath: tokenPath } : {};
 }
 

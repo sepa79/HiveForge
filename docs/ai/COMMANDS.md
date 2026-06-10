@@ -70,7 +70,14 @@ Run the REST API:
 
 ```bash
 npm run build
-HIVEFORGE_BASE_DIR=tmp/hf HIVEFORGE_AUTH_TOKEN=local-dev-token npm run serve
+npm run hiveforge -- read-journal --runtime-root tmp/hf >/dev/null
+HIVEFORGE_AUTH_TOKEN=local-dev-token \
+HIVEFORGE_PROJECT_REGISTRY_PATH=tmp/hf/projects.yaml \
+HIVEFORGE_ENVIRONMENTS_PATH=tmp/hf/environments.yaml \
+HIVEFORGE_WORKSPACE_DIR=tmp/hf/workspace \
+HIVEFORGE_JOURNAL_DIR=tmp/hf/journal \
+HIVEFORGE_DATA_ROOT=tmp/hf/data \
+npm run serve
 ```
 
 Open the bundled operator console:
@@ -89,10 +96,10 @@ Run the MCP server over stdio:
 
 ```bash
 npm run build
-HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN="$(cat tmp/hf/auth-token)" npm run hiveforge-mcp
+HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN=local-dev-token npm run hiveforge-mcp
 ```
 
-MCP connects to the REST endpoint and does not use `HIVEFORGE_BASE_DIR`.
+MCP connects to the REST endpoint and does not read runtime files directly.
 Use the MCP `check_health` tool after connecting to verify the selected
 HiveForge endpoint.
 
@@ -122,14 +129,14 @@ npm run build
 npm run hiveforge -- inspect --registry examples/hivewatch/projects.yaml --workspace tmp/workspace --journal tmp/journal --data-root tmp/data --project hivewatch --ref main
 ```
 
-Use one mounted HiveForge base directory for CLI commands:
+Use one mounted HiveForge runtime root for CLI commands:
 
 ```bash
 npm run build
-npm run hiveforge -- read-journal --base-dir tmp/hf
+npm run hiveforge -- read-journal --runtime-root tmp/hf
 ```
 
-`--base-dir` is mutually exclusive with explicit `--registry --workspace
+`--runtime-root` is mutually exclusive with explicit `--registry --workspace
 --journal --data-root`.
 
 Validate a project:

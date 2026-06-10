@@ -51,6 +51,7 @@ capabilities:
     - docker-swarm
   managedRoot:
     shared: false
+    bindSourceRoot: /mnt/shared_nfs/hiveforge
     nodes:
       - docker-swarm-mgr-1
   placement: true
@@ -65,10 +66,12 @@ nodes:
 ```
 
 `managedRoot` means the environment-local HiveForge service has one configured
-managed data root. The container path comes from `HIVEFORGE_DATA_ROOT`; the
-host-visible path for Docker bind sources comes from `HIVEFORGE_HOST_DATA_ROOT`
-when the install provides it. Project manifests do not declare those paths.
-HiveForge does not create arbitrary host mount points.
+managed data root. HiveForge derives its own control-plane path internally,
+normally `/hf/data`. `bindSourceRoot` is the host-side runtime root Docker sees
+for the same mount, such as `/opt/hiveforge` for `/opt/hiveforge:/hf`.
+HiveForge derives managed project bind sources under `<bindSourceRoot>/data`.
+Project manifests do not declare those paths. HiveForge does not create
+arbitrary host mount points.
 
 `managedRoot.shared: true` means the root is available to every node that may
 run the selected profile. `managedRoot.shared: false` means only listed nodes

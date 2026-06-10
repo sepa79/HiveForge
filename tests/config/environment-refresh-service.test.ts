@@ -19,6 +19,7 @@ describe("environment refresh service", () => {
       "        - docker-swarm",
       "      managedRoot:",
       "        shared: false",
+      "        bindSourceRoot: /mnt/shared_nfs/hiveforge",
       "        nodes:",
       "          - docker-swarm-mgr-1",
       "      placement: true",
@@ -87,6 +88,7 @@ describe("environment refresh service", () => {
         runtime: ["docker-swarm"],
         managedRoot: {
           shared: false,
+          bindSourceRoot: "/mnt/shared_nfs/hiveforge",
           nodes: ["docker-swarm-mgr-1"]
         },
         placement: true
