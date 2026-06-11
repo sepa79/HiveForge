@@ -14,8 +14,16 @@ export interface DockerDeploymentRequest {
   bindSourceDir?: string;
 }
 
+export interface DockerDeploymentRemovalRequest {
+  deploymentId: string;
+  deploymentName: string;
+  project: string;
+  component: string;
+  profile?: string;
+}
+
 export interface DockerDeploymentResult extends CommandResult {
-  composeFile: string;
+  composeFile?: string;
   deploymentId: string;
   runtime: "docker-single" | "docker-swarm";
 }
@@ -43,7 +51,7 @@ export class DockerDeploymentService {
   ) {}
 
   async deploy(request: DockerDeploymentRequest): Promise<DockerDeploymentResult> {
-    await validateComposeBindSources(request.composeFile, request.bindSourceDir);
+    await validateComposeBindSources(request.composeFile, request.bindSourceDir, allowedBindSources(this.environment));
     await injectDeploymentLabel(request.composeFile, request.deploymentId);
     const runtime = this.environment.capabilities.runtime.includes("docker-swarm") ? "docker-swarm" : "docker-single";
     const dockerProjectName = await dockerProjectNameFor(request, runtime);
@@ -66,13 +74,117 @@ export class DockerDeploymentService {
       runtime
     };
   }
+
+  async remove(request: DockerDeploymentRemovalRequest): Promise<DockerDeploymentResult> {
+    const runtime = this.environment.capabilities.runtime.includes("docker-swarm") ? "docker-swarm" : "docker-single";
+    const dockerProjectName = dockerProjectNameForRequest(request);
+    const result =
+      runtime === "docker-swarm"
+        ? await this.removeSwarmStack(dockerProjectName, request.deploymentId)
+        : await this.removeComposeProject(dockerProjectName);
+    return {
+      ...result,
+      deploymentId: request.deploymentId,
+      runtime
+    };
+  }
+
+  private async removeSwarmStack(stackName: string, deploymentId: string): Promise<CommandResult> {
+    const result = await this.commandRunner.run("docker", ["stack", "rm", stackName]);
+    await this.waitForNoDockerMatches([
+      {
+        kind: "service",
+        args: ["service", "ls", "--filter", `${LABEL_FILTER_PREFIX}${HIVEFORGE_DOCKER_LABELS.deployment}=${deploymentId}`, "-q"]
+      },
+      {
+        kind: "container",
+        args: ["ps", "-a", "--filter", `${LABEL_FILTER_PREFIX}${HIVEFORGE_DOCKER_LABELS.deployment}=${deploymentId}`, "-q"]
+      }
+    ]);
+    return result;
+  }
+
+  private async removeComposeProject(projectName: string): Promise<CommandResult> {
+    const containers = await this.listDockerMatches([
+      "ps",
+      "-a",
+      "--filter",
+      `${LABEL_FILTER_PREFIX}${DOCKER_COMPOSE_PROJECT_LABEL}=${projectName}`,
+      "-q"
+    ]);
+    const removeContainers =
+      containers.length > 0 ? await this.commandRunner.run("docker", ["rm", "-f", ...containers]) : { stdout: "", stderr: "" };
+
+    const networks = await this.listDockerMatches([
+      "network",
+      "ls",
+      "--filter",
+      `${LABEL_FILTER_PREFIX}${DOCKER_COMPOSE_PROJECT_LABEL}=${projectName}`,
+      "-q"
+    ]);
+    const removeNetworks =
+      networks.length > 0 ? await this.commandRunner.run("docker", ["network", "rm", ...networks]) : { stdout: "", stderr: "" };
+
+    await this.waitForNoDockerMatches([
+      {
+        kind: "container",
+        args: ["ps", "-a", "--filter", `${LABEL_FILTER_PREFIX}${DOCKER_COMPOSE_PROJECT_LABEL}=${projectName}`, "-q"]
+      },
+      {
+        kind: "network",
+        args: ["network", "ls", "--filter", `${LABEL_FILTER_PREFIX}${DOCKER_COMPOSE_PROJECT_LABEL}=${projectName}`, "-q"]
+      }
+    ]);
+
+    return combineCommandResults(removeContainers, removeNetworks);
+  }
+
+  private async waitForNoDockerMatches(checks: DockerMatchCheck[]): Promise<void> {
+    for (let attempt = 1; attempt <= DOCKER_REMOVE_WAIT_ATTEMPTS; attempt += 1) {
+      const remaining: string[] = [];
+      for (const check of checks) {
+        const matches = await this.listDockerMatches(check.args);
+        if (matches.length > 0) {
+          remaining.push(`${check.kind}: ${matches.join(", ")}`);
+        }
+      }
+      if (remaining.length === 0) {
+        return;
+      }
+      if (attempt < DOCKER_REMOVE_WAIT_ATTEMPTS) {
+        await sleep(DOCKER_REMOVE_WAIT_DELAY_MS);
+      }
+    }
+    throw new Error(`Docker removal did not finish before timeout: ${checks.map((check) => check.kind).join(", ")}`);
+  }
+
+  private async listDockerMatches(args: string[]): Promise<string[]> {
+    const result = await this.commandRunner.run("docker", args);
+    return result.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
 }
 
 const ALLOWED_BIND_SOURCES = new Set(["/var/run/docker.sock"]);
+const DOCKER_COMPOSE_PROJECT_LABEL = "com.docker.compose.project";
 const DOCKER_SWARM_SERVICE_NAME_LIMIT = 63;
+const DOCKER_REMOVE_WAIT_ATTEMPTS = 60;
+const DOCKER_REMOVE_WAIT_DELAY_MS = 1000;
+const LABEL_FILTER_PREFIX = "label=";
 
-async function validateComposeBindSources(composeFile: string, bindSourceDir: string | undefined): Promise<void> {
-  const result = await inspectComposeBindSources(composeFile, bindSourceDir);
+interface DockerMatchCheck {
+  kind: string;
+  args: string[];
+}
+
+async function validateComposeBindSources(
+  composeFile: string,
+  bindSourceDir: string | undefined,
+  allowedSources: string[] = [...ALLOWED_BIND_SOURCES]
+): Promise<void> {
+  const result = await inspectComposeBindSources(composeFile, bindSourceDir, allowedSources);
   if (!result.ok) {
     const issue = result.issues[0];
     throw new Error(issue ? issue.reason : "Rendered compose bind-source validation failed.");
@@ -81,7 +193,8 @@ async function validateComposeBindSources(composeFile: string, bindSourceDir: st
 
 export async function inspectComposeBindSources(
   composeFile: string,
-  bindSourceDir: string | undefined
+  bindSourceDir: string | undefined,
+  allowedSources: string[] = [...ALLOWED_BIND_SOURCES]
 ): Promise<ComposeBindSourceValidationResult> {
   const compose = YAML.parse(await readFile(composeFile, "utf8")) as unknown;
   if (!isRecord(compose)) {
@@ -96,7 +209,7 @@ export async function inspectComposeBindSources(
     ok: true,
     composeFile,
     ...(bindSourceDir ? { bindSourceDir } : {}),
-    allowedBindSources: [...ALLOWED_BIND_SOURCES],
+    allowedBindSources: allowedSources,
     services: [],
     issues: []
   };
@@ -111,7 +224,7 @@ export async function inspectComposeBindSources(
       bindSources: sources
     });
     for (const source of sources) {
-      const issue = bindSourceIssue(source, bindSourceDir, serviceName);
+      const issue = bindSourceIssue(source, bindSourceDir, serviceName, allowedSources);
       if (issue) {
         result.issues.push({
           service: serviceName,
@@ -178,7 +291,7 @@ async function dockerProjectNameFor(
   return projectName;
 }
 
-function dockerProjectNameForRequest(request: DockerDeploymentRequest): string {
+function dockerProjectNameForRequest(request: { deploymentName: string }): string {
   assertDockerDeploymentName(request.deploymentName);
   return request.deploymentName;
 }
@@ -238,12 +351,17 @@ function looksLikeHostPath(value: string): boolean {
   return value.startsWith("/") || value.startsWith("./") || value.startsWith("../") || value === "." || value === ".." || value.startsWith("~");
 }
 
-function bindSourceIssue(source: string, bindSourceDir: string | undefined, serviceName: string): string | null {
-  if (ALLOWED_BIND_SOURCES.has(source)) {
-    return null;
-  }
+function bindSourceIssue(
+  source: string,
+  bindSourceDir: string | undefined,
+  serviceName: string,
+  allowedSources: string[]
+): string | null {
   if (source === "/hf" || source.startsWith("/hf/")) {
     return `Rendered compose service ${serviceName} uses HiveForge internal bind source: ${source}`;
+  }
+  if (allowedSources.includes(source)) {
+    return null;
   }
   if (!bindSourceDir) {
     return `Rendered compose service ${serviceName} uses bind source ${source}, but the environment has no HIVEFORGE_BIND_SOURCE_DIR.`;
@@ -252,6 +370,27 @@ function bindSourceIssue(source: string, bindSourceDir: string | undefined, serv
     return `Rendered compose service ${serviceName} uses bind source outside HIVEFORGE_BIND_SOURCE_DIR: ${source}`;
   }
   return null;
+}
+
+export function allowedBindSources(environment: EnvironmentDefinition): string[] {
+  return [...new Set([...ALLOWED_BIND_SOURCES, ...(environment.capabilities.bindSources?.allowed ?? [])])];
+}
+
+function combineCommandResults(...results: CommandResult[]): CommandResult {
+  return {
+    stdout: results
+      .map((result) => result.stdout)
+      .filter(Boolean)
+      .join("\n"),
+    stderr: results
+      .map((result) => result.stderr)
+      .filter(Boolean)
+      .join("\n")
+  };
+}
+
+async function sleep(delayMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 function labelsWithDeployment(value: unknown, deploymentId: string, path: string): Record<string, string> {

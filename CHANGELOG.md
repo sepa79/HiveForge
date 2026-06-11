@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 - 2026-06-11
+
+- Add environment-owned external Docker bind source allowlists through
+  `capabilities.bindSources.allowed` and reject HiveForge internal paths such as
+  `/hf` even when misconfigured in the allowlist.
+- Make inactive lifecycle actions (`remove` and `purge`) HiveForge-owned for
+  Docker deployments: validate that the component declares the action, skip
+  managed-file preparation, remove the recorded Compose project or Swarm stack,
+  and wait for Docker resources to disappear.
+- Add runtime task diagnostics for deployed Docker services so unhealthy
+  deployments expose service task state in REST, MCP, and OpenAPI surfaces.
+- Document the 0.5 deploy flow updates for external bind sources and Docker
+  removal semantics.
+
 ## 0.5.0-alpha.0 - 2026-06-10
 
 - Breaking MCP change: rename `deploy_release` to `prepare_release_deploy`.

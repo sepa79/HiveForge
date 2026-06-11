@@ -55,6 +55,9 @@ capabilities:
     bindSourceRoot: /mnt/shared_nfs/hiveforge
     nodes:
       - docker-swarm-mgr-1
+  bindSources:
+    allowed:
+      - /data/postgres
   placement: true
 nodes:
   - id: hbx9486iqq0g5obsnhre9zx4f
@@ -105,6 +108,11 @@ vars:
 
 Vars are not capabilities. They are explicit inputs for rendering release
 artifacts and image references.
+
+`capabilities.bindSources.allowed` is optional and must be explicit. Use it for
+operator-managed Docker bind source paths outside the HiveForge managed root.
+HiveForge validates rendered Compose/Stack bind sources against this list, but
+never permits HiveForge internal container paths such as `/hf`.
 
 ## Display Metadata
 

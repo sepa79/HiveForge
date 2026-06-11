@@ -169,7 +169,23 @@ rg -n "HiveForge|hiveforge|TODO" .
 
 ## Package / release
 
-No package or release command exists yet.
+Prepare a package version bump without creating a git tag:
+
+```bash
+VERSION=0.5.0
+npm version "$VERSION" --no-git-tag-version
+```
+
+Run the release gate:
+
+```bash
+npm run check
+docker build -t hiveforge:release-check .
+```
+
+Publish is performed by GitHub Actions. CI runs `npm run check` and Docker
+image build through GitHub Actions. Tagged releases publish
+`ghcr.io/<owner>/hiveforge:<tag>` and `latest`.
 
 ## Deployment
 
@@ -184,9 +200,6 @@ cat auth-token
 ```
 
 See `docs/install/docker-compose.md`.
-
-CI runs `npm run check` and Docker image build through GitHub Actions.
-Tagged releases publish `ghcr.io/<owner>/hiveforge:<tag>` and `latest`.
 
 ## Known command caveats
 

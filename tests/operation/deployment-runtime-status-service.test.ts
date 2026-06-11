@@ -173,6 +173,28 @@ describe("deployment runtime status service", () => {
               }
             }
           ])
+        },
+        {
+          args: ["service", "ps", "--no-trunc", "--format", "{{json .}}", "svc1", "svc2"],
+          stdout: `${JSON.stringify({
+            ID: "task1",
+            Name: "stack_api.1.task1",
+            Image: "hivewatch:test",
+            Node: "swarm-1",
+            DesiredState: "Running",
+            CurrentState: "Running 10 seconds ago",
+            Error: "",
+            Ports: ""
+          })}\n${JSON.stringify({
+            ID: "task2",
+            Name: "stack_init.1.task2",
+            Image: "hivewatch:test",
+            Node: "swarm-1",
+            DesiredState: "Shutdown",
+            CurrentState: "Failed 20 seconds ago",
+            Error: "task failed",
+            Ports: ""
+          })}\n`
         }
       ]),
       swarmEnvironment(),
@@ -183,6 +205,27 @@ describe("deployment runtime status service", () => {
 
     expect(result.summary).toBe("running");
     expect(result.services).toHaveLength(2);
+    expect(result.services[0]?.tasks).toEqual([
+      {
+        id: "task1",
+        name: "stack_api.1.task1",
+        image: "hivewatch:test",
+        node: "swarm-1",
+        desiredState: "Running",
+        currentState: "Running 10 seconds ago"
+      }
+    ]);
+    expect(result.services[1]?.tasks).toEqual([
+      {
+        id: "task2",
+        name: "stack_init.1.task2",
+        image: "hivewatch:test",
+        node: "swarm-1",
+        desiredState: "Shutdown",
+        currentState: "Failed 20 seconds ago",
+        error: "task failed"
+      }
+    ]);
     expect(result.containers).toHaveLength(1);
     expect(result.containers[0]?.id).toBe("new123");
   });

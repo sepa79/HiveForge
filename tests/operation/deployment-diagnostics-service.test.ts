@@ -23,6 +23,7 @@ describe("deployment diagnostics service", () => {
       "    image: hivewatch:test",
       "    volumes:",
       "      - /mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config:/config",
+      "      - /data/postgres:/var/lib/postgresql/data",
       "",
       "volumes:",
       "  hivewatch-data:",
@@ -70,7 +71,7 @@ describe("deployment diagnostics service", () => {
       ),
       new DeploymentComposeService(journal(composePath, composeContent)),
       new RuntimeDiagnosticsService(runtimePaths, environment),
-      "docker"
+      environment
     );
 
     const result = await service.diagnose({ deploymentId: "deployment-1" });
@@ -96,7 +97,7 @@ describe("deployment diagnostics service", () => {
         services: [
           {
             service: "api",
-            bindSources: ["/mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config"]
+            bindSources: ["/mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config", "/data/postgres"]
           }
         ],
         issues: []
@@ -239,6 +240,9 @@ function dockerEnvironment(): EnvironmentDefinition {
       managedRoot: {
         shared: true,
         bindSourceRoot: "/mnt/shared_nfs/hiveforge"
+      },
+      bindSources: {
+        allowed: ["/data/postgres"]
       }
     },
     policy: {

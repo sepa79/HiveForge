@@ -28,6 +28,7 @@ export interface EnvironmentNode {
 export interface EnvironmentCapabilities {
   runtime: RuntimeCapability[];
   managedRoot: ManagedRootCapability;
+  bindSources?: BindSourceCapability;
   placement?: boolean;
 }
 
@@ -35,6 +36,10 @@ export interface ManagedRootCapability {
   shared: boolean;
   nodes?: string[];
   bindSourceRoot?: string;
+}
+
+export interface BindSourceCapability {
+  allowed: string[];
 }
 
 export interface EnvironmentPolicy {

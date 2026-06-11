@@ -6,6 +6,7 @@ import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimeEnvScope } from "../config/runtime-env-store.js";
 import {
   ACTIVE_LIFECYCLE_ACTIONS,
+  INACTIVE_LIFECYCLE_ACTIONS,
   type DeploymentStateStore,
   type EnsureDeploymentInput
 } from "./deployment-state-store.js";
@@ -95,6 +96,14 @@ export class DeployOrchestrator {
       message: "Runtime requirements are valid"
     });
 
+    if (INACTIVE_LIFECYCLE_ACTIONS.has(request.action)) {
+      return this.removeDockerDeployment({
+        request,
+        inspection,
+        validation
+      });
+    }
+
     request.progress?.({
       stage: "managed_files",
       status: "running",
@@ -145,6 +154,70 @@ export class DeployOrchestrator {
     });
 
     return { inspection, validation, managedFiles, action };
+  }
+
+  private async removeDockerDeployment(input: RemoveDockerDeploymentInput): Promise<DeployResult> {
+    assertActionDeclared(input.inspection.registry, input.request.component, input.request.action);
+
+    input.request.progress?.({
+      stage: "action",
+      status: "running",
+      message: `Running ${input.request.action} for ${input.request.component}`
+    });
+
+    if (!this.deploymentState) {
+      throw new Error("HiveForge-owned Docker removal requires deployment state.");
+    }
+    if (!this.dockerDeployment) {
+      throw new Error("HiveForge-owned Docker removal is not configured.");
+    }
+    const environmentId = input.request.environmentId;
+    if (!environmentId) {
+      throw new Error("HiveForge-owned Docker removal requires environmentId.");
+    }
+
+    const stateInput = {
+      environment: environmentId,
+      ...(input.request.deploymentName ? { deploymentName: input.request.deploymentName } : {}),
+      project: input.inspection.projectId,
+      repository: input.inspection.repository,
+      gitRef: input.inspection.gitRef,
+      component: input.request.component,
+      ...(input.request.profile ? { profile: input.request.profile } : {}),
+      action: input.request.action,
+      operationId: `${input.request.action}-${Date.now()}`,
+      updatedAt: new Date().toISOString()
+    };
+    const deployment = await this.deploymentState.ensureDeployment(stateInput);
+
+    try {
+      await this.dockerDeployment.remove({
+        deploymentId: deployment.deploymentId,
+        deploymentName: deployment.deploymentName,
+        project: deployment.project,
+        component: deployment.component,
+        ...(deployment.profile ? { profile: deployment.profile } : {})
+      });
+    } catch (error) {
+      return recordFailureAndThrow(this.deploymentState, stateInput, error);
+    }
+
+    const recorded = await this.deploymentState.recordLifecycleAction(stateInput);
+    input.request.progress?.({
+      stage: "action",
+      status: "succeeded",
+      message: `${input.request.action} completed: ${stateInput.operationId}`
+    });
+    return {
+      inspection: input.inspection,
+      validation: input.validation,
+      action: {
+        operationId: stateInput.operationId,
+        ...(recorded?.deploymentId ? { deploymentId: recorded.deploymentId } : {}),
+        stdout: "",
+        stderr: ""
+      }
+    };
   }
 
   private async afterActionRendered(input: AfterActionRenderedInput): Promise<{ deploymentId?: string }> {
@@ -224,6 +297,20 @@ interface AfterActionRenderedInput {
   managedFiles?: ManagedFilesResult;
   operationId: string;
   updatedAt: string;
+}
+
+interface RemoveDockerDeploymentInput {
+  request: DeployRequest;
+  inspection: ProjectInspectionResult;
+  validation: ProjectValidationResult;
+}
+
+function assertActionDeclared(registry: ProjectInspectionResult["registry"], componentName: string, actionName: string): void {
+  const component = registry.components.find((candidate) => candidate.name === componentName);
+  const actions = component?.manifest.deployment?.actions;
+  if (!actions || !Object.prototype.hasOwnProperty.call(actions, actionName)) {
+    throw new Error(`Action is not declared for ${componentName}: ${actionName}`);
+  }
 }
 
 async function recordFailureAndThrow(

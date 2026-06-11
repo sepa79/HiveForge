@@ -35,6 +35,7 @@ more than one runtime.
 | `managedRoot.shared` | Whether the configured HiveForge managed data root is shared across every runtime node that may run the selected profile. Project profiles never declare paths. |
 | `managedRoot.bindSourceRoot` | The host-side runtime root Docker should use as the base for HiveForge-managed bind sources, for example `/opt/hiveforge` or `/mnt/shared_nfs/hiveforge`. |
 | `managedRoot.nodes` | Explicit node names where a non-shared managed root is available. Required when `managedRoot.shared` is `false`. |
+| `bindSources.allowed` | Explicit operator allowlist for non-HiveForge Docker bind source paths that rendered Compose/Stack files may use. |
 | `placement` | The environment supports explicit runtime placement constraints. |
 
 ## Managed Root
@@ -75,6 +76,14 @@ environment must report that root on the same node.
 
 Future per-node agents may introduce additional named roots. That is outside the
 current contract.
+
+## External Bind Sources
+
+`bindSources.allowed` is an operator-owned allowlist for Docker bind source
+paths outside `HIVEFORGE_BIND_SOURCE_DIR`, for example dedicated node-local
+state roots. HiveForge validates rendered Compose/Stack files against this list
+before running Docker. HiveForge internal paths such as `/hf` remain invalid
+even if they are accidentally configured in the allowlist.
 
 ## Registry Vars
 

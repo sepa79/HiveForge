@@ -152,7 +152,7 @@ const deploymentDiagnostics = new DeploymentDiagnosticsService(
   deploymentRuntimeStatus,
   deploymentCompose,
   runtimeDiagnostics,
-  currentEnvironment.id
+  currentEnvironment
 );
 
 createHttpServer(

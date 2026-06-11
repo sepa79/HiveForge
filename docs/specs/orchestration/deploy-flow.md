@@ -22,7 +22,8 @@ The 0.5 deploy flow is:
 5. resolve non-secret runtime env for the selected project/profile,
 6. validate selected profile eligibility for the current environment and
    declared runtime requirements,
-7. run the declared component lifecycle action as the render/preparation phase,
+7. for active deploy actions, run the declared component lifecycle action as the
+   render/preparation phase,
 8. for active deploy actions, inject HiveForge deployment metadata into the
    rendered Compose/Stack file,
 9. validate rendered bind sources,
@@ -45,9 +46,22 @@ action. A missing or unsupported root `version` is a breaking-change failure,
 not a compatibility path.
 
 Rendered Compose/Stack validation rejects Docker bind sources unless the source
-is under `HIVEFORGE_BIND_SOURCE_DIR` or is an explicit system allowlist path such
-as `/var/run/docker.sock`. HiveForge internal paths such as `/hf/...` are never
-valid Docker bind sources.
+is under `HIVEFORGE_BIND_SOURCE_DIR`, is an explicit system allowlist path such
+as `/var/run/docker.sock`, or is listed in environment
+`capabilities.bindSources.allowed`. HiveForge internal paths such as `/hf/...`
+are never valid Docker bind sources.
+
+For inactive lifecycle actions (`remove` and `purge`), HiveForge verifies that
+the component declares the requested action, then removes the Docker Compose
+project or Docker Swarm stack directly through the Docker executor. It does not
+refresh managed files before removal because those files may still be mounted by
+the running workload.
+
+Docker Swarm removal runs `docker stack rm` for the recorded deployment name and
+then waits until no services or containers remain with the recorded
+`hiveforge.deployment` label. Single-host Docker removal removes containers and
+networks carrying the exact `com.docker.compose.project` label for the recorded
+deployment name; it does not guess or re-render a Compose file during removal.
 
 ## Non-goals
 

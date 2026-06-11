@@ -46,6 +46,18 @@ export interface RuntimeServiceStatus {
   mode?: string;
   replicas?: string;
   labels: Record<string, string>;
+  tasks: RuntimeServiceTaskStatus[];
+}
+
+export interface RuntimeServiceTaskStatus {
+  id: string;
+  name: string;
+  image: string;
+  node?: string;
+  desiredState?: string;
+  currentState?: string;
+  error?: string;
+  ports?: string;
 }
 
 export class DeploymentRuntimeStatusService {
@@ -150,7 +162,26 @@ export class DeploymentRuntimeStatusService {
     }
     const inspect = await this.commandRunner.run("docker", ["service", "inspect", ...ids]);
     const inspected = parseJsonArray<Record<string, unknown>>(inspect.stdout);
-    return rows.map((row) => serviceStatus(row, findInspectedService(inspected, stringField(row, "ID"))));
+    const tasks = await this.listServiceTasks(ids);
+    return rows.map((row) => {
+      const status = serviceStatus(row, findInspectedService(inspected, stringField(row, "ID")));
+      return {
+        ...status,
+        tasks: tasks.filter((task) => task.name === status.name || task.name.startsWith(`${status.name}.`))
+      };
+    });
+  }
+
+  private async listServiceTasks(serviceIds: string[]): Promise<RuntimeServiceTaskStatus[]> {
+    const result = await this.commandRunner.run("docker", [
+      "service",
+      "ps",
+      "--no-trunc",
+      "--format",
+      "{{json .}}",
+      ...serviceIds
+    ]);
+    return parseJsonLines<Record<string, unknown>>(result.stdout).map(serviceTaskStatus);
   }
 }
 
@@ -205,7 +236,21 @@ function serviceStatus(service: Record<string, unknown>, inspected?: Record<stri
     image: stringField(service, "Image"),
     ...(optionalStringField(service, "Mode") ? { mode: optionalStringField(service, "Mode") } : {}),
     ...(optionalStringField(service, "Replicas") ? { replicas: optionalStringField(service, "Replicas") } : {}),
-    labels: inspected ? recordOfStrings(objectField(objectField(inspected, "Spec"), "Labels")) : parseLabels(optionalStringField(service, "Labels") ?? "")
+    labels: inspected ? recordOfStrings(objectField(objectField(inspected, "Spec"), "Labels")) : parseLabels(optionalStringField(service, "Labels") ?? ""),
+    tasks: []
+  };
+}
+
+function serviceTaskStatus(task: Record<string, unknown>): RuntimeServiceTaskStatus {
+  return {
+    id: stringField(task, "ID"),
+    name: stringField(task, "Name"),
+    image: stringField(task, "Image"),
+    ...(optionalStringField(task, "Node") ? { node: optionalStringField(task, "Node") } : {}),
+    ...(optionalStringField(task, "DesiredState") ? { desiredState: optionalStringField(task, "DesiredState") } : {}),
+    ...(optionalStringField(task, "CurrentState") ? { currentState: optionalStringField(task, "CurrentState") } : {}),
+    ...(optionalStringField(task, "Error") ? { error: optionalStringField(task, "Error") } : {}),
+    ...(optionalStringField(task, "Ports") ? { ports: optionalStringField(task, "Ports") } : {})
   };
 }
 

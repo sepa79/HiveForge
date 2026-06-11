@@ -88,6 +88,21 @@
                   }
                 ]
               },
+              "bindSources": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["allowed"],
+                "properties": {
+                  "allowed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^/"
+                    },
+                    "uniqueItems": true
+                  }
+                }
+              },
               "placement": {
                 "type": "boolean"
               }

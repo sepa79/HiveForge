@@ -375,6 +375,100 @@ describe("deploy orchestrator", () => {
       })
     });
   });
+
+  it("removes HiveForge-owned Docker deployments without preparing managed files", async () => {
+    const calls: unknown[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[], registryWithRemoveAction()),
+      validationService(calls as string[]),
+      actionService(calls as string[]),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls),
+      dockerDeployment(calls)
+    );
+
+    const result = await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "remove",
+      environmentId: "swarm",
+      profile: "test"
+    });
+
+    expect(result.action).toMatchObject({
+      deploymentId: "deployment-1",
+      stdout: "",
+      stderr: ""
+    });
+    expect(calls).toEqual([
+      "inspect",
+      "validate",
+      {
+        ensureDeployment: expect.objectContaining({
+          environment: "swarm",
+          project: "hivewatch",
+          component: "api",
+          profile: "test",
+          action: "remove"
+        })
+      },
+      {
+        dockerRemove: {
+          deploymentId: "deployment-1",
+          deploymentName: "hivewatch",
+          project: "hivewatch",
+          component: "api",
+          profile: "test"
+        }
+      },
+      {
+        recordLifecycleAction: expect.objectContaining({
+          environment: "swarm",
+          project: "hivewatch",
+          component: "api",
+          action: "remove"
+        })
+      }
+    ]);
+  });
+
+  it("rejects inactive lifecycle actions that are not declared by the component", async () => {
+    const calls: unknown[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[]),
+      validationService(calls as string[]),
+      actionService(calls as string[]),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls),
+      dockerDeployment(calls)
+    );
+
+    await expect(
+      orchestrator.deploy({
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "purge",
+        environmentId: "swarm"
+      })
+    ).rejects.toThrow("Action is not declared for api: purge");
+    expect(calls).toEqual(["inspect", "validate"]);
+  });
 });
 
 function inspectionService(calls: string[], projectRegistry = registry()): ProjectInspectionService {
@@ -531,6 +625,15 @@ function dockerDeployment(calls: unknown[]): DockerDeploymentService {
         stdout: "deployed",
         stderr: ""
       };
+    },
+    async remove(input: unknown) {
+      calls.push({ dockerRemove: input });
+      return {
+        deploymentId: "deployment-1",
+        runtime: "docker-swarm",
+        stdout: "removed",
+        stderr: ""
+      };
     }
   } as unknown as DockerDeploymentService;
 }
@@ -557,6 +660,41 @@ function registry(): ProjectRegistry {
             actions: {
               deploy: {
                 playbook: "ansible/deploy.yml"
+              }
+            }
+          }
+        }
+      }
+    ]
+  };
+}
+
+function registryWithRemoveAction(): ProjectRegistry {
+  return {
+    ...registry(),
+    project: {
+      name: "hivewatch",
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      actions: ["deploy", "remove"]
+    },
+    components: [
+      {
+        name: "api",
+        manifestPath: "components/api/hiveforge.yaml",
+        manifest: {
+          kind: "component",
+          component: {
+            name: "api",
+            project: "hivewatch"
+          },
+          deployment: {
+            adapter: "ansible",
+            actions: {
+              deploy: {
+                playbook: "ansible/deploy.yml"
+              },
+              remove: {
+                playbook: "ansible/remove.yml"
               }
             }
           }

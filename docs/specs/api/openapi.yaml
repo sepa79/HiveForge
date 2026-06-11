@@ -917,6 +917,8 @@ components:
           uniqueItems: true
         managedRoot:
           $ref: "#/components/schemas/ManagedRootCapability"
+        bindSources:
+          $ref: "#/components/schemas/BindSourceCapability"
         placement:
           type: boolean
     EnvironmentNode:
@@ -955,6 +957,16 @@ components:
           uniqueItems: true
         bindSourceRoot:
           type: string
+    BindSourceCapability:
+      type: object
+      additionalProperties: false
+      required: [allowed]
+      properties:
+        allowed:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
     PathDiagnostic:
       type: object
       additionalProperties: false
@@ -1133,7 +1145,7 @@ components:
     RuntimeServiceStatus:
       type: object
       additionalProperties: false
-      required: [id, name, image, labels]
+      required: [id, name, image, labels, tasks]
       properties:
         id:
           type: string
@@ -1149,6 +1161,31 @@ components:
           type: object
           additionalProperties:
             type: string
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeServiceTaskStatus"
+    RuntimeServiceTaskStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, image]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image:
+          type: string
+        node:
+          type: string
+        desiredState:
+          type: string
+        currentState:
+          type: string
+        error:
+          type: string
+        ports:
+          type: string
     DeploymentDiagnosticsResult:
       type: object
       additionalProperties: false

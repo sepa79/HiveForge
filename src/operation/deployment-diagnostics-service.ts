@@ -1,5 +1,10 @@
 import path from "node:path";
-import { inspectComposeBindSources, type ComposeBindSourceValidationResult } from "./docker-deployment-service.js";
+import {
+  allowedBindSources,
+  inspectComposeBindSources,
+  type ComposeBindSourceValidationResult
+} from "./docker-deployment-service.js";
+import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { DeploymentComposeResult, DeploymentComposeService } from "./deployment-compose-service.js";
 import type {
   DeploymentRuntimeStatusRequest,
@@ -42,7 +47,7 @@ export class DeploymentDiagnosticsService {
     private readonly runtimeStatus: DeploymentRuntimeStatusService,
     private readonly deploymentCompose: DeploymentComposeService,
     private readonly runtimeDiagnostics: RuntimeDiagnosticsService,
-    private readonly environmentId: string
+    private readonly environment: EnvironmentDefinition
   ) {}
 
   async diagnose(request: DeploymentDiagnosticsRequest): Promise<DeploymentDiagnosticsResult> {
@@ -116,7 +121,7 @@ export class DeploymentDiagnosticsService {
     try {
       return {
         status: "checked",
-        result: await inspectComposeBindSources(compose.artifact.path, bindSourceDir)
+        result: await inspectComposeBindSources(compose.artifact.path, bindSourceDir, allowedBindSources(this.environment))
       };
     } catch (error) {
       return {
@@ -124,5 +129,9 @@ export class DeploymentDiagnosticsService {
         reason: error instanceof Error ? error.message : String(error)
       };
     }
+  }
+
+  private get environmentId(): string {
+    return this.environment.id;
   }
 }
