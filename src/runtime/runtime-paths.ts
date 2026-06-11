@@ -13,6 +13,10 @@ export interface RuntimePathOptions {
   dataRoot?: string;
   requireEnvironments?: boolean;
   defaultEnvironmentDocker?: CommandRunner;
+  defaultEnvironment?: {
+    name?: string;
+    description?: string;
+  };
 }
 
 export interface RuntimePaths {
@@ -57,7 +61,7 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
   }
 
   if (options.runtimeRoot) {
-    return initializeRuntimeRoot(options.runtimeRoot, options.defaultEnvironmentDocker);
+    return initializeRuntimeRoot(options.runtimeRoot, options.defaultEnvironmentDocker, options.defaultEnvironment);
   }
 
   const requiredExplicitOptions = explicitOptions.filter(
@@ -85,7 +89,8 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
 
 async function initializeRuntimeRoot(
   runtimeRoot: string,
-  defaultEnvironmentDocker?: CommandRunner
+  defaultEnvironmentDocker?: CommandRunner,
+  defaultEnvironment?: RuntimePathOptions["defaultEnvironment"]
 ): Promise<RuntimePaths> {
   const rootStat = await stat(runtimeRoot).catch((error: unknown) => {
     if (isNodeError(error, "ENOENT")) {
@@ -119,7 +124,8 @@ async function initializeRuntimeRoot(
   await writeFileIfMissing(runtimePaths.registry, EMPTY_PROJECT_REGISTRY);
   await writeFileIfMissing(runtimePaths.environments, () =>
     createDefaultEnvironmentYaml({
-      docker: defaultEnvironmentDocker
+      docker: defaultEnvironmentDocker,
+      environment: defaultEnvironment
     })
   );
   await mkdir(runtimePaths.workspace, { recursive: true });

@@ -8,6 +8,7 @@ export interface EnvironmentConfig {
 export interface EnvironmentDefinition {
   id: string;
   name: string;
+  description?: string;
   kind: "local-docker" | "docker" | "swarm";
   capabilities: EnvironmentCapabilities;
   nodes?: EnvironmentNode[];

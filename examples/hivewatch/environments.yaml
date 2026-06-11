@@ -2,6 +2,7 @@ current: local
 environments:
   - id: local
     name: Local Docker
+    description: Local Docker example environment for HiveWatch smoke testing.
     kind: local-docker
     capabilities:
       runtime:

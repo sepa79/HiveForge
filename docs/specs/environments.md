@@ -36,6 +36,7 @@ Each environment declares:
 
 - `id`
 - `name`
+- optional `description`
 - `kind`
 - `capabilities`
 - `nodes`, when the environment reports runtime node inventory
@@ -104,6 +105,30 @@ vars:
 
 Vars are not capabilities. They are explicit inputs for rendering release
 artifacts and image references.
+
+## Display Metadata
+
+`name` is the short human label shown in the operator UI top bar, for example
+`Marax HomeLab Swarm`.
+
+`description` is optional longer operator context shown in page subtitles and
+client summaries. It should identify the target clearly enough that operators
+know where actions will run, for example:
+
+```yaml
+current: swarm
+environments:
+  - id: swarm
+    name: Marax HomeLab Swarm
+    description: Home lab Docker Swarm on 192.168.88.50 using /mnt/shared_nfs/hiveforge.
+    kind: swarm
+```
+
+When HiveForge creates a missing runtime-root `environments.yaml`, deployment
+templates may seed these values from `HIVEFORGE_ENVIRONMENT_NAME` and
+`HIVEFORGE_ENVIRONMENT_DESCRIPTION`. After the file exists,
+`environments.yaml` is the source of truth; startup and node refresh must not
+overwrite operator-owned `name` or `description`.
 
 ## Private Environment Files
 

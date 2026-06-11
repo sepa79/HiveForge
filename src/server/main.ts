@@ -58,7 +58,11 @@ const runtimePaths = await resolveRuntimePaths({
   runtimeRoot: usesExplicitRuntimePaths ? undefined : HIVEFORGE_CONTAINER_RUNTIME_ROOT,
   ...explicitRuntimePaths,
   requireEnvironments: true,
-  defaultEnvironmentDocker: commandRunner
+  defaultEnvironmentDocker: commandRunner,
+  defaultEnvironment: {
+    name: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_NAME"),
+    description: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_DESCRIPTION")
+  }
 });
 const auth = await resolveAuthToken({
   authToken: process.env.HIVEFORGE_AUTH_TOKEN,
@@ -227,4 +231,9 @@ function required(value: string | undefined, label: string): string {
     throw new Error(`Missing required option: ${label}`);
   }
   return value;
+}
+
+function nonEmptyEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value && value.length > 0 ? value : undefined;
 }

@@ -13,6 +13,7 @@ describe("environment refresh service", () => {
       "environments:",
       "  - id: swarm",
       "    name: Production Swarm",
+      "    description: Primary production Swarm cluster.",
       "    kind: swarm",
       "    capabilities:",
       "      runtime:",
@@ -83,6 +84,7 @@ describe("environment refresh service", () => {
     expect(refreshed.current).toEqual({
       id: "swarm",
       name: "Production Swarm",
+      description: "Primary production Swarm cluster.",
       kind: "swarm",
       capabilities: {
         runtime: ["docker-swarm"],

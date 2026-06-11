@@ -51,6 +51,30 @@ describe("runtime paths", () => {
     await expect(readFile(path.join(baseDir, "data", "runtime-env.json"), "utf8")).resolves.toContain('"entries": []');
   });
 
+  it("seeds generated environment display metadata from runtime options", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
+
+    const paths = await resolveRuntimePaths({
+      runtimeRoot: baseDir,
+      requireEnvironments: true,
+      defaultEnvironment: {
+        name: "Marax HomeLab Swarm",
+        description: "Home lab Docker Swarm on 192.168.88.50 using /mnt/shared_nfs/hiveforge."
+      }
+    });
+
+    await expect(loadEnvironmentConfig(paths.environments ?? "")).resolves.toMatchObject({
+      current: "docker",
+      environments: [
+        {
+          id: "docker",
+          name: "Marax HomeLab Swarm",
+          description: "Home lab Docker Swarm on 192.168.88.50 using /mnt/shared_nfs/hiveforge."
+        }
+      ]
+    });
+  });
+
   it("does not overwrite existing registry or environment config", async () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
     await writeFile(path.join(baseDir, "projects.yaml"), "# keep projects\nprojects: []\n", "utf8");

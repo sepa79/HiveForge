@@ -95,14 +95,17 @@ describe("UI routes", () => {
     expect(body).toContain("validates manifests and requirements");
   });
 
-  it("uses the human environment name in page headers instead of raw id or kind fields", async () => {
+  it("uses human environment metadata in page headers instead of raw id or kind fields", async () => {
     const baseUrl = await startServer();
 
     const script = await fetch(`${baseUrl}/ui/app.js`);
     const body = await script.text();
 
     expect(script.status).toBe(200);
-    expect(body).toContain('state.environment ? state.environment.name : "Connect with the REST bearer token."');
+    expect(body).toContain(
+      'state.environment ? state.environment.description || state.environment.name : "Connect with the REST bearer token."'
+    );
+    expect(body).toContain("Environment / ${escapeHtml(current.name)}");
     expect(body).not.toContain("state.environment.kind");
     expect(body).not.toContain("state.environment?.id");
     expect(body).not.toContain("pageMeta");

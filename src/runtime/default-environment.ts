@@ -11,6 +11,10 @@ export interface DefaultEnvironmentOptions {
   managedRoot?: {
     bindSourceRoot?: string;
   };
+  environment?: {
+    name?: string;
+    description?: string;
+  };
 }
 
 interface DockerSwarmInfo {
@@ -41,12 +45,12 @@ export async function createDefaultEnvironmentConfig(
   options: DefaultEnvironmentOptions = {}
 ): Promise<EnvironmentConfig> {
   if (!options.docker) {
-    return dockerHostEnvironmentConfig(options.managedRoot);
+    return dockerHostEnvironmentConfig(options.managedRoot, options.environment);
   }
 
   const swarm = await inspectDockerSwarm(options.docker);
   if (!swarm.active) {
-    return dockerHostEnvironmentConfig(options.managedRoot);
+    return dockerHostEnvironmentConfig(options.managedRoot, options.environment);
   }
 
   if (!swarm.manager) {
@@ -56,16 +60,20 @@ export async function createDefaultEnvironmentConfig(
   }
 
   const nodes = await inspectDockerSwarmNodes(options.docker);
-  return dockerSwarmEnvironmentConfig(nodes, options.managedRoot);
+  return dockerSwarmEnvironmentConfig(nodes, options.managedRoot, options.environment);
 }
 
-function dockerHostEnvironmentConfig(managedRootPaths: DefaultEnvironmentOptions["managedRoot"]): EnvironmentConfig {
+function dockerHostEnvironmentConfig(
+  managedRootPaths: DefaultEnvironmentOptions["managedRoot"],
+  environmentMetadata: DefaultEnvironmentOptions["environment"] = {}
+): EnvironmentConfig {
   return {
     current: "docker",
     environments: [
       {
         id: "docker",
-        name: "Docker host",
+        name: environmentMetadata.name ?? "Docker host",
+        ...(environmentMetadata.description ? { description: environmentMetadata.description } : {}),
         kind: "docker",
         capabilities: {
           runtime: ["docker-single"],
@@ -84,14 +92,16 @@ function dockerHostEnvironmentConfig(managedRootPaths: DefaultEnvironmentOptions
 
 function dockerSwarmEnvironmentConfig(
   nodes: EnvironmentNode[],
-  managedRootPaths: DefaultEnvironmentOptions["managedRoot"]
+  managedRootPaths: DefaultEnvironmentOptions["managedRoot"],
+  environmentMetadata: DefaultEnvironmentOptions["environment"] = {}
 ): EnvironmentConfig {
   return {
     current: "swarm",
     environments: [
       {
         id: "swarm",
-        name: "Docker Swarm",
+        name: environmentMetadata.name ?? "Docker Swarm",
+        ...(environmentMetadata.description ? { description: environmentMetadata.description } : {}),
         kind: "swarm",
         capabilities: {
           runtime: ["docker-swarm"],

@@ -2,6 +2,7 @@ current: docker
 environments:
   - id: docker
     name: Docker host
+    description: Single Docker host with HiveForge runtime files mounted from /opt/hiveforge.
     kind: docker
     capabilities:
       runtime:

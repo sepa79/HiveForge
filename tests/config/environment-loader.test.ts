@@ -12,6 +12,7 @@ describe("environment loader", () => {
       "environments:",
       "  - id: local",
       "    name: Local Docker",
+      "    description: Developer laptop Docker environment.",
       "    kind: local-docker",
       "    capabilities:",
       "      runtime:",
@@ -34,6 +35,7 @@ describe("environment loader", () => {
         {
           id: "local",
           name: "Local Docker",
+          description: "Developer laptop Docker environment.",
           kind: "local-docker",
           capabilities: {
             runtime: ["docker-single"],

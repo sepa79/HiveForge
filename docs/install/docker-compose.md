@@ -114,6 +114,24 @@ If `auth-token` already exists from an earlier start and you later set
 in place, logs `HiveForge auth token source: environment`, and logs that the
 runtime-root token file is ignored without printing either token value.
 
+## Environment Display Metadata
+
+On first start, HiveForge creates `/hf/environments.yaml` when it is missing.
+The Compose and Stack templates can seed the human-facing environment label and
+description for that generated file:
+
+```bash
+cat >> .env <<'EOF'
+HIVEFORGE_ENVIRONMENT_NAME=Marax HomeLab Swarm
+HIVEFORGE_ENVIRONMENT_DESCRIPTION=Home lab Docker Swarm on 192.168.88.50 using /mnt/shared_nfs/hiveforge.
+EOF
+docker compose -f docker-compose.hiveforge.yml up -d
+```
+
+After `environments.yaml` exists, edit `name` and `description` there. HiveForge
+does not overwrite existing environment metadata on restart, redeploy, or node
+inventory refresh.
+
 ## Corporate Proxy
 
 HiveForge clones registered repositories from inside the HiveForge container.

@@ -635,7 +635,7 @@ function pageTitle() {
 
 function pageSubtitle() {
   if (state.view === "home") return "Deployment control plane for explicit Docker and Swarm project actions.";
-  return state.environment ? state.environment.name : "Connect with the REST bearer token.";
+  return state.environment ? state.environment.description || state.environment.name : "Connect with the REST bearer token.";
 }
 
 function renderHome() {

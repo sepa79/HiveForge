@@ -123,6 +123,8 @@ Input: none.
 Output: current environment and known environment metadata/capabilities.
 When configured, environment metadata includes project policy for allowed
 project/profile/action combinations.
+The human-facing `name` and optional `description` come from `environments.yaml`
+and should be shown by clients when identifying the connected target.
 
 Capabilities are structured as described in `docs/specs/capabilities.md`. For
 release deployment, clients must treat them as reported environment facts, not
