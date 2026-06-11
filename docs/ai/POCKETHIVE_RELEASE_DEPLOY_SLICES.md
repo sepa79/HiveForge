@@ -102,18 +102,19 @@ Done when:
 
 Purpose: expose the operator path.
 
-Status: implemented as prepare-only `deploy_release`.
+Status: implemented as prepare-only `prepare_release_deploy`.
 
 Deliverables:
 
-- Add `deploy_release` to `docs/specs/mcp/tools.md`.
-- Add MCP runtime/client/server support for `deploy_release`.
+- Add `prepare_release_deploy` to `docs/specs/mcp/tools.md`.
+- Add MCP runtime/client/server support for `prepare_release_deploy`.
 - Add MCP tests proving the tool name and request shape.
 - Keep REST documented as internal transport only.
 
 Done when:
 
-- MCP tests prove `deploy_release` is registered and calls the release endpoint.
+- MCP tests prove `prepare_release_deploy` is registered and calls the release
+  endpoint.
 - User-facing docs instruct MCP, not REST.
 
 ## Slice 4 - Internal REST Transport
@@ -195,7 +196,7 @@ Purpose: wire existing `artifacts.managedPaths` preparation into the release
 deploy pipeline so checked-out runtime files are copied to the HiveForge-managed
 project root before stack deployment.
 
-Status: implemented for prepare-only `deploy_release` with `gitRef`,
+Status: implemented for prepare-only `prepare_release_deploy` with `gitRef`,
 `managedPaths`, release vars file output, and required runtime file validation.
 Separate async operation/progress tracking remains for the execution slice.
 
@@ -222,6 +223,11 @@ Done when:
 
 Purpose: switch PocketHive from compatibility bridge to release artifacts and
 managed runtime files.
+
+For the broader HiveForge 0.5.x MCP/readiness plan, including the breaking
+`prepare_release_deploy` rename, deploy prerequisites
+reporting, and workspace cleanup planning, see
+`docs/ai/HIVEFORGE_0_5_PLAN.md`.
 
 This slice is implemented in `/home/sepa/PocketHive`, not HiveForge.
 

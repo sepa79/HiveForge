@@ -36,6 +36,7 @@ Each environment declares:
 
 - `id`
 - `name`
+- optional `description`
 - `kind`
 - `capabilities`
 - `nodes`, when the environment reports runtime node inventory
@@ -51,8 +52,12 @@ capabilities:
     - docker-swarm
   managedRoot:
     shared: false
+    bindSourceRoot: /mnt/shared_nfs/hiveforge
     nodes:
       - docker-swarm-mgr-1
+  bindSources:
+    allowed:
+      - /data/postgres
   placement: true
 nodes:
   - id: hbx9486iqq0g5obsnhre9zx4f
@@ -65,10 +70,12 @@ nodes:
 ```
 
 `managedRoot` means the environment-local HiveForge service has one configured
-managed data root. The container path comes from `HIVEFORGE_DATA_ROOT`; the
-host-visible path for Docker bind sources comes from `HIVEFORGE_HOST_DATA_ROOT`
-when the install provides it. Project manifests do not declare those paths.
-HiveForge does not create arbitrary host mount points.
+managed data root. HiveForge derives its own control-plane path internally,
+normally `/hf/data`. `bindSourceRoot` is the host-side runtime root Docker sees
+for the same mount, such as `/opt/hiveforge` for `/opt/hiveforge:/hf`.
+HiveForge derives managed project bind sources under `<bindSourceRoot>/data`.
+Project manifests do not declare those paths. HiveForge does not create
+arbitrary host mount points.
 
 `managedRoot.shared: true` means the root is available to every node that may
 run the selected profile. `managedRoot.shared: false` means only listed nodes
@@ -101,6 +108,35 @@ vars:
 
 Vars are not capabilities. They are explicit inputs for rendering release
 artifacts and image references.
+
+`capabilities.bindSources.allowed` is optional and must be explicit. Use it for
+operator-managed Docker bind source paths outside the HiveForge managed root.
+HiveForge validates rendered Compose/Stack bind sources against this list, but
+never permits HiveForge internal container paths such as `/hf`.
+
+## Display Metadata
+
+`name` is the short human label shown in the operator UI top bar, for example
+`Marax HomeLab Swarm`.
+
+`description` is optional longer operator context shown in page subtitles and
+client summaries. It should identify the target clearly enough that operators
+know where actions will run, for example:
+
+```yaml
+current: swarm
+environments:
+  - id: swarm
+    name: Marax HomeLab Swarm
+    description: Home lab Docker Swarm on 192.168.88.50 using /mnt/shared_nfs/hiveforge.
+    kind: swarm
+```
+
+When HiveForge creates a missing runtime-root `environments.yaml`, deployment
+templates may seed these values from `HIVEFORGE_ENVIRONMENT_NAME` and
+`HIVEFORGE_ENVIRONMENT_DESCRIPTION`. After the file exists,
+`environments.yaml` is the source of truth; startup and node refresh must not
+overwrite operator-owned `name` or `description`.
 
 ## Private Environment Files
 

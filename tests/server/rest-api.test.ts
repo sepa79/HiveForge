@@ -50,6 +50,55 @@ describe("REST API", () => {
     });
   });
 
+  it("checks for HiveForge updates", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/hiveforge/update`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      currentVersion: "0.5.0",
+      releasePublished: true,
+      latestVersion: "0.5.1",
+      latestTag: "v0.5.1",
+      releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
+      updateAvailable: true
+    });
+    expect(calls).toContainEqual({ checkSelfUpdate: true });
+  });
+
+  it("starts HiveForge self-update", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/hiveforge/update`, { method: "POST" });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      currentVersion: "0.5.0",
+      releasePublished: true,
+      latestVersion: "0.5.1",
+      latestTag: "v0.5.1",
+      releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
+      updateAvailable: true,
+      status: "started",
+      mode: "swarm-service",
+      targetImage: "ghcr.io/sepa79/hiveforge:v0.5.1",
+      helperContainerId: "helper-container"
+    });
+    expect(calls).toContainEqual({ startSelfUpdate: true });
+  });
+
+  it("returns 400 when HiveForge self-update fails", async () => {
+    const baseUrl = await startServer({ selfUpdateError: "GitHub latest release request failed: 403" });
+
+    const response = await fetch(`${baseUrl}/hiveforge/update`);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "GitHub latest release request failed: 403" });
+  });
+
   it("lists registered projects", async () => {
     const baseUrl = await startServer();
 
@@ -107,6 +156,28 @@ describe("REST API", () => {
         action: "deploy",
         environmentId: "local",
         profile: "test"
+      }
+    ]);
+  });
+
+  it("passes deploymentName from action requests to the orchestrator", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/actions/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main", deploymentName: "hivewatch-canary" })
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual([
+      {
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        environmentId: "local",
+        deploymentName: "hivewatch-canary"
       }
     ]);
   });
@@ -281,6 +352,8 @@ describe("REST API", () => {
     await expect(response.json()).resolves.toEqual({
       deployments: [
         {
+          deploymentId: "deployment-1",
+          deploymentName: "hivewatch",
           environment: "local",
           project: "hivewatch",
           component: "api",
@@ -290,13 +363,82 @@ describe("REST API", () => {
     });
   });
 
+  it("returns recorded deployment compose by operation id", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/deployments/op-1/compose`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      operationId: "op-1",
+      status: "present",
+      source: "operation_artifact",
+      content: "services: {}\n"
+    });
+  });
+
+  it("checks deployment runtime status", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/deployments/runtime-status`, {
+      method: "POST",
+      body: JSON.stringify({ deploymentId: "deployment-1" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      deploymentId: "deployment-1",
+      summary: "missing"
+    });
+    expect(calls).toContainEqual({ runtimeStatus: { deploymentId: "deployment-1" } });
+  });
+
+  it("diagnoses a deployment", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/deployments/diagnostics`, {
+      method: "POST",
+      body: JSON.stringify({ deploymentId: "deployment-1" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      selector: { deploymentId: "deployment-1" },
+      state: { status: "present" },
+      runtime: { summary: "running" },
+      composeValidation: { status: "checked" }
+    });
+    expect(calls).toContainEqual({ deploymentDiagnostics: { deploymentId: "deployment-1" } });
+  });
+
+  it("returns runtime diagnostics through the configured service", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/diagnostics/runtime`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      runtimeRoot: {
+        path: "/hf",
+        status: "present"
+      },
+      managedRoot: {
+        controlPlanePath: "/hf/data",
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        visibilityStatus: "configured"
+      }
+    });
+  });
+
   it("starts async lifecycle operations and exposes operation logs", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
 
     const response = await fetch(`${baseUrl}/operations/projects/hivewatch/actions/api/deploy`, {
       method: "POST",
-      body: JSON.stringify({ gitRef: "main", profile: "test" })
+      body: JSON.stringify({ gitRef: "main", profile: "test", deploymentName: "hivewatch-canary" })
     });
 
     expect(response.status).toBe(200);
@@ -306,6 +448,15 @@ describe("REST API", () => {
       projectId: "hivewatch",
       component: "api",
       action: "deploy"
+    });
+    expect(calls).toContainEqual({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      environmentId: "local",
+      profile: "test",
+      deploymentName: "hivewatch-canary"
     });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -550,10 +701,49 @@ describe("REST API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
       repository: "https://github.com/sepa79/HiveWatch.git",
       gitRef: "main",
       deployable: true,
       components: []
+    });
+  });
+
+  it("records non-deployable repository inspections as failed operations", async () => {
+    const baseUrl = await startServer({
+      repositoryInspectionResult: {
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main",
+        deployable: false,
+        components: [],
+        reason: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+      }
+    });
+
+    const response = await fetch(`${baseUrl}/repositories/inspect`, {
+      method: "POST",
+      body: JSON.stringify({ repository: "https://github.com/sepa79/HiveWatch.git", gitRef: "main" })
+    });
+    const operations = await fetch(`${baseUrl}/operations`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      operationId: "uiop-1",
+      deployable: false,
+      reason: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+    });
+    expect(operations.status).toBe(200);
+    await expect(operations.json()).resolves.toMatchObject({
+      operations: [
+        {
+          operationId: "uiop-1",
+          status: "failed",
+          kind: "repository_inspection",
+          repository: "https://github.com/sepa79/HiveWatch.git",
+          gitRef: "main",
+          error: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+        }
+      ]
     });
   });
 
@@ -568,6 +758,7 @@ describe("REST API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
       deployable: true,
       project: {
         id: "hivewatch",
@@ -611,6 +802,73 @@ describe("REST API", () => {
       }
     });
     expect(accepted.status).toBe(200);
+  });
+
+  it("returns project inspection components with declared action subsets", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/inspect`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main" })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
+      inspectionOperationId: "inspect-op",
+      projectId: "hivewatch",
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      gitRef: "main",
+      components: [
+        {
+          name: "api",
+          actions: ["deploy"]
+        }
+      ]
+    });
+  });
+
+  it("explains deploy prerequisites through the configured service", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/deploy-prerequisites`, {
+      method: "POST",
+      body: JSON.stringify({
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        profile: "normal",
+        deploymentMode: "release",
+        releaseVars: { "release.imageTag": "dev-1" }
+      })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ready: false,
+      manualPrerequisites: [],
+      hiveforgePrerequisites: [],
+      releasePrerequisites: [
+        {
+          type: "registry_var",
+          required: "imageRepository.project",
+          status: "missing",
+          reason: "Project image repository must be supplied explicitly"
+        }
+      ]
+    });
+    expect(calls).toContainEqual({
+      explainDeployPrerequisites: {
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        profile: "normal",
+        deploymentMode: "release",
+        releaseVars: { "release.imageTag": "dev-1" }
+      }
+    });
   });
 
   it("returns 400 for missing gitRef", async () => {
@@ -657,6 +915,8 @@ async function startServer(
     currentEnvironment?: EnvironmentDefinition;
     refreshedEnvironment?: EnvironmentDefinition;
     validationError?: string;
+    repositoryInspectionResult?: unknown;
+    selfUpdateError?: string;
   } = {}
 ): Promise<string> {
   const currentEnvironment = options.currentEnvironment ?? defaultEnvironment();
@@ -742,6 +1002,8 @@ async function startServer(
           return {
             deployments: [
               {
+                deploymentId: "deployment-1",
+                deploymentName: "hivewatch",
                 environment: "local",
                 project: "hivewatch",
                 component: "api",
@@ -751,11 +1013,74 @@ async function startServer(
           };
         }
       } as never,
+      deploymentCompose: {
+        async get(operationId: string) {
+          return {
+            operationId,
+            status: "present",
+            source: "operation_artifact",
+            content: "services: {}\n"
+          };
+        }
+      } as never,
+      deploymentRuntimeStatus: {
+        async check(request: unknown) {
+          options.calls?.push({ runtimeStatus: request });
+          return {
+            ...(request as Record<string, unknown>),
+            summary: "missing"
+          };
+        }
+      } as never,
+      deploymentDiagnostics: {
+        async diagnose(request: unknown) {
+          options.calls?.push({ deploymentDiagnostics: request });
+          return {
+            selector: request,
+            state: { status: "present" },
+            runtime: { summary: "running" },
+            composeValidation: { status: "checked" }
+          };
+        }
+      } as never,
+      deployPrerequisites: {
+        async explain(request: unknown) {
+          options.calls?.push({ explainDeployPrerequisites: request });
+          return {
+            ready: false,
+            manualPrerequisites: [],
+            hiveforgePrerequisites: [],
+            releasePrerequisites: [
+              {
+                type: "registry_var",
+                required: "imageRepository.project",
+                status: "missing",
+                reason: "Project image repository must be supplied explicitly"
+              }
+            ]
+          };
+        }
+      } as never,
+      runtimeDiagnostics: {
+        async diagnose() {
+          return {
+            runtimeRoot: {
+              path: "/hf",
+              status: "present"
+            },
+            managedRoot: {
+              controlPlanePath: "/hf/data",
+              bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+              visibilityStatus: "configured"
+            }
+          };
+        }
+      } as never,
       operations: operationService(options.calls),
       runtimeEnv: runtimeEnvService(options.calls),
       repositoryInspection: {
         async inspect(request: { repository: string; gitRef: string }) {
-          return {
+          return options.repositoryInspectionResult ?? {
             ...request,
             deployable: true,
             components: []
@@ -800,6 +1125,28 @@ async function startServer(
           };
         }
       },
+      selfUpdate: {
+        async checkLatest() {
+          options.calls?.push({ checkSelfUpdate: true });
+          if (options.selfUpdateError) {
+            throw new Error(options.selfUpdateError);
+          }
+          return selfUpdateCheck();
+        },
+        async startUpdate() {
+          options.calls?.push({ startSelfUpdate: true });
+          if (options.selfUpdateError) {
+            throw new Error(options.selfUpdateError);
+          }
+          return {
+            ...selfUpdateCheck(),
+            status: "started",
+            mode: "swarm-service",
+            targetImage: "ghcr.io/sepa79/hiveforge:v0.5.1",
+            helperContainerId: "helper-container"
+          };
+        }
+      } as never,
       environments: {
         current: currentEnvironment,
         known: [currentEnvironment]
@@ -813,6 +1160,17 @@ async function startServer(
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+function selfUpdateCheck() {
+  return {
+    currentVersion: "0.5.0",
+    releasePublished: true,
+    latestVersion: "0.5.1",
+    latestTag: "v0.5.1",
+    releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
+    updateAvailable: true
+  };
 }
 
 function defaultEnvironment(): EnvironmentDefinition {
@@ -861,6 +1219,7 @@ function releaseRequest() {
 
 function operationService(calls?: unknown[]) {
   const operations = new Map<string, unknown>();
+  let next = 1;
   return {
     list() {
       return { operations: [...operations.values()] };
@@ -870,8 +1229,9 @@ function operationService(calls?: unknown[]) {
     },
     startLifecycleAction(request: unknown) {
       calls?.push(request);
+      const operationId = `uiop-${next++}`;
       const operation = {
-        operationId: "uiop-1",
+        operationId,
         status: "running",
         kind: "lifecycle_action",
         projectId: "hivewatch",
@@ -881,9 +1241,9 @@ function operationService(calls?: unknown[]) {
         startedAt: "2026-05-17T10:00:00.000Z",
         logs: [{ at: "2026-05-17T10:00:00.000Z", level: "info", message: "Started deploy for hivewatch/api" }]
       };
-      operations.set("uiop-1", operation);
+      operations.set(operationId, operation);
       queueMicrotask(() => {
-        operations.set("uiop-1", {
+        operations.set(operationId, {
           ...operation,
           status: "succeeded",
           endedAt: "2026-05-17T10:00:01.000Z",
@@ -895,6 +1255,57 @@ function operationService(calls?: unknown[]) {
         });
       });
       return operation;
+    },
+    async runPreDeployAttempt(request: Record<string, unknown>, run: () => Promise<unknown>, failureReason?: (result: unknown) => string | null) {
+      const operationId = `uiop-${next++}`;
+      const operation = {
+        operationId,
+        status: "running",
+        ...request,
+        startedAt: "2026-05-17T10:00:00.000Z",
+        logs: [
+          {
+            at: "2026-05-17T10:00:00.000Z",
+            level: "info",
+            message: `Started ${String(request.kind).replaceAll("_", " ")}`
+          }
+        ]
+      };
+      operations.set(operationId, operation);
+      try {
+        const result = await run();
+        const reason = failureReason ? failureReason(result) : null;
+        const completed = {
+          ...operation,
+          status: reason ? "failed" : "succeeded",
+          endedAt: "2026-05-17T10:00:01.000Z",
+          ...(reason ? { error: reason } : {}),
+          logs: [
+            ...operation.logs,
+            {
+              at: "2026-05-17T10:00:01.000Z",
+              level: reason ? "error" : "info",
+              message: reason ?? `Completed ${String(request.kind).replaceAll("_", " ")}`
+            }
+          ]
+        };
+        operations.set(operationId, completed);
+        return { operation: completed, result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Operation failed";
+        const failed = {
+          ...operation,
+          status: "failed",
+          endedAt: "2026-05-17T10:00:01.000Z",
+          error: message,
+          logs: [
+            ...operation.logs,
+            { at: "2026-05-17T10:00:01.000Z", level: "error", message }
+          ]
+        };
+        operations.set(operationId, failed);
+        throw error;
+      }
     }
   } as never;
 }

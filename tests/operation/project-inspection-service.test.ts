@@ -25,6 +25,8 @@ class FixedClock implements Clock {
 }
 
 class FixtureCheckoutRunner implements CommandRunner {
+  public fullCheckoutCount = 0;
+
   constructor(private readonly fixtureRoot: string) {}
 
   async run(command: string, args: string[], options: { cwd?: string } = {}) {
@@ -33,8 +35,18 @@ class FixtureCheckoutRunner implements CommandRunner {
     }
 
     if (args[0] === "clone") {
-      const checkoutPath = args[3];
+      const checkoutPath = args.at(-1);
+      if (!checkoutPath) {
+        throw new Error(`Missing checkout path: ${args.join(" ")}`);
+      }
+      if (!args.includes("--sparse")) {
+        this.fullCheckoutCount += 1;
+      }
       await copyHiveForgeFixture(this.fixtureRoot, checkoutPath);
+      return { stdout: "", stderr: "" };
+    }
+
+    if (args[0] === "sparse-checkout" && options.cwd) {
       return { stdout: "", stderr: "" };
     }
 
@@ -120,9 +132,36 @@ describe("project inspection service", () => {
       }
     ]);
   });
+
+  it("rejects old project contracts during sparse preflight before full checkout", async () => {
+    const fixture = await createHiveWatchFixture(true, { version: undefined });
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-workspace-"));
+    const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
+    const runner = new FixtureCheckoutRunner(fixture);
+    const service = buildService(fixture, workspaceRoot, journalDir, runner);
+
+    await expect(service.inspect({ projectId: "hivewatch", gitRef: "main" })).rejects.toThrow(
+      "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+    );
+    expect(runner.fullCheckoutCount).toBe(0);
+    await expect(new JsonlJournal(journalDir).readAll()).resolves.toMatchObject([
+      {
+        operationType: "inspect_project",
+        project: "hivewatch",
+        gitRef: "main",
+        status: "failed",
+        reason: "Unsupported HiveForge project manifest version: missing. Expected 0.5."
+      }
+    ]);
+  });
 });
 
-function buildService(fixtureRoot: string, workspaceRoot: string, journalDir: string): ProjectInspectionService {
+function buildService(
+  fixtureRoot: string,
+  workspaceRoot: string,
+  journalDir: string,
+  runner = new FixtureCheckoutRunner(fixtureRoot)
+): ProjectInspectionService {
   const projectRegistry: ProjectRegistryConfig = {
     projects: [
       {
@@ -136,28 +175,33 @@ function buildService(fixtureRoot: string, workspaceRoot: string, journalDir: st
   };
 
   return new ProjectInspectionService(
-    new WorkspaceManager(workspaceRoot, projectRegistry, new FixtureCheckoutRunner(fixtureRoot)),
+    new WorkspaceManager(workspaceRoot, projectRegistry, runner),
     new JsonlJournal(journalDir),
     new SequenceIds(),
     new FixedClock()
   );
 }
 
-async function createHiveWatchFixture(includePlaybook: boolean): Promise<string> {
+async function createHiveWatchFixture(
+  includePlaybook: boolean,
+  options: { version?: string } = { version: "0.5" }
+): Promise<string> {
   const fixture = await mkdtemp(path.join(os.tmpdir(), "hivewatch-fixture-"));
   await mkdir(path.join(fixture, "components/api/ansible"), { recursive: true });
+  const versionLines = options.version === undefined ? [] : [`version: "${options.version}"`];
   await writeFile(
     path.join(fixture, "hiveforge.yaml"),
     [
       "kind: project",
-        "project:",
-        "  name: hivewatch",
-        "  repository: https://github.com/sepa79/HiveWatch.git",
-        "  actions:",
-        "    - deploy",
-        "    - remove",
-        "    - update",
-        "components:",
+      ...versionLines,
+      "project:",
+      "  name: hivewatch",
+      "  repository: https://github.com/sepa79/HiveWatch.git",
+      "  actions:",
+      "    - deploy",
+      "    - remove",
+      "    - update",
+      "components:",
       "  - name: api",
       "    manifest: components/api/hiveforge.yaml",
       ""

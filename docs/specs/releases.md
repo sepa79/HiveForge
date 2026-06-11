@@ -51,7 +51,7 @@ Missing or unreachable images are explicit failures.
 Project repositories may still provide manifests, compose templates, Grafana
 dashboards, scenarios, layouts, and other managed files. Those files are copied
 or rendered into the HiveForge managed project tree under
-`HIVEFORGE_DATA_ROOT`.
+the derived runtime data root.
 
 Managed files are deployment inputs, but the deployable runtime version is the
 selected release or image tag set. HiveForge must not silently use a branch name

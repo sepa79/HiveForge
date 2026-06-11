@@ -31,8 +31,7 @@ npm run hiveforge-mcp
 ```
 
 Use the installed host's `auth-token` file when HiveForge generated the token
-on first start. MCP connects to REST and does not use `HIVEFORGE_BASE_DIR` or
-read runtime files directly.
+on first start. MCP connects to REST and does not read runtime files directly.
 
 Do not invent endpoints or tokens.
 
@@ -54,17 +53,28 @@ Use MCP tools in this order:
    environment, actions, and profiles for that project
 11. `set_project_runtime_env` for non-secret values that must stay outside git
 12. `inspect_project`
-13. `validate_requirements`
-14. `deploy_release` for release/image-tag prepare checks, or `start_action` for
-   the current repo/ref POC lifecycle path
-15. `get_operation`
-16. `read_journal`
+13. `explain_deploy_prerequisites`
+14. `validate_requirements`
+15. `prepare_release_deploy` for release/image-tag prepare checks, or
+   `start_action` for the current repo/ref POC lifecycle path
+16. `get_operation`
+17. `get_deployment_compose` when the action recorded a rendered Compose/Stack
+   artifact
+18. `check_deployment_runtime_status` after deployment execution, using the
+   `deploymentId` from `list_deployments`
+19. `read_journal`
 
-`deploy_release` currently prepares and validates a release plan only. It does
-not build images, push images, or execute deployment actions. With `gitRef`, it
-also checks out the project, prepares declared `artifacts.managedPaths`, writes
-`HIVEFORGE_ARTIFACTS_DIR/release-vars.json`, and validates explicit
+`prepare_release_deploy` currently prepares and validates a release plan only.
+It does not build images, push images, or execute deployment actions. With
+`gitRef`, it also checks out the project, prepares declared
+`artifacts.managedPaths`, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`,
+and validates explicit
 `requiredFiles`.
+
+`get_deployment_compose` returns the recorded rendered Compose/Stack artifact
+for one operation. It does not re-render current source. `check_deployment_runtime_status`
+checks Docker containers/services by the single `hiveforge.deployment` label
+resolved from HiveForge state DB; it does not infer ownership from names.
 
 ## Required Inputs
 
@@ -77,17 +87,25 @@ Before starting an action, confirm:
 - action,
 - profile,
 - non-secret runtime env required by manifest `requirements.environment`,
-- git ref when using checkout-backed `deploy_release`,
-- release vars such as `release.imageTag` when using `deploy_release`,
-- registry vars such as `imageRepository.project` when using `deploy_release`,
+- git ref when using checkout-backed `prepare_release_deploy`,
+- release vars such as `release.imageTag` when using
+  `prepare_release_deploy`,
+- registry vars such as `imageRepository.project` when using
+  `prepare_release_deploy`,
 - release image templates or a release artifact template when using
-  `deploy_release`,
-- required runtime files under `HIVEFORGE_PROJECT_DIR` when the release deploy
-  depends on copied files,
+  `prepare_release_deploy`,
+- required runtime files under `HIVEFORGE_BIND_SOURCE_DIR` when the release
+  deploy depends on managed bind-source files,
 - expected health/evidence check.
 
 Missing inputs are blockers. Do not guess project ids, refs, components,
 profiles, actions, or health checks.
+
+Use `explain_deploy_prerequisites` before `start_action` or
+`prepare_release_deploy` when a project/ref/component/action/profile is known.
+It reports manual prerequisites such as Docker volumes and secrets by name, plus
+HiveForge-managed prerequisites such as policy, approved refs, profile
+eligibility, and runtime env keys. It does not create missing resources.
 
 ## Evidence
 
@@ -98,7 +116,10 @@ Report:
 - environment id,
 - project id,
 - ref/release,
+- deployment id when available,
 - component,
+- recorded compose artifact digest/status when available,
+- live Docker runtime summary from `check_deployment_runtime_status`,
 - action,
 - profile,
 - operation id,

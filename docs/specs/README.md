@@ -38,6 +38,7 @@ Use it for:
 | `releases.md` | Target release-driven deployment contract for managed services. | Draft |
 | `journal/event.schema.json` | Append-only operation journal event contract. | Draft |
 | `journal/jsonl.md` | POC JSONL journal storage contract. | Draft |
+| `state/sqlite.md` | Durable SQLite current-state store contract. | Draft |
 | `runtime-container.md` | Self-contained deploy container runtime contract. | Draft |
 | `runtime-env.md` | Non-secret runtime environment variable storage and injection contract. | Draft |
 | `validation/runtime-requirements.md` | Runtime requirement validation contract. | Draft |
@@ -70,7 +71,7 @@ docs/specs/
 ## Open Questions
 
 - UI operator console contract.
-- Durable inventory backend after JSONL POC.
+- SQLite migration scope for journal/event history beyond current-state tables.
 
 ## Decisions Needed
 
@@ -81,11 +82,14 @@ docs/specs/
 - MCP server has only POC stdio coverage and still needs client integration
   smoke tests.
 - UI is POC-only and server-rendered/static for now.
-- No SQLite journal backend yet.
+- SQLite current-state backend exists for deployments; JSONL remains the journal
+  backend.
 
 ## Next Spec Work
 
-1. Implement release deploy/upgrade API and MCP operations from `releases.md`.
-2. Define repository bootstrap/edit tools for MCP.
-3. Extend UI operator console actions and failure states.
-4. Decide SQLite journal/inventory contract.
+1. Promote accepted 0.5.x MCP readiness changes from
+   `docs/ai/HIVEFORGE_0_5_PLAN.md` into `mcp/tools.md` and OpenAPI.
+2. Implement release deploy/upgrade API and MCP operations from `releases.md`.
+3. Define repository bootstrap/edit tools for MCP.
+4. Extend UI operator console actions and failure states.
+5. Decide whether journal/event history also moves into SQLite.

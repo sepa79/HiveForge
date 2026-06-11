@@ -8,6 +8,7 @@ export interface EnvironmentConfig {
 export interface EnvironmentDefinition {
   id: string;
   name: string;
+  description?: string;
   kind: "local-docker" | "docker" | "swarm";
   capabilities: EnvironmentCapabilities;
   nodes?: EnvironmentNode[];
@@ -27,12 +28,18 @@ export interface EnvironmentNode {
 export interface EnvironmentCapabilities {
   runtime: RuntimeCapability[];
   managedRoot: ManagedRootCapability;
+  bindSources?: BindSourceCapability;
   placement?: boolean;
 }
 
 export interface ManagedRootCapability {
   shared: boolean;
   nodes?: string[];
+  bindSourceRoot?: string;
+}
+
+export interface BindSourceCapability {
+  allowed: string[];
 }
 
 export interface EnvironmentPolicy {

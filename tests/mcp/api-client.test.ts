@@ -99,6 +99,108 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("reads runtime diagnostics through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { managedRoot: { visibilityStatus: "configured" } });
+      }
+    });
+
+    await expect(client.diagnoseHiveForgeRuntime()).resolves.toEqual({
+      managedRoot: { visibilityStatus: "configured" }
+    });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/diagnostics/runtime",
+      init: {
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
+  it("reads deployment compose through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { status: "present" });
+      }
+    });
+
+    await expect(client.getDeploymentCompose({ operationId: "op-1" })).resolves.toEqual({ status: "present" });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/deployments/op-1/compose",
+      init: {
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
+  it("checks deployment runtime status through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { summary: "missing" });
+      }
+    });
+
+    await expect(client.checkDeploymentRuntimeStatus({ deploymentId: "deployment-1" })).resolves.toEqual({
+      summary: "missing"
+    });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/deployments/runtime-status",
+      init: {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ deploymentId: "deployment-1" })
+      }
+    });
+  });
+
+  it("diagnoses deployments through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { state: { status: "present" } });
+      }
+    });
+
+    await expect(client.diagnoseDeployment({ deploymentId: "deployment-1" })).resolves.toEqual({
+      state: { status: "present" }
+    });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/deployments/diagnostics",
+      init: {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ deploymentId: "deployment-1" })
+      }
+    });
+  });
+
   it("maps REST errors without hiding the original message", async () => {
     const client = new HiveForgeApiClient({
       baseUrl: "http://127.0.0.1:3000",
@@ -131,14 +233,15 @@ describe("HiveForge MCP API client", () => {
       gitRef: "main",
       component: "api",
       action: "deploy",
-      profile: "test"
+      profile: "test",
+      deploymentName: "hivewatch-canary"
     });
 
     expect(calls[0]).toMatchObject({
       url: "http://127.0.0.1:3000/operations/projects/hivewatch-local/actions/api/deploy",
       init: {
         method: "POST",
-        body: JSON.stringify({ gitRef: "main", profile: "test" })
+        body: JSON.stringify({ gitRef: "main", profile: "test", deploymentName: "hivewatch-canary" })
       }
     });
   });
@@ -226,7 +329,7 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await client.deployRelease({
+    await client.prepareReleaseDeploy({
       projectId: "pockethive",
       component: "stack",
       action: "deploy",
@@ -284,6 +387,43 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("explains deploy prerequisites through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { ready: false });
+      }
+    });
+
+    await client.explainDeployPrerequisites({
+      projectId: "pockethive",
+      gitRef: "v1.2.3",
+      component: "stack",
+      action: "deploy",
+      profile: "swarm-reduced",
+      deploymentMode: "release",
+      releaseVars: { "release.imageTag": "dev-1" }
+    });
+
+    expect(calls[0]).toMatchObject({
+      url: "http://127.0.0.1:3000/projects/pockethive/deploy-prerequisites",
+      init: {
+        method: "POST",
+        body: JSON.stringify({
+          gitRef: "v1.2.3",
+          component: "stack",
+          action: "deploy",
+          profile: "swarm-reduced",
+          deploymentMode: "release",
+          releaseVars: { "release.imageTag": "dev-1" }
+        })
+      }
+    });
+  });
+
   it("can prepare release deployments from an artifact template", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({
@@ -295,7 +435,7 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await client.deployRelease({
+    await client.prepareReleaseDeploy({
       projectId: "pockethive",
       component: "stack",
       action: "deploy",
@@ -350,7 +490,7 @@ describe("HiveForge MCP API client", () => {
       }
     });
 
-    await client.deployRelease({
+    await client.prepareReleaseDeploy({
       projectId: "pockethive",
       gitRef: "v1.2.3",
       component: "stack",

@@ -307,7 +307,7 @@ environments report compatible capabilities.
 
 The next Proxmox smoke slice should test the simplified contract:
 
-- one HiveForge-managed root from `HIVEFORGE_DATA_ROOT`,
+- one HiveForge-managed root derived from the runtime root as `data/`,
 - portable profile matching on `runtime`, `managedRoot.shared`,
   `managedRoot.nodes`, and optionally `placement`,
 - registry aliases as deployment vars, not capabilities,

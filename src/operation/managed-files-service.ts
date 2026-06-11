@@ -6,6 +6,8 @@ export interface ManagedFilesResult {
   projectDir: string;
   stackDir: string;
   artifactsDir: string;
+  renderedComposeFile: string;
+  bindSourceDir?: string;
   projectHostDir?: string;
   stackHostDir?: string;
   artifactsHostDir?: string;
@@ -19,14 +21,18 @@ export interface ManagedFilesResult {
 export class ManagedFilesService {
   constructor(
     private readonly dataRoot: string,
-    private readonly hostDataRoot?: string
+    private readonly bindSourceRoot?: string
   ) {}
 
   async prepare(request: { projectId: string; workspacePath: string; registry: ProjectRegistry }): Promise<ManagedFilesResult> {
     const projectDir = path.join(this.dataRoot, "deployed", request.projectId);
     const stackDir = path.join(projectDir, "stacks");
     const artifactsDir = path.join(projectDir, "artifacts");
-    const projectHostDir = this.hostDataRoot ? path.join(this.hostDataRoot, "deployed", request.projectId) : undefined;
+    const renderedComposeFile = path.join(stackDir, "compose.yml");
+    const managedDataBindSourceRoot = this.bindSourceRoot ? path.join(this.bindSourceRoot, "data") : undefined;
+    const projectHostDir = managedDataBindSourceRoot
+      ? path.join(managedDataBindSourceRoot, "deployed", request.projectId)
+      : undefined;
     const stackHostDir = projectHostDir ? path.join(projectHostDir, "stacks") : undefined;
     const artifactsHostDir = projectHostDir ? path.join(projectHostDir, "artifacts") : undefined;
     const managedPaths = request.registry.artifacts?.managedPaths ?? [];
@@ -54,6 +60,8 @@ export class ManagedFilesService {
       projectDir,
       stackDir,
       artifactsDir,
+      renderedComposeFile,
+      ...(projectHostDir ? { bindSourceDir: projectHostDir } : {}),
       ...(projectHostDir ? { projectHostDir } : {}),
       ...(stackHostDir ? { stackHostDir } : {}),
       ...(artifactsHostDir ? { artifactsHostDir } : {}),
@@ -88,12 +96,8 @@ async function replaceDirectoryContents(source: string, target: string): Promise
 
 export function managedFilesEnvironment(result: ManagedFilesResult): NodeJS.ProcessEnv {
   return {
-    HIVEFORGE_PROJECT_DIR: result.projectDir,
-    HIVEFORGE_STACK_DIR: result.stackDir,
-    HIVEFORGE_ARTIFACTS_DIR: result.artifactsDir,
-    ...(result.projectHostDir ? { HIVEFORGE_PROJECT_HOST_DIR: result.projectHostDir } : {}),
-    ...(result.stackHostDir ? { HIVEFORGE_STACK_HOST_DIR: result.stackHostDir } : {}),
-    ...(result.artifactsHostDir ? { HIVEFORGE_ARTIFACTS_HOST_DIR: result.artifactsHostDir } : {})
+    HIVEFORGE_RENDERED_COMPOSE_FILE: result.renderedComposeFile,
+    ...(result.bindSourceDir ? { HIVEFORGE_BIND_SOURCE_DIR: result.bindSourceDir } : {})
   };
 }
 

@@ -5,9 +5,9 @@ Use these prompts when asking an AI agent to operate HiveForge.
 ## Prepare Install
 
 ```text
-Help me prepare a Docker Compose installation for HiveForge on Docker host <host>.
-Use deploy/docker-compose.assisted.example.yml as the base.
-Generate docker-compose.yml, projects.yaml, environments.yaml, and a short runbook.
+Help me prepare a Docker Compose or Portainer installation for HiveForge on host <host>.
+Use deploy/docker-compose.hiveforge.yml as the base.
+Generate docker-compose.hiveforge.yml, projects.yaml, environments.yaml, and a short runbook.
 Ask for missing host paths, token source, image tag, project registry, or environment policy.
 Do not invent secrets, registry entries, profiles, or actions.
 Do not run the installation unless I explicitly ask you to.
@@ -50,7 +50,7 @@ Do not use REST.
 ## Prepare Release Deployment
 
 ```text
-Use HiveForge MCP deploy_release to prepare a release deployment for project <project-id>,
+Use HiveForge MCP prepare_release_deploy to prepare a release deployment for project <project-id>,
 ref <ref>, component <component>, action <action>, profile <profile>.
 Use release.imageTag=<tag> and imageRepository.project=<registry/namespace>.
 Use a release artifact template when available instead of manually inventing image lists.

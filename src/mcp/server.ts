@@ -9,6 +9,7 @@ import { HiveForgeApiClient } from "./api-client.js";
 import { createHiveForgeMcpRuntime } from "./runtime.js";
 
 const lifecycleAction = z.enum(["deploy", "remove", "purge", "update", "upgrade"]);
+const dockerDeploymentName = z.string().regex(/^[a-z][a-z0-9-]*$/);
 const runtimeEnvValues = z.record(z.string().regex(/^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$/), z.string());
 const runtimeEnvKeys = z.array(z.string().regex(/^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$/)).min(1);
 const releaseVarsSchema = z.record(z.string().min(1), z.string());
@@ -123,6 +124,58 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "diagnose_hiveforge_runtime",
+    {
+      title: "Diagnose HiveForge runtime",
+      description:
+        "Read HiveForge runtime-root, derived path, and managed-root mapping diagnostics without exposing secrets.",
+      inputSchema: {}
+    },
+    runtime.diagnoseHiveForgeRuntime
+  );
+
+  server.registerTool(
+    "check_deployment_runtime_status",
+    {
+      title: "Check deployment runtime status",
+      description:
+        "Inspect Docker containers/services matching the HiveForge deployment label.",
+      inputSchema: {
+        deploymentId: z.string().min(1).optional(),
+        projectId: z.string().min(1).optional(),
+        component: z.string().min(1).optional(),
+        profile: z.string().min(1).optional()
+      }
+    },
+    runtime.checkDeploymentRuntimeStatus
+  );
+
+  server.registerTool(
+    "diagnose_deployment",
+    {
+      title: "Diagnose deployment",
+      description:
+        "Return one debug view with HiveForge deployment state, Docker runtime status, recorded compose, compose bind-source validation, and HiveForge path diagnostics.",
+      inputSchema: {
+        deploymentId: z.string().min(1)
+      }
+    },
+    runtime.diagnoseDeployment
+  );
+
+  server.registerTool(
+    "get_deployment_compose",
+    {
+      title: "Get deployment compose",
+      description: "Read the recorded Compose/Stack artifact for one deployment operation without re-rendering source.",
+      inputSchema: {
+        operationId: z.string().min(1)
+      }
+    },
+    runtime.getDeploymentCompose
+  );
+
+  server.registerTool(
     "inspect_repository",
     {
       title: "Inspect a candidate repository",
@@ -218,6 +271,28 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "explain_deploy_prerequisites",
+    {
+      title: "Explain deploy prerequisites",
+      description:
+        "Return a read-only checklist of manual and HiveForge-managed prerequisites before start_action or prepare_release_deploy.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        gitRef: z.string().min(1),
+        component: z.string().min(1),
+        action: lifecycleAction,
+        profile: z.string().min(1).optional(),
+        deploymentMode: z.enum(["action", "release"]).optional(),
+        vars: releaseVarsSchema.optional(),
+        releaseVars: releaseVarsSchema.optional(),
+        images: z.array(releaseImageSchema).min(1).optional(),
+        artifact: releaseArtifactSchema.optional()
+      }
+    },
+    runtime.explainDeployPrerequisites
+  );
+
+  server.registerTool(
     "validate_requirements",
     {
       title: "Validate project requirements",
@@ -241,14 +316,15 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
         gitRef: z.string().min(1),
         component: z.string().min(1),
         action: lifecycleAction,
-        profile: z.string().min(1).optional()
+        profile: z.string().min(1).optional(),
+        deploymentName: dockerDeploymentName.optional()
       }
     },
     runtime.startAction
   );
 
   server.registerTool(
-    "deploy_release",
+    "prepare_release_deploy",
     {
       title: "Prepare a release deployment",
       description:
@@ -271,7 +347,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
         requiredFiles: z.array(z.string().min(1)).optional()
       }
     },
-    runtime.deployRelease
+    runtime.prepareReleaseDeploy
   );
 
   server.registerTool(

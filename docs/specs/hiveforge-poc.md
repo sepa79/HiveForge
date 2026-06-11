@@ -179,7 +179,8 @@ UI:
 5. HiveForge rejects a listed component if its component manifest is missing.
 6. HiveForge validates declared volumes, secrets, environment variables, and
    action files before deployment.
-7. HiveForge runs a declared Ansible `deploy` action for one HiveWatch component.
+7. HiveForge runs a declared Ansible render/preparation action for one HiveWatch
+   component, then performs the Docker deploy step itself.
 8. HiveForge records start time, end time, target ref, action, result, and reason
    in an append-only journal.
 9. API, UI, MCP output, and journal entries do not expose secret values.

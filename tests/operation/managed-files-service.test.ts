@@ -25,9 +25,7 @@ describe("managed files service", () => {
     );
     await expect(readFile(path.join(dataRoot, "deployed/hivewatch/artifacts/config/old.yml"), "utf8")).rejects.toThrow();
     expect(managedFilesEnvironment(result)).toEqual({
-      HIVEFORGE_PROJECT_DIR: path.join(dataRoot, "deployed/hivewatch"),
-      HIVEFORGE_STACK_DIR: path.join(dataRoot, "deployed/hivewatch/stacks"),
-      HIVEFORGE_ARTIFACTS_DIR: path.join(dataRoot, "deployed/hivewatch/artifacts")
+      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(dataRoot, "deployed/hivewatch/stacks/compose.yml")
     });
   });
 
@@ -53,26 +51,22 @@ describe("managed files service", () => {
     await expect(readFile(path.join(target, "old.txt"), "utf8")).rejects.toThrow();
   });
 
-  it("exposes host-visible managed paths when a host data root is configured", async () => {
+  it("derives host-visible managed paths under data when a bind source root is configured", async () => {
     const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-managed-workspace-"));
     const dataRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-managed-data-"));
-    const hostDataRoot = "/srv/hiveforge/data";
+    const bindSourceRoot = "/srv/hiveforge";
     await mkdir(path.join(workspace, "deploy/config"), { recursive: true });
     await writeFile(path.join(workspace, "deploy/config/app.yml"), "mode: poc\n");
 
-    const result = await new ManagedFilesService(dataRoot, hostDataRoot).prepare({
+    const result = await new ManagedFilesService(dataRoot, bindSourceRoot).prepare({
       projectId: "hivewatch",
       workspacePath: workspace,
       registry: registry([{ name: "api-config", source: "deploy/config", target: "artifacts/config", mode: "replace" }])
     });
 
     expect(managedFilesEnvironment(result)).toEqual({
-      HIVEFORGE_PROJECT_DIR: path.join(dataRoot, "deployed/hivewatch"),
-      HIVEFORGE_STACK_DIR: path.join(dataRoot, "deployed/hivewatch/stacks"),
-      HIVEFORGE_ARTIFACTS_DIR: path.join(dataRoot, "deployed/hivewatch/artifacts"),
-      HIVEFORGE_PROJECT_HOST_DIR: "/srv/hiveforge/data/deployed/hivewatch",
-      HIVEFORGE_STACK_HOST_DIR: "/srv/hiveforge/data/deployed/hivewatch/stacks",
-      HIVEFORGE_ARTIFACTS_HOST_DIR: "/srv/hiveforge/data/deployed/hivewatch/artifacts"
+      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(dataRoot, "deployed/hivewatch/stacks/compose.yml"),
+      HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch"
     });
   });
 

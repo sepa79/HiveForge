@@ -12,47 +12,47 @@ describe("runtime auth token", () => {
     });
   });
 
-  it("does not create a base dir token file when an environment token is set", async () => {
-    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
-    const tokenPath = path.join(baseDir, "auth-token");
+  it("does not create a runtime-root token file when an environment token is set", async () => {
+    const runtimeRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
+    const tokenPath = path.join(runtimeRoot, "auth-token");
 
-    await expect(resolveAuthToken({ authToken: "operator-token", baseDir })).resolves.toEqual({
+    await expect(resolveAuthToken({ authToken: "operator-token", runtimeRoot })).resolves.toEqual({
       authToken: "operator-token",
       source: "environment"
     });
     await expect(stat(tokenPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("reports an ignored base dir token file when an environment token is set", async () => {
-    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
-    const tokenPath = path.join(baseDir, "auth-token");
+  it("reports an ignored runtime-root token file when an environment token is set", async () => {
+    const runtimeRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
+    const tokenPath = path.join(runtimeRoot, "auth-token");
     await writeFile(tokenPath, "stored-token\n", "utf8");
 
-    await expect(resolveAuthToken({ authToken: "operator-token", baseDir })).resolves.toEqual({
+    await expect(resolveAuthToken({ authToken: "operator-token", runtimeRoot })).resolves.toEqual({
       authToken: "operator-token",
       source: "environment",
       ignoredTokenPath: tokenPath
     });
   });
 
-  it("reads an existing base dir token", async () => {
-    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
-    const tokenPath = path.join(baseDir, "auth-token");
+  it("reads an existing runtime-root token", async () => {
+    const runtimeRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
+    const tokenPath = path.join(runtimeRoot, "auth-token");
     await writeFile(tokenPath, "stored-token\n", "utf8");
 
-    await expect(resolveAuthToken({ baseDir })).resolves.toEqual({
+    await expect(resolveAuthToken({ runtimeRoot })).resolves.toEqual({
       authToken: "stored-token",
       source: "file",
       tokenPath
     });
   });
 
-  it("generates a durable token when base dir has no token", async () => {
-    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
-    const tokenPath = path.join(baseDir, "auth-token");
+  it("generates a durable token when runtime root has no token", async () => {
+    const runtimeRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-auth-"));
+    const tokenPath = path.join(runtimeRoot, "auth-token");
 
-    const first = await resolveAuthToken({ baseDir });
-    const second = await resolveAuthToken({ baseDir });
+    const first = await resolveAuthToken({ runtimeRoot });
+    const second = await resolveAuthToken({ runtimeRoot });
 
     expect(first.source).toBe("generated");
     expect(first.tokenPath).toBe(tokenPath);
@@ -66,7 +66,7 @@ describe("runtime auth token", () => {
     expect((await stat(tokenPath)).mode & 0o777).toBe(0o644);
   });
 
-  it("requires an explicit token outside base dir mode", async () => {
+  it("requires an explicit token outside runtime-root mode", async () => {
     await expect(resolveAuthToken({})).rejects.toThrow("Missing required environment variable: HIVEFORGE_AUTH_TOKEN");
   });
 });

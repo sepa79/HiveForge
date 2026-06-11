@@ -76,6 +76,39 @@
     "reason": {
       "type": "string",
       "minLength": 1
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path", "mediaType", "sha256", "bytes", "recordedAt"],
+        "properties": {
+          "name": {
+            "enum": ["compose"]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
     }
   },
   "allOf": [

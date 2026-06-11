@@ -270,7 +270,9 @@ const state = {
   token: localStorage.getItem(TOKEN_KEY) || "",
   environment: null,
   projects: [],
+  inspectedComponents: [],
   deployments: [],
+  operations: [],
   journal: [],
   selectedProject: "",
   selectedComponent: "",
@@ -280,6 +282,7 @@ const state = {
   view: "home",
   busy: false,
   environmentRefreshing: false,
+  hiveforgeUpdating: false,
   operation: null,
   operationPoll: null,
   message: null,
@@ -312,20 +315,23 @@ async function refreshAll(options = {}) {
   }
   state.error = null;
   try {
-    const [environments, projects, deployments, journal] = await Promise.all([
+    const [environments, projects, deployments, operations, journal] = await Promise.all([
       api("/environments"),
       api("/projects"),
       api("/deployments"),
+      api("/operations"),
       api("/journal")
     ]);
     state.environment = environments.current;
     state.projects = projects.projects;
     state.deployments = deployments.deployments;
+    state.operations = operations.operations;
     state.journal = journal.events.slice().reverse();
     const policyProject = state.environment?.policy?.projects?.[0];
     state.selectedProject ||= policyProject?.id || state.projects[0]?.id || "";
     state.selectedProfile ||= policyProject?.profiles?.[0] || "";
-    state.selectedAction = policyProject?.actions?.includes(state.selectedAction) ? state.selectedAction : policyProject?.actions?.[0] || "deploy";
+    const actions = availableActionsForSelectedComponent(policyProject);
+    state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || "deploy";
   } catch (error) {
     state.error = error instanceof Error ? error.message : "Request failed";
   }
@@ -351,21 +357,27 @@ async function inspectSelectedProject() {
       method: "POST",
       body: JSON.stringify({ gitRef: state.selectedRef })
     });
-    state.selectedComponent = result.components[0] || state.selectedComponent;
+    state.inspectedComponents = result.components;
+    state.selectedComponent = result.components[0]?.name || state.selectedComponent;
+    const actions = availableActionsForSelectedComponent();
+    state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || state.selectedAction;
     state.message = \`Inspection loaded \${result.components.length} component(s).\`;
-    state.operation = {
-      ...state.operation,
-      status: "succeeded",
-      title: \`Inspection completed: \${result.operationId}\`,
-      steps: [{ label: \`Loaded \${result.components.length} component(s): \${result.components.join(", ") || "none"}\`, state: "done" }]
-    };
+    await refreshAll({ render: false });
+    state.operation = await api(\`/operations/\${encodeURIComponent(result.operationId)}\`);
   } catch (error) {
-    state.error = error instanceof Error ? error.message : "Inspection failed";
-    state.operation = {
+    const message = error instanceof Error ? error.message : "Inspection failed";
+    await refreshAll({ render: false });
+    state.error = message;
+    state.operation = state.operations.find((operation) =>
+      operation.kind === "project_inspection" &&
+      operation.projectId === state.selectedProject &&
+      operation.gitRef === state.selectedRef &&
+      operation.status === "failed"
+    ) || {
       ...state.operation,
       status: "failed",
       title: "Inspection failed",
-      steps: [{ label: state.error, state: "failed" }]
+      steps: [{ label: message, state: "failed" }]
     };
   }
   render();
@@ -389,6 +401,33 @@ async function refreshEnvironmentInventory() {
     state.error = error instanceof Error ? error.message : "Environment refresh failed";
   } finally {
     state.environmentRefreshing = false;
+    render();
+  }
+}
+
+async function updateHiveForge() {
+  if (!state.token) {
+    state.error = "API token is required to update HiveForge.";
+    render();
+    return;
+  }
+  state.hiveforgeUpdating = true;
+  state.error = null;
+  state.message = null;
+  render();
+  try {
+    const result = await api("/hiveforge/update", { method: "POST" });
+    if (result.status === "no_release") {
+      state.message = "No published HiveForge release found on GitHub.";
+    } else if (result.status === "up_to_date") {
+      state.message = \`HiveForge is up to date: v\${result.currentVersion}.\`;
+    } else {
+      state.message = \`HiveForge update started: v\${result.currentVersion} -> \${result.latestTag}. Refresh after the container restarts.\`;
+    }
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : "HiveForge update failed";
+  } finally {
+    state.hiveforgeUpdating = false;
     render();
   }
 }
@@ -460,8 +499,10 @@ function renderDeployments() {
     return \`<div class="notice muted">No deployments recorded for this environment.</div>\`;
   }
   return \`<div class="tableWrap"><table class="table">
-    <thead><tr><th>Project</th><th>Component</th><th>Profile</th><th>Status</th><th>Ref</th><th>Last action</th><th>Updated</th></tr></thead>
+    <thead><tr><th>Deployment</th><th>Runtime name</th><th>Project</th><th>Component</th><th>Profile</th><th>Status</th><th>Ref</th><th>Last action</th><th>Updated</th></tr></thead>
     <tbody>\${state.deployments.map((item) => \`<tr>
+      <td class="mono">\${escapeHtml(item.deploymentId)}</td>
+      <td class="mono">\${escapeHtml(item.deploymentName || item.project)}</td>
       <td><strong>\${escapeHtml(item.project)}</strong></td>
       <td>\${escapeHtml(item.component)}</td>
       <td>\${escapeHtml(item.profile || "—")}</td>
@@ -484,6 +525,23 @@ function renderJournal() {
       <td>\${escapeHtml(event.action || "—")}</td>
       <td>\${pill(event.status, event.status === "succeeded" ? "ok" : "alert")}</td>
       <td class="muted">\${escapeHtml(event.reason)}</td>
+    </tr>\`).join("")}</tbody>
+  </table></div>\`;
+}
+
+function renderOperationHistory() {
+  const operations = state.operations.slice(0, state.view === "operations" ? 50 : 10);
+  if (!operations.length) return \`<div class="notice muted">No operations recorded by this HiveForge process.</div>\`;
+  return \`<div class="tableWrap"><table class="table">
+    <thead><tr><th>Operation</th><th>Kind</th><th>Target</th><th>Status</th><th>Ref</th><th>Started</th><th>Result</th></tr></thead>
+    <tbody>\${operations.map((operation) => \`<tr>
+      <td class="mono">\${escapeHtml(operation.operationId)}</td>
+      <td>\${escapeHtml(operationKindLabel(operation.kind))}</td>
+      <td>\${escapeHtml(operationTarget(operation))}</td>
+      <td>\${pill(operation.status, operation.status === "succeeded" ? "ok" : operation.status === "failed" ? "alert" : "warn")}</td>
+      <td class="mono">\${escapeHtml(operation.gitRef || "—")}</td>
+      <td class="muted">\${escapeHtml(operation.startedAt)}</td>
+      <td class="muted">\${escapeHtml(operation.error || operation.endedAt || "running")}</td>
     </tr>\`).join("")}</tbody>
   </table></div>\`;
 }
@@ -555,7 +613,7 @@ function renderOverview() {
       <div class="card metric"><div class="metricLabel">Environment</div><div class="metricValue" style="font-size:18px">\${escapeHtml(current?.name || "—")}</div></div>
       <div class="card metric"><div class="metricLabel">Deployments</div><div class="metricValue">\${state.deployments.length}</div></div>
       <div class="card metric"><div class="metricLabel">Projects</div><div class="metricValue">\${state.projects.length}</div></div>
-      <div class="card metric"><div class="metricLabel">Journal events</div><div class="metricValue">\${state.journal.length}</div></div>
+      <div class="card metric"><div class="metricLabel">Operations</div><div class="metricValue">\${state.operations.length}</div></div>
     </div>
     <section class="card"><div class="cardHeader"><h2 class="h2">Node inventory</h2><button class="button" id="refreshEnvironmentButton" type="button" \${state.environmentRefreshing || !state.token ? "disabled" : ""}>\${state.environmentRefreshing ? "Refreshing..." : "Refresh nodes"}</button></div><div class="cardBody">\${renderEnvironmentNodes()}</div></section>
     <section class="card"><div class="cardHeader"><h2 class="h2">Projects and policy</h2></div><div class="cardBody">\${renderProjects()}</div></section>
@@ -566,7 +624,7 @@ function renderActionForm() {
   const projectPolicy = currentPolicyProject();
   const projects = state.projects;
   const profiles = projectPolicy?.profiles || [];
-  const actions = projectPolicy?.actions || ACTIONS;
+  const actions = availableActionsForSelectedComponent(projectPolicy);
   return \`<div class="grid">
   <div class="card">
     <div class="cardHeader"><h2 class="h2">Lifecycle action</h2><span class="muted2">current policy enforced</span></div>
@@ -598,13 +656,14 @@ function pageTitle() {
   if (state.view === "home") return "Home";
   if (state.view === "deployments") return "Deployments";
   if (state.view === "actions") return "Lifecycle Actions";
+  if (state.view === "operations") return "Operations";
   if (state.view === "journal") return "Journal";
   return "Overview";
 }
 
 function pageSubtitle() {
   if (state.view === "home") return "Deployment control plane for explicit Docker and Swarm project actions.";
-  return state.environment ? state.environment.name : "Connect with the REST bearer token.";
+  return state.environment ? state.environment.description || state.environment.name : "Connect with the REST bearer token.";
 }
 
 function renderHome() {
@@ -632,6 +691,9 @@ function renderCurrentView() {
   if (state.view === "actions") {
     return renderActionForm();
   }
+  if (state.view === "operations") {
+    return \`<section class="card"><div class="cardHeader"><h2 class="h2">Operations</h2><span class="muted2">process-local inspect, register, and lifecycle attempts</span></div><div class="cardBody">\${renderOperationHistory()}</div></section>\`;
+  }
   if (state.view === "journal") {
     return \`<section class="card"><div class="cardHeader"><h2 class="h2">Journal</h2><span class="muted2">durable audit events</span></div><div class="cardBody">\${renderJournal()}</div></section>\`;
   }
@@ -655,6 +717,7 @@ function render() {
       <div class="topBarRight">
         <span class="muted mono">v\${escapeHtml(HIVEFORGE_INFO.version)}</span>
         \${state.token ? pill("API token set", "ok") : pill("API token missing", "alert")}
+        <button class="button" id="updateHiveForgeButton" type="button" \${state.hiveforgeUpdating || !state.token ? "disabled" : ""}>\${state.hiveforgeUpdating ? "Updating HF..." : "Update HF"}</button>
         <button class="button" id="refreshButton" type="button">Refresh</button>
       </div>
     </div></header>
@@ -665,6 +728,7 @@ function render() {
         \${navItem("overview", "O", "Overview")}
         \${navItem("deployments", "D", "Deployments")}
         \${navItem("actions", "A", "Actions")}
+        \${navItem("operations", "P", "Operations")}
         \${navItem("journal", "J", "Journal")}
       </div>
     </aside>
@@ -686,6 +750,7 @@ function render() {
 
   document.getElementById("refreshButton")?.addEventListener("click", refreshAll);
   document.getElementById("refreshEnvironmentButton")?.addEventListener("click", refreshEnvironmentInventory);
+  document.getElementById("updateHiveForgeButton")?.addEventListener("click", updateHiveForge);
   document.querySelectorAll("[data-view]").forEach((element) => {
     element.addEventListener("click", (event) => {
       state.view = event.currentTarget.getAttribute("data-view") || "overview";
@@ -700,15 +765,46 @@ function render() {
     state.selectedProject = event.target.value;
     const policy = currentPolicyProject();
     state.selectedProfile = policy?.profiles?.[0] || "";
-    state.selectedAction = policy?.actions?.[0] || "deploy";
+    state.inspectedComponents = [];
+    state.selectedComponent = "";
+    const actions = availableActionsForSelectedComponent(policy);
+    state.selectedAction = actions[0] || "deploy";
     render();
   });
   document.getElementById("refInput")?.addEventListener("change", (event) => { state.selectedRef = event.target.value.trim(); });
-  document.getElementById("componentInput")?.addEventListener("change", (event) => { state.selectedComponent = event.target.value.trim(); });
+  document.getElementById("componentInput")?.addEventListener("change", (event) => {
+    state.selectedComponent = event.target.value.trim();
+    const actions = availableActionsForSelectedComponent();
+    state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || state.selectedAction;
+    render();
+  });
   document.getElementById("profileSelect")?.addEventListener("change", (event) => { state.selectedProfile = event.target.value; });
   document.getElementById("actionSelect")?.addEventListener("change", (event) => { state.selectedAction = event.target.value; });
   document.getElementById("inspectButton")?.addEventListener("click", inspectSelectedProject);
   document.getElementById("runButton")?.addEventListener("click", runLifecycleAction);
+}
+
+function componentNames(components) {
+  return components.map((component) => component.name);
+}
+
+function operationKindLabel(kind) {
+  return String(kind || "operation").replaceAll("_", " ");
+}
+
+function operationTarget(operation) {
+  if (operation.projectId) {
+    return operation.component ? \`\${operation.projectId}/\${operation.component}\` : operation.projectId;
+  }
+  return operation.repository || "—";
+}
+
+function availableActionsForSelectedComponent(policyProject = currentPolicyProject()) {
+  const inspectedComponent = state.inspectedComponents.find((component) => component.name === state.selectedComponent);
+  if (inspectedComponent) {
+    return inspectedComponent.actions;
+  }
+  return policyProject?.actions || ACTIONS;
 }
 
 render();

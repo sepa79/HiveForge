@@ -95,14 +95,17 @@ describe("UI routes", () => {
     expect(body).toContain("validates manifests and requirements");
   });
 
-  it("uses the human environment name in page headers instead of raw id or kind fields", async () => {
+  it("uses human environment metadata in page headers instead of raw id or kind fields", async () => {
     const baseUrl = await startServer();
 
     const script = await fetch(`${baseUrl}/ui/app.js`);
     const body = await script.text();
 
     expect(script.status).toBe(200);
-    expect(body).toContain('state.environment ? state.environment.name : "Connect with the REST bearer token."');
+    expect(body).toContain(
+      'state.environment ? state.environment.description || state.environment.name : "Connect with the REST bearer token."'
+    );
+    expect(body).toContain("Environment / ${escapeHtml(current.name)}");
     expect(body).not.toContain("state.environment.kind");
     expect(body).not.toContain("state.environment?.id");
     expect(body).not.toContain("pageMeta");
@@ -118,6 +121,34 @@ describe("UI routes", () => {
     expect(body).toContain("refreshEnvironmentButton");
     expect(body).toContain("Refresh nodes");
     expect(body).toContain('api("/environments/refresh", { method: "POST" })');
+  });
+
+  it("exposes a topbar button for HiveForge self-update", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain("updateHiveForgeButton");
+    expect(body).toContain("Update HF");
+    expect(body).toContain('api("/hiveforge/update", { method: "POST" })');
+    expect(body).toContain("No published HiveForge release found");
+    expect(body).toContain("HiveForge update started");
+  });
+
+  it("uses inspected component action subsets for the lifecycle action selector", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain("inspectedComponents: []");
+    expect(body).toContain("function availableActionsForSelectedComponent");
+    expect(body).toContain("const inspectedComponent = state.inspectedComponents.find");
+    expect(body).toContain("state.inspectedComponents = result.components");
+    expect(body).toContain("state.selectedComponent = result.components[0]?.name");
   });
 });
 

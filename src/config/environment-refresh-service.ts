@@ -40,6 +40,7 @@ export class EnvironmentRefreshService {
     const refreshed: EnvironmentDefinition = {
       ...detected,
       name: current.name,
+      ...(current.description ? { description: current.description } : {}),
       capabilities: {
         ...detected.capabilities,
         managedRoot: current.capabilities.managedRoot

@@ -42,6 +42,39 @@ paths:
                 properties:
                   hiveforge:
                     $ref: "#/components/schemas/HiveForgeInfo"
+  /hiveforge/update:
+    get:
+      summary: Check whether a newer HiveForge release is available
+      operationId: checkHiveForgeUpdate
+      responses:
+        "200":
+          description: HiveForge update check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelfUpdateCheckResult"
+        "400":
+          description: HiveForge update check failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: Start HiveForge self-update to the latest released image
+      operationId: startHiveForgeUpdate
+      responses:
+        "200":
+          description: HiveForge self-update accepted or already current
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelfUpdateStartResult"
+        "400":
+          description: HiveForge self-update failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /projects:
     get:
       summary: List registered projects
@@ -238,9 +271,86 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Deployment"
+  /deployments/runtime-status:
+    post:
+      summary: Check live Docker runtime status for a labelled deployment
+      description: >
+        Looks up Docker containers and, on Swarm environments, services by the
+        single HiveForge deployment label only. This endpoint does not
+        infer deployment ownership from names.
+      operationId: checkDeploymentRuntimeStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
+      responses:
+        "200":
+          description: Live runtime status for matching Docker objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentRuntimeStatusResult"
+  /deployments/diagnostics:
+    post:
+      summary: Diagnose one deployment across HiveForge state, Docker, compose, and runtime paths
+      description: >
+        Aggregates explicit HiveForge state, Docker runtime status selected by
+        hiveforge.deployment label, the recorded compose artifact, compose
+        bind-source validation, and HiveForge runtime diagnostics. This endpoint
+        does not infer ownership from Docker object names and does not re-render
+        compose from source.
+      operationId: diagnoseDeployment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
+      responses:
+        "200":
+          description: Deployment diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentDiagnosticsResult"
+  /deployments/{operationId}/compose:
+    get:
+      summary: Read the rendered compose artifact recorded for an operation
+      description: >
+        Returns the compose artifact recorded in the action journal. HiveForge
+        does not re-render compose from current source when no artifact exists.
+        Secret-looking lines are redacted before response content is returned.
+      operationId: getDeploymentCompose
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Recorded rendered compose artifact, or an explicit missing result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentComposeResult"
+  /diagnostics/runtime:
+    get:
+      summary: Diagnose HiveForge runtime paths and managed-root mapping
+      operationId: diagnoseHiveForgeRuntime
+      responses:
+        "200":
+          description: Runtime diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeDiagnosticsReport"
   /operations:
     get:
-      summary: List lifecycle operations retained by this HiveForge process
+      summary: List operations retained by this HiveForge process
       operationId: listOperations
       responses:
         "200":
@@ -305,7 +415,7 @@ paths:
   /operations/projects/{projectId}/releases/{component}/{action}:
     post:
       summary: Prepare a release/image-tag deployment plan
-      description: Internal transport for MCP deploy_release. This validates and resolves release inputs but does not execute deployment actions.
+      description: Internal transport for MCP prepare_release_deploy. This validates and resolves release inputs but does not execute deployment actions.
       operationId: prepareReleaseDeployment
       parameters:
         - $ref: "#/components/parameters/projectId"
@@ -370,6 +480,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationResult"
+  /projects/{projectId}/deploy-prerequisites:
+    post:
+      summary: Explain deploy prerequisites without provisioning resources
+      operationId: explainDeployPrerequisites
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeployPrerequisitesRequest"
+      responses:
+        "200":
+          description: Deploy prerequisites checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeployPrerequisitesReport"
   /projects/{projectId}/actions/{component}/{action}:
     post:
       summary: Checkout, inspect, validate, and run a declared component action
@@ -437,6 +566,49 @@ components:
           type: string
         version:
           type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+    SelfUpdateMode:
+      type: string
+      enum: [docker-compose, swarm-service]
+    SelfUpdateCheckResult:
+      type: object
+      additionalProperties: false
+      required: [currentVersion, releasePublished, updateAvailable]
+      properties:
+        currentVersion:
+          type: string
+        releasePublished:
+          type: boolean
+        latestVersion:
+          type: string
+        latestTag:
+          type: string
+        releaseUrl:
+          type: string
+        updateAvailable:
+          type: boolean
+    SelfUpdateStartResult:
+      allOf:
+        - $ref: "#/components/schemas/SelfUpdateCheckResult"
+        - type: object
+          additionalProperties: false
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [no_release, up_to_date, started]
+            mode:
+              $ref: "#/components/schemas/SelfUpdateMode"
+            targetImage:
+              type: string
+            helperContainerId:
+              type: string
     Identifier:
       type: string
       pattern: "^[a-z][a-z0-9-]*$"
@@ -479,6 +651,83 @@ components:
           minLength: 1
         profile:
           $ref: "#/components/schemas/Identifier"
+        deploymentName:
+          $ref: "#/components/schemas/Identifier"
+    DeployPrerequisitesRequest:
+      type: object
+      additionalProperties: false
+      required: [gitRef, component, action]
+      properties:
+        gitRef:
+          type: string
+          minLength: 1
+        component:
+          $ref: "#/components/schemas/Identifier"
+        action:
+          $ref: "#/components/schemas/LifecycleAction"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        deploymentMode:
+          type: string
+          enum: [action, release]
+        vars:
+          type: object
+          additionalProperties:
+            type: string
+        releaseVars:
+          type: object
+          additionalProperties:
+            type: string
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReleaseImageTemplate"
+        artifact:
+          $ref: "#/components/schemas/ReleaseArtifactTemplate"
+    PrerequisiteItem:
+      type: object
+      additionalProperties: false
+      required: [type, status, reason]
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+          enum: [present, missing, unknown, not_applicable]
+        required:
+          type: string
+        reason:
+          type: string
+    DeployPrerequisitesReport:
+      type: object
+      additionalProperties: false
+      required: [ready, manualPrerequisites, hiveforgePrerequisites, releasePrerequisites]
+      properties:
+        ready:
+          type: boolean
+        environment:
+          type: object
+          additionalProperties: false
+          required: [id, name, kind]
+          properties:
+            id:
+              $ref: "#/components/schemas/Identifier"
+            name:
+              type: string
+            kind:
+              type: string
+        manualPrerequisites:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrerequisiteItem"
+        hiveforgePrerequisites:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrerequisiteItem"
+        releasePrerequisites:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrerequisiteItem"
     RuntimeEnvName:
       type: string
       pattern: "^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$"
@@ -601,7 +850,7 @@ components:
           $ref: "#/components/schemas/ReleaseArtifactTemplate"
         requiredFiles:
           type: array
-          description: Runtime files that must exist under HIVEFORGE_PROJECT_DIR after managedPaths preparation.
+          description: Runtime files that must exist under the managed project root after managedPaths preparation.
           items:
             type: string
             minLength: 1
@@ -707,6 +956,8 @@ components:
           $ref: "#/components/schemas/Identifier"
         name:
           type: string
+        description:
+          type: string
         kind:
           type: string
           enum: [local-docker, docker, swarm]
@@ -742,6 +993,8 @@ components:
           uniqueItems: true
         managedRoot:
           $ref: "#/components/schemas/ManagedRootCapability"
+        bindSources:
+          $ref: "#/components/schemas/BindSourceCapability"
         placement:
           type: boolean
     EnvironmentNode:
@@ -778,6 +1031,380 @@ components:
           items:
             type: string
           uniqueItems: true
+        bindSourceRoot:
+          type: string
+    BindSourceCapability:
+      type: object
+      additionalProperties: false
+      required: [allowed]
+      properties:
+        allowed:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+    PathDiagnostic:
+      type: object
+      additionalProperties: false
+      required: [path, status, readable, writable]
+      properties:
+        path:
+          type: string
+        status:
+          type: string
+          enum: [present, missing, inaccessible]
+        readable:
+          type: boolean
+        writable:
+          type: boolean
+        reason:
+          type: string
+    RuntimeDiagnosticsReport:
+      type: object
+      additionalProperties: false
+      required: [derivedPaths, managedRoot, actionContractPaths]
+      properties:
+        runtimeRoot:
+          $ref: "#/components/schemas/PathDiagnostic"
+        derivedPaths:
+          type: object
+          additionalProperties: false
+          required: [registry, workspace, journal, dataRoot, runtimeEnv, stateDb]
+          properties:
+            registry:
+              $ref: "#/components/schemas/PathDiagnostic"
+            environments:
+              $ref: "#/components/schemas/PathDiagnostic"
+            workspace:
+              $ref: "#/components/schemas/PathDiagnostic"
+            journal:
+              $ref: "#/components/schemas/PathDiagnostic"
+            dataRoot:
+              $ref: "#/components/schemas/PathDiagnostic"
+            runtimeEnv:
+              $ref: "#/components/schemas/PathDiagnostic"
+            stateDb:
+              $ref: "#/components/schemas/PathDiagnostic"
+        environment:
+          type: object
+          additionalProperties: false
+          required: [id, name, kind]
+          properties:
+            id:
+              $ref: "#/components/schemas/Identifier"
+            name:
+              type: string
+            kind:
+              type: string
+        managedRoot:
+          type: object
+          additionalProperties: false
+          required: [controlPlanePath, shared, visibilityStatus, reason]
+          properties:
+            controlPlanePath:
+              type: string
+            bindSourceRoot:
+              type: string
+            managedDataBindSourceRoot:
+              type: string
+            shared:
+              type: boolean
+            nodes:
+              type: array
+              items:
+                type: string
+            visibilityStatus:
+              type: string
+              enum: [configured, unknown]
+            reason:
+              type: string
+        actionContractPaths:
+          type: object
+          additionalProperties: false
+          required: [exposedToProjectActions, hiddenFromProjectActions]
+          properties:
+            exposedToProjectActions:
+              type: array
+              items:
+                type: string
+            hiddenFromProjectActions:
+              type: array
+              items:
+                type: string
+    DeploymentRuntimeStatusRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        deploymentId:
+          type: string
+          minLength: 1
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        component:
+          $ref: "#/components/schemas/Identifier"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+      anyOf:
+        - required: [deploymentId]
+        - required: [projectId, component]
+    DeploymentRuntimeStatusResult:
+      type: object
+      additionalProperties: false
+      required: [summary, requiredLabels, containers, services]
+      properties:
+        deploymentId:
+          type: string
+        deploymentName:
+          $ref: "#/components/schemas/Identifier"
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        component:
+          $ref: "#/components/schemas/Identifier"
+        profile:
+          $ref: "#/components/schemas/Identifier"
+        summary:
+          type: string
+          enum: [running, unhealthy, exited, missing, unknown]
+        requiredLabels:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Exact Docker label used for lookup: hiveforge.deployment=<deploymentId>.
+        containers:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeContainerStatus"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeServiceStatus"
+        reason:
+          type: string
+    RuntimeContainerStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, image, state, status, labels, mounts]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image:
+          type: string
+        state:
+          type: string
+        status:
+          type: string
+        health:
+          type: string
+        ports:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        mounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              source:
+                type: string
+              destination:
+                type: string
+              mode:
+                type: string
+              type:
+                type: string
+    RuntimeServiceStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, image, labels, tasks]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image:
+          type: string
+        mode:
+          type: string
+        replicas:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuntimeServiceTaskStatus"
+    RuntimeServiceTaskStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, image]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image:
+          type: string
+        node:
+          type: string
+        desiredState:
+          type: string
+        currentState:
+          type: string
+        error:
+          type: string
+        ports:
+          type: string
+    DeploymentDiagnosticsResult:
+      type: object
+      additionalProperties: false
+      required: [selector, state, runtime, composeValidation, hiveforge]
+      properties:
+        selector:
+          $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
+        state:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [status, deployment]
+              properties:
+                status:
+                  type: string
+                  enum: [present]
+                deployment:
+                  $ref: "#/components/schemas/Deployment"
+            - type: object
+              additionalProperties: false
+              required: [status, reason]
+              properties:
+                status:
+                  type: string
+                  enum: [missing]
+                reason:
+                  type: string
+        runtime:
+          $ref: "#/components/schemas/DeploymentRuntimeStatusResult"
+        compose:
+          $ref: "#/components/schemas/DeploymentComposeResult"
+        composeValidation:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [status, result]
+              properties:
+                status:
+                  type: string
+                  enum: [checked]
+                result:
+                  $ref: "#/components/schemas/ComposeBindSourceValidationResult"
+            - type: object
+              additionalProperties: false
+              required: [status, reason]
+              properties:
+                status:
+                  type: string
+                  enum: [not_checked]
+                reason:
+                  type: string
+        hiveforge:
+          $ref: "#/components/schemas/RuntimeDiagnosticsReport"
+    ComposeBindSourceValidationResult:
+      type: object
+      additionalProperties: false
+      required: [ok, composeFile, allowedBindSources, services, issues]
+      properties:
+        ok:
+          type: boolean
+        composeFile:
+          type: string
+        bindSourceDir:
+          type: string
+        allowedBindSources:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [service, bindSources]
+            properties:
+              service:
+                type: string
+              bindSources:
+                type: array
+                items:
+                  type: string
+        issues:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [service, source, reason]
+            properties:
+              service:
+                type: string
+              source:
+                type: string
+              reason:
+                type: string
+    DeploymentComposeResult:
+      type: object
+      additionalProperties: false
+      required: [operationId, status, source, redacted]
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+          enum: [present, missing]
+        source:
+          type: string
+          enum: [operation_artifact, none]
+        artifact:
+          $ref: "#/components/schemas/DeploymentComposeArtifact"
+        content:
+          type: string
+        redacted:
+          type: boolean
+        reason:
+          type: string
+    DeploymentComposeArtifact:
+      type: object
+      additionalProperties: false
+      required:
+        [name, path, mediaType, sha256, bytes, recordedAt, currentSha256, currentBytes, digestMatchesJournal]
+      properties:
+        name:
+          type: string
+          enum: [compose]
+        path:
+          type: string
+        mediaType:
+          type: string
+        sha256:
+          type: string
+        bytes:
+          type: integer
+          minimum: 0
+        recordedAt:
+          type: string
+          format: date-time
+        currentSha256:
+          type: string
+        currentBytes:
+          type: integer
+          minimum: 0
+        digestMatchesJournal:
+          type: boolean
     RepositoryInspectionRequest:
       type: object
       additionalProperties: false
@@ -791,8 +1418,10 @@ components:
           minLength: 1
     RepositoryInspectionResult:
       type: object
-      required: [repository, gitRef, deployable, components]
+      required: [operationId, repository, gitRef, deployable, components]
       properties:
+        operationId:
+          type: string
         repository:
           type: string
         gitRef:
@@ -809,8 +1438,10 @@ components:
           type: string
     ProjectRegistrationResult:
       type: object
-      required: [project, deployable]
+      required: [operationId, project, deployable]
       properties:
+        operationId:
+          type: string
         project:
           $ref: "#/components/schemas/Project"
         deployable:
@@ -818,9 +1449,11 @@ components:
           const: true
     InspectionResult:
       type: object
-      required: [operationId, projectId, repository, gitRef, components]
+      required: [operationId, inspectionOperationId, projectId, repository, gitRef, components]
       properties:
         operationId:
+          type: string
+        inspectionOperationId:
           type: string
         projectId:
           $ref: "#/components/schemas/Identifier"
@@ -850,14 +1483,20 @@ components:
       properties:
         operationId:
           type: string
+        deploymentId:
+          type: string
         stdout:
           type: string
         stderr:
           type: string
     Deployment:
       type: object
-      required: [environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
+      required: [deploymentId, deploymentName, environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
       properties:
+        deploymentId:
+          type: string
+        deploymentName:
+          $ref: "#/components/schemas/Identifier"
         environment:
           $ref: "#/components/schemas/Identifier"
         project:
@@ -872,7 +1511,7 @@ components:
           $ref: "#/components/schemas/Identifier"
         status:
           type: string
-          enum: [deployed, removed]
+          enum: [preparing, deployed, removed, failed]
         lastAction:
           $ref: "#/components/schemas/LifecycleAction"
         operationId:
@@ -882,7 +1521,7 @@ components:
           format: date-time
     Operation:
       type: object
-      required: [operationId, status, kind, projectId, gitRef, component, action, startedAt, logs]
+      required: [operationId, status, kind, gitRef, startedAt, logs]
       properties:
         operationId:
           type: string
@@ -891,9 +1530,11 @@ components:
           enum: [running, succeeded, failed]
         kind:
           type: string
-          enum: [lifecycle_action]
+          enum: [lifecycle_action, repository_inspection, project_registration, project_inspection]
         projectId:
           $ref: "#/components/schemas/Identifier"
+        repository:
+          type: string
         gitRef:
           type: string
         component:
@@ -903,6 +1544,8 @@ components:
         environmentId:
           $ref: "#/components/schemas/Identifier"
         profile:
+          $ref: "#/components/schemas/Identifier"
+        deploymentName:
           $ref: "#/components/schemas/Identifier"
         startedAt:
           type: string

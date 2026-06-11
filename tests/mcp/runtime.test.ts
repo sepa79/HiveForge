@@ -16,6 +16,10 @@ describe("HiveForge MCP runtime", () => {
       "refresh_environment",
       "list_environment_nodes",
       "list_deployments",
+      "diagnose_hiveforge_runtime",
+      "check_deployment_runtime_status",
+      "diagnose_deployment",
+      "get_deployment_compose",
       "inspect_repository",
       "register_project",
       "set_environment_project_policy",
@@ -23,13 +27,22 @@ describe("HiveForge MCP runtime", () => {
       "set_project_runtime_env",
       "unset_project_runtime_env",
       "inspect_project",
+      "explain_deploy_prerequisites",
       "validate_requirements",
       "start_action",
-      "deploy_release",
+      "prepare_release_deploy",
       "get_operation",
       "list_operations",
       "read_journal"
     ]);
+  });
+
+  it("requires deploymentId for deployment diagnostics in the MCP tool schema", async () => {
+    const source = await readFile(new URL("../../src/mcp/server.ts", import.meta.url), "utf8");
+    const toolBlock = source.slice(source.indexOf('"diagnose_deployment"'), source.indexOf('"get_deployment_compose"'));
+
+    expect(toolBlock).toContain("deploymentId: z.string().min(1)");
+    expect(toolBlock).not.toContain("deploymentId: z.string().min(1).optional()");
   });
 
   it("resolves package metadata from the built server location", async () => {
@@ -92,6 +105,75 @@ describe("HiveForge MCP runtime", () => {
     expect(result.structuredContent).toEqual({ current: { id: "swarm", name: "Docker Swarm" }, known: [] });
   });
 
+  it("returns HiveForge runtime diagnostics through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async diagnoseHiveForgeRuntime() {
+        return {
+          managedRoot: {
+            controlPlanePath: "/hf/data",
+            bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+            visibilityStatus: "configured"
+          }
+        };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.diagnoseHiveForgeRuntime();
+
+    expect(result.structuredContent).toEqual({
+      managedRoot: {
+        controlPlanePath: "/hf/data",
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        visibilityStatus: "configured"
+      }
+    });
+  });
+
+  it("checks deployment runtime status through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async checkDeploymentRuntimeStatus(input: unknown) {
+        return { summary: "running", input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.checkDeploymentRuntimeStatus({ deploymentId: "deployment-1" });
+
+    expect(result.structuredContent).toEqual({
+      summary: "running",
+      input: { deploymentId: "deployment-1" }
+    });
+  });
+
+  it("diagnoses deployments through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async diagnoseDeployment(input: unknown) {
+        return { state: { status: "present" }, input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.diagnoseDeployment({ deploymentId: "deployment-1" });
+
+    expect(result.structuredContent).toEqual({
+      state: { status: "present" },
+      input: { deploymentId: "deployment-1" }
+    });
+  });
+
+  it("gets deployment compose through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async getDeploymentCompose(input: unknown) {
+        return { status: "present", input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.getDeploymentCompose({ operationId: "op-1" });
+
+    expect(result.structuredContent).toEqual({
+      status: "present",
+      input: { operationId: "op-1" }
+    });
+  });
+
   it("lists current environment nodes with labels through the runtime", async () => {
     const nodes = [
       {
@@ -130,12 +212,12 @@ describe("HiveForge MCP runtime", () => {
 
   it("returns release deployment prepare results through the runtime", async () => {
     const runtime = createHiveForgeMcpRuntime({
-      async deployRelease() {
+      async prepareReleaseDeploy() {
         return { plan: { projectId: "pockethive", images: [] } };
       }
     } as unknown as HiveForgeApiClient);
 
-    const result = await runtime.deployRelease({
+    const result = await runtime.prepareReleaseDeploy({
       projectId: "pockethive",
       component: "stack",
       action: "deploy",
@@ -147,6 +229,62 @@ describe("HiveForge MCP runtime", () => {
     });
 
     expect(result.structuredContent).toEqual({ plan: { projectId: "pockethive", images: [] } });
+  });
+
+  it("returns deploy prerequisites through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async explainDeployPrerequisites(input: unknown) {
+        return { ready: false, input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.explainDeployPrerequisites({
+      projectId: "pockethive",
+      gitRef: "v1.2.3",
+      component: "stack",
+      action: "deploy",
+      profile: "swarm-reduced"
+    });
+
+    expect(result.structuredContent).toEqual({
+      ready: false,
+      input: {
+        projectId: "pockethive",
+        gitRef: "v1.2.3",
+        component: "stack",
+        action: "deploy",
+        profile: "swarm-reduced"
+      }
+    });
+  });
+
+  it("starts lifecycle actions with an explicit deployment name through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async startAction(input: unknown) {
+        return { operationId: "uiop-1", input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.startAction({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "service",
+      action: "deploy",
+      profile: "docker-swarm",
+      deploymentName: "hivewatch-canary"
+    });
+
+    expect(result.structuredContent).toEqual({
+      operationId: "uiop-1",
+      input: {
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "service",
+        action: "deploy",
+        profile: "docker-swarm",
+        deploymentName: "hivewatch-canary"
+      }
+    });
   });
 
   it("sets environment project policy through the runtime", async () => {

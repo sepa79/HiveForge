@@ -20,13 +20,14 @@ store.
 
 The canonical file format is `docs/specs/config/runtime-env.schema.json`.
 
-The default runtime container stores the file at:
+The default runtime container stores the file under the derived runtime data
+root:
 
 ```text
-<HIVEFORGE_DATA_ROOT>/runtime-env.json
+<runtime-root>/data/runtime-env.json
 ```
 
-For the default base-dir install this resolves to:
+For the default runtime-root install this resolves to:
 
 ```text
 /hf/data/runtime-env.json
@@ -68,9 +69,8 @@ Runtime env keys must match:
 ```
 
 `HIVEFORGE_*` is reserved for HiveForge-managed values such as
-`HIVEFORGE_PROFILE`, `HIVEFORGE_PROJECT_DIR`, `HIVEFORGE_STACK_DIR`,
-`HIVEFORGE_ARTIFACTS_DIR`, `HIVEFORGE_PROJECT_HOST_DIR`,
-`HIVEFORGE_STACK_HOST_DIR`, and `HIVEFORGE_ARTIFACTS_HOST_DIR`.
+`HIVEFORGE_PROFILE`, `HIVEFORGE_RENDERED_COMPOSE_FILE`, and
+`HIVEFORGE_BIND_SOURCE_DIR`.
 
 Values are strings. Empty strings are allowed when a project explicitly needs an
 empty runtime value.

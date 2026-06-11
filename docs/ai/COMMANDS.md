@@ -32,16 +32,11 @@ Build the deploy container:
 docker build -t hiveforge:local .
 ```
 
-Validate the Docker Compose install template:
+Validate the Docker install template for Compose and Swarm stack use:
 
 ```bash
 docker compose -f deploy/docker-compose.hiveforge.yml config
-```
-
-Validate the Docker Swarm stack template:
-
-```bash
-docker compose -f deploy/docker-stack.hiveforge.yml config
+docker stack config -c deploy/docker-compose.hiveforge.yml
 ```
 
 ## Test
@@ -70,7 +65,14 @@ Run the REST API:
 
 ```bash
 npm run build
-HIVEFORGE_BASE_DIR=tmp/hf HIVEFORGE_AUTH_TOKEN=local-dev-token npm run serve
+npm run hiveforge -- read-journal --runtime-root tmp/hf >/dev/null
+HIVEFORGE_AUTH_TOKEN=local-dev-token \
+HIVEFORGE_PROJECT_REGISTRY_PATH=tmp/hf/projects.yaml \
+HIVEFORGE_ENVIRONMENTS_PATH=tmp/hf/environments.yaml \
+HIVEFORGE_WORKSPACE_DIR=tmp/hf/workspace \
+HIVEFORGE_JOURNAL_DIR=tmp/hf/journal \
+HIVEFORGE_DATA_ROOT=tmp/hf/data \
+npm run serve
 ```
 
 Open the bundled operator console:
@@ -89,10 +91,10 @@ Run the MCP server over stdio:
 
 ```bash
 npm run build
-HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN="$(cat tmp/hf/auth-token)" npm run hiveforge-mcp
+HIVEFORGE_BASE_URL=http://127.0.0.1:3000 HIVEFORGE_AUTH_TOKEN=local-dev-token npm run hiveforge-mcp
 ```
 
-MCP connects to the REST endpoint and does not use `HIVEFORGE_BASE_DIR`.
+MCP connects to the REST endpoint and does not read runtime files directly.
 Use the MCP `check_health` tool after connecting to verify the selected
 HiveForge endpoint.
 
@@ -122,14 +124,14 @@ npm run build
 npm run hiveforge -- inspect --registry examples/hivewatch/projects.yaml --workspace tmp/workspace --journal tmp/journal --data-root tmp/data --project hivewatch --ref main
 ```
 
-Use one mounted HiveForge base directory for CLI commands:
+Use one mounted HiveForge runtime root for CLI commands:
 
 ```bash
 npm run build
-npm run hiveforge -- read-journal --base-dir tmp/hf
+npm run hiveforge -- read-journal --runtime-root tmp/hf
 ```
 
-`--base-dir` is mutually exclusive with explicit `--registry --workspace
+`--runtime-root` is mutually exclusive with explicit `--registry --workspace
 --journal --data-root`.
 
 Validate a project:
@@ -162,11 +164,27 @@ rg -n "HiveForge|hiveforge|TODO" .
 
 ## Package / release
 
-No package or release command exists yet.
+Prepare a package version bump without creating a git tag:
+
+```bash
+VERSION=0.5.0
+npm version "$VERSION" --no-git-tag-version
+```
+
+Run the release gate:
+
+```bash
+npm run check
+docker build -t hiveforge:release-check .
+```
+
+Publish is performed by GitHub Actions. CI runs `npm run check` and Docker
+image build through GitHub Actions. Tagged releases publish
+`ghcr.io/<owner>/hiveforge:<tag>` and `latest`.
 
 ## Deployment
 
-Run HiveForge with Docker Compose on a Docker host:
+Run HiveForge with Docker Compose:
 
 ```bash
 mkdir -p /opt/hiveforge
@@ -176,15 +194,17 @@ docker compose -f docker-compose.hiveforge.yml up -d
 cat auth-token
 ```
 
-See `docs/install/docker-compose.md`.
-
-CI runs `npm run check` and Docker image build through GitHub Actions.
-Tagged releases publish `ghcr.io/<owner>/hiveforge:<tag>` and `latest`.
+For Portainer, paste the same `deploy/docker-compose.hiveforge.yml` file as a
+Swarm stack. See `docs/install/docker-compose.md`.
 
 ## Known command caveats
 
 - Add commands when new runnable surfaces are introduced.
 - Do not invent commands in PRs; verify them locally first.
+- Modern `docker compose config` warns that top-level `version` is obsolete in
+  `deploy/docker-compose.hiveforge.yml`. Keep `version: "3.8"` anyway because
+  older Portainer/Swarm stack deploy implementations require the Compose v3
+  contract for `deploy.placement`.
 
 ## Agent command rules
 

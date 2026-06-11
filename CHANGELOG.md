@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.5.0 - 2026-06-11
+
+- Add environment-owned external Docker bind source allowlists through
+  `capabilities.bindSources.allowed` and reject HiveForge internal paths such as
+  `/hf` even when misconfigured in the allowlist.
+- Make inactive lifecycle actions (`remove` and `purge`) HiveForge-owned for
+  Docker deployments: validate that the component declares the action, skip
+  managed-file preparation, remove the recorded Compose project or Swarm stack,
+  and wait for Docker resources to disappear.
+- Add runtime task diagnostics for deployed Docker services so unhealthy
+  deployments expose service task state in REST, MCP, and OpenAPI surfaces.
+- Consolidate HiveForge installation templates to one Compose file that works
+  with `docker compose up` and Portainer/Swarm stacks while preserving manager
+  placement constraints.
+- Add an operator UI `Update HF` action backed by GitHub Releases version
+  checks and explicit self-update to the concrete released image tag, including
+  a visible no-release state before the first GitHub Release is published.
+- Document the 0.5 deploy flow updates for external bind sources and Docker
+  removal semantics.
+
+## 0.5.0-alpha.0 - 2026-06-10
+
+- Breaking MCP change: rename `deploy_release` to `prepare_release_deploy`.
+  The old tool name is not kept as an alias; clients that call it receive an
+  unknown-tool failure.
+- Require root project manifests to declare `version: "0.5"` and reject removed
+  POC action path variables before running project actions.
+- Allow managed components to declare per-component lifecycle action subsets
+  instead of requiring every component to implement the full root action set.
+
 ## 0.4.8 - 2026-06-08
 
 - Add MCP `refresh_environment` and `list_environment_nodes` tools so agents can

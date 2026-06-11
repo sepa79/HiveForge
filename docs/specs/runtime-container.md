@@ -12,31 +12,30 @@ contains:
 - Node.js runtime for HiveForge,
 - git for registered repository checkout,
 - Ansible for declared `ansible` adapter actions,
-- Docker CLI for target Docker/Swarm requirement checks,
+- Docker CLI for target Docker/Swarm requirement checks and HiveForge-owned
+  deploy execution,
 - SSH client and CA certificates for repository access.
 
-The target host must provide Docker/Swarm control access required by the
-checked-out playbooks, but it must not be required to provide Ansible.
+The target host must provide Docker/Swarm control access required by HiveForge.
+Project action runners must not require Docker access.
 
 ## Required paths
 
-The preferred container install uses one mounted HiveForge base directory:
+The preferred container install uses one mounted HiveForge runtime root:
 
-- `HIVEFORGE_BASE_DIR=/hf`
-- host mount, for example `/opt/hiveforge:/hf`
-- `HIVEFORGE_HOST_DATA_ROOT=/opt/hiveforge/data` when actions need
-  host-visible managed paths for Docker bind mounts
+- fixed container path `/hf`
+- host bind mount, for example `/opt/hiveforge:/hf`
 
-For Swarm stack and Portainer installs, the base directory should be backed by a
-host bind or shared filesystem mounted at `/hf`. Relative host bind mounts such
-as `./:/hf` are only for `docker compose up` on one known manager node and do
-not provide a portable host-visible path contract.
+For Docker Compose, Swarm stack, and Portainer installs, the runtime root should
+be backed by a host bind or shared filesystem mounted at `/hf`. Relative host
+bind mounts do not provide a portable host-visible path contract and are not
+part of the supported HiveForge install template.
 
 This mode is mutually exclusive with explicit runtime paths. HiveForge
-initializes missing runtime files and directories under the base directory:
+initializes missing runtime files and directories under the runtime root:
 
 ```text
-<base-dir>/
+<runtime-root>/
   auth-token
   projects.yaml
   environments.yaml
@@ -55,11 +54,12 @@ projects: []
 
 The generated `environments.yaml` contains `policy.projects: []`. On a Docker
 host it contains one Docker host environment. When the server initializes a new
-base dir on an active Docker Swarm manager, it detects Swarm nodes through the
-Docker CLI and writes one Swarm environment with `docker-swarm`, `placement`,
-and node inventory fields. If Docker reports active Swarm mode but the current
-node is not a manager, startup fails instead of silently writing a single-host
-Docker environment.
+runtime root on an active Docker Swarm manager, it detects Swarm nodes through
+the Docker CLI and writes one Swarm environment with `docker-swarm`,
+`placement`, and node inventory fields. HiveForge derives its control-plane
+managed root internally from `/hf/data`. If Docker reports active Swarm mode but
+the current node is not a manager, startup fails instead of silently writing a
+single-host Docker environment.
 
 Detected Swarm node inventory records Docker node id, hostname, role,
 availability, status, and labels. It does not include mount inventory, host path
@@ -81,13 +81,13 @@ token file or print the token value in logs.
 
 On startup HiveForge logs only the selected token source:
 `environment`, `file`, or `generated`. When `HIVEFORGE_AUTH_TOKEN` is set and a
-base-dir `auth-token` file also exists, the environment token wins and HiveForge
+runtime-root `auth-token` file also exists, the environment token wins and HiveForge
 logs that the file is ignored without printing either token value.
 
 If files already exist, HiveForge derives those same paths and uses them. It
 must not overwrite existing `projects.yaml`, `environments.yaml`, or
 `auth-token`, create `.env`, create `secrets/`, or create runtime project data
-outside its own `data/` directory. A non-writable base directory is a deployment
+outside its own `data/` directory. A non-writable runtime root is a deployment
 configuration error.
 
 Explicit runtime path mode remains supported for advanced installs:
@@ -96,11 +96,13 @@ Explicit runtime path mode remains supported for advanced installs:
 - `HIVEFORGE_ENVIRONMENTS_PATH` for environment policy config,
 - `HIVEFORGE_WORKSPACE_DIR` for checked-out repositories,
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
-- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files and non-secret
-  runtime env config.
-- `HIVEFORGE_HOST_DATA_ROOT` for the same managed data root as seen by the
-  target Docker daemon. This is required only for actions that render bind
-  mounts into Docker Compose or Stack files.
+- `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files, non-secret
+  runtime env config, and `hiveforge.sqlite` current-state DB.
+
+Explicit path mode is for maintainers and unusual packaging only. Normal Docker
+and Swarm installs should use the fixed `/hf` container root and configure the
+host/node-visible managed root through environment capabilities, not through a
+process environment variable.
 
 The published runtime image starts the REST/UI server by default:
 
@@ -121,22 +123,61 @@ declared lifecycle action commands inherit the container environment.
 Runtime paths must be configured through exactly one supported mode. Missing
 writable directories are deployment configuration errors.
 
-For the current POC, HiveForge manages only files under its own data root. The
-project managed tree is:
+## Self-Update
+
+HiveForge can check GitHub Releases for the latest published HiveForge release
+through `GET /hiveforge/update`. The check compares the running package version
+with the latest release tag and does not inspect Docker image tags or run
+`docker pull`. When GitHub has no published latest release yet, HiveForge
+returns `releasePublished: false` instead of treating GitHub's `404` response as
+an update failure.
+
+`POST /hiveforge/update` starts a self-update only when a newer release exists.
+The target image is the concrete release tag, for example
+`ghcr.io/sepa79/hiveforge:v0.5.1`; HiveForge does not update itself to a
+floating `latest` tag. If no release is published yet, the response status is
+`no_release` and no Docker command is run.
+
+Self-update is supported only when the running container has deterministic
+Docker install labels:
+
+- Docker Compose installs must expose `com.docker.compose.project` and mount the
+  runtime root at `/hf`. HiveForge starts a short-lived helper container from
+  the currently running HiveForge image; the helper runs
+  `docker compose -p <project> -f /hf/docker-compose.hiveforge.yml up -d` with
+  `HIVEFORGE_IMAGE` set to the target release image.
+- Portainer/Swarm installs must expose `com.docker.swarm.service.name`.
+  HiveForge starts the same helper pattern and runs
+  `docker service update --image <target-image> <service>`, preserving the
+  existing Swarm service configuration.
+
+If the container labels or `/hf` host mount are missing, self-update fails
+explicitly. It must not guess stack names, project names, compose paths, or
+runtime roots.
+
+For the current POC, HiveForge manages only files under its own data root. With
+the normal runtime-root install, the project managed tree is:
 
 ```text
-<HIVEFORGE_DATA_ROOT>/deployed/<projectId>/
+<runtime-root>/data/deployed/<projectId>/
 ```
 
-When `HIVEFORGE_HOST_DATA_ROOT` is configured, the host-visible equivalent is:
+The environment capability records the Docker bind source root for managed
+project files:
 
-```text
-<HIVEFORGE_HOST_DATA_ROOT>/deployed/<projectId>/
+```yaml
+capabilities:
+  managedRoot:
+    shared: true
+    bindSourceRoot: /mnt/shared_nfs/hiveforge
 ```
 
-HiveForge passes both forms to actions. It does not infer one from the other.
-If an action needs host bind sources and no host data root is configured, the
-action must fail rather than substituting the container path.
+HiveForge derives the control-plane path internally, normally `/hf/data`.
+`bindSourceRoot` is the host-side runtime root Docker nodes use as the base for
+rendered Compose or Stack bind sources. HiveForge derives managed project bind
+sources under `<bindSourceRoot>/data`. If an action needs host bind sources and
+no bind source root is configured, the action must fail rather than
+substituting the container path.
 
 Managed artifact targets are always relative to that project directory.
 HiveForge does not create or repair host mount points outside its configured

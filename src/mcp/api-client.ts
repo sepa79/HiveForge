@@ -87,6 +87,53 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/deployments" });
   }
 
+  diagnoseHiveForgeRuntime(): Promise<unknown> {
+    return this.request({ method: "GET", path: "/diagnostics/runtime" });
+  }
+
+  getDeploymentCompose(input: { operationId: string }): Promise<unknown> {
+    return this.request({
+      method: "GET",
+      path: `/deployments/${encodeURIComponent(input.operationId)}/compose`
+    });
+  }
+
+  checkDeploymentRuntimeStatus(input: {
+    deploymentId?: string;
+    projectId?: string;
+    component?: string;
+    profile?: string;
+  }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: "/deployments/runtime-status",
+      body: {
+        ...(input.deploymentId ? { deploymentId: input.deploymentId } : {}),
+        ...(input.projectId ? { projectId: input.projectId } : {}),
+        ...(input.component ? { component: input.component } : {}),
+        ...(input.profile ? { profile: input.profile } : {})
+      }
+    });
+  }
+
+  diagnoseDeployment(input: {
+    deploymentId?: string;
+    projectId?: string;
+    component?: string;
+    profile?: string;
+  }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: "/deployments/diagnostics",
+      body: {
+        ...(input.deploymentId ? { deploymentId: input.deploymentId } : {}),
+        ...(input.projectId ? { projectId: input.projectId } : {}),
+        ...(input.component ? { component: input.component } : {}),
+        ...(input.profile ? { profile: input.profile } : {})
+      }
+    });
+  }
+
   listOperations(): Promise<unknown> {
     return this.request({ method: "GET", path: "/operations" });
   }
@@ -181,12 +228,42 @@ export class HiveForgeApiClient {
     });
   }
 
+  explainDeployPrerequisites(input: {
+    projectId: string;
+    gitRef: string;
+    component: string;
+    action: string;
+    profile?: string;
+    deploymentMode?: "action" | "release";
+    vars?: Record<string, string>;
+    releaseVars?: Record<string, string>;
+    images?: unknown[];
+    artifact?: unknown;
+  }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: `/projects/${encodeURIComponent(input.projectId)}/deploy-prerequisites`,
+      body: {
+        gitRef: input.gitRef,
+        component: input.component,
+        action: input.action,
+        ...(input.profile ? { profile: input.profile } : {}),
+        ...(input.deploymentMode ? { deploymentMode: input.deploymentMode } : {}),
+        ...(input.vars ? { vars: input.vars } : {}),
+        ...(input.releaseVars ? { releaseVars: input.releaseVars } : {}),
+        ...(input.images ? { images: input.images } : {}),
+        ...(input.artifact ? { artifact: input.artifact } : {})
+      }
+    });
+  }
+
   startAction(input: {
     projectId: string;
     gitRef: string;
     component: string;
     action: string;
     profile?: string;
+    deploymentName?: string;
   }): Promise<unknown> {
     return this.request({
       method: "POST",
@@ -195,12 +272,13 @@ export class HiveForgeApiClient {
       )}/${encodeURIComponent(input.action)}`,
       body: {
         gitRef: input.gitRef,
-        ...(input.profile ? { profile: input.profile } : {})
+        ...(input.profile ? { profile: input.profile } : {}),
+        ...(input.deploymentName ? { deploymentName: input.deploymentName } : {})
       }
     });
   }
 
-  deployRelease(input: ReleaseDeployApiInput): Promise<unknown> {
+  prepareReleaseDeploy(input: ReleaseDeployApiInput): Promise<unknown> {
     return this.request({
       method: "POST",
       path: `/operations/projects/${encodeURIComponent(input.projectId)}/releases/${encodeURIComponent(

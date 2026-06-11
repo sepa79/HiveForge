@@ -8,6 +8,17 @@ import type { EnvironmentRefreshResult } from "../config/environment-refresh-ser
 import type { Journal } from "../journal/journal.js";
 import type { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import type { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
+import type { DeploymentComposeService } from "../operation/deployment-compose-service.js";
+import type { DeploymentDiagnosticsService } from "../operation/deployment-diagnostics-service.js";
+import type {
+  DeploymentRuntimeStatusRequest,
+  DeploymentRuntimeStatusService
+} from "../operation/deployment-runtime-status-service.js";
+import type {
+  DeploymentMode,
+  DeployPrerequisitesRequest,
+  DeployPrerequisitesService
+} from "../operation/deploy-prerequisites-service.js";
 import type { OperationLogService } from "../operation/operation-log-service.js";
 import type { ProjectInspectionService } from "../operation/project-inspection-service.js";
 import type { ProjectValidationService } from "../operation/project-validation-service.js";
@@ -16,6 +27,8 @@ import type { ReleaseDeployOperationRequest } from "../release/release-deploy-se
 import type { ReleaseImageTemplate } from "../release/release-deploy-contract.js";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
+import type { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
+import type { SelfUpdateService } from "../runtime/self-update-service.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
@@ -35,8 +48,13 @@ export interface RestApiServices {
   currentEnvironment?: EnvironmentDefinition;
   environmentPolicy?: EnvironmentPolicyService;
   deploymentInventory?: DeploymentInventoryService;
+  deploymentCompose?: DeploymentComposeService;
+  deploymentDiagnostics?: DeploymentDiagnosticsService;
+  deploymentRuntimeStatus?: DeploymentRuntimeStatusService;
+  deployPrerequisites?: DeployPrerequisitesService;
   operations?: OperationLogService;
   runtimeEnv?: RuntimeEnvStore;
+  runtimeDiagnostics?: RuntimeDiagnosticsService;
   repositoryInspection?: {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
@@ -49,6 +67,7 @@ export interface RestApiServices {
   environmentRefresh?: {
     refreshCurrent(): Promise<EnvironmentRefreshResult>;
   };
+  selfUpdate?: SelfUpdateService;
   environments?: {
     current: unknown;
     known: unknown[];
@@ -74,6 +93,34 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
         return {
           hiveforge: services.appInfo
         };
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/hiveforge\/update$/,
+      async handle() {
+        if (!services.selfUpdate) {
+          throw new HttpError(501, "HiveForge self-update is not configured");
+        }
+        try {
+          return await services.selfUpdate.checkLatest();
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "HiveForge update check failed");
+        }
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/hiveforge\/update$/,
+      async handle() {
+        if (!services.selfUpdate) {
+          throw new HttpError(501, "HiveForge self-update is not configured");
+        }
+        try {
+          return await services.selfUpdate.startUpdate();
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "HiveForge update failed");
+        }
       }
     },
     {
@@ -114,12 +161,52 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
     },
     {
       method: "GET",
+      pattern: /^\/diagnostics\/runtime$/,
+      async handle() {
+        if (!services.runtimeDiagnostics) {
+          throw new HttpError(501, "Runtime diagnostics are not configured");
+        }
+        return await services.runtimeDiagnostics.diagnose();
+      }
+    },
+    {
+      method: "GET",
       pattern: /^\/deployments$/,
       async handle() {
         if (!services.deploymentInventory) {
           throw new HttpError(501, "Deployment inventory is not configured");
         }
         return services.deploymentInventory.list();
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/deployments\/(?<operationId>[A-Za-z0-9_-]+)\/compose$/,
+      async handle({ params }) {
+        if (!services.deploymentCompose) {
+          throw new HttpError(501, "Deployment compose lookup is not configured");
+        }
+        return services.deploymentCompose.get(params.operationId);
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/deployments\/runtime-status$/,
+      async handle({ request }) {
+        if (!services.deploymentRuntimeStatus) {
+          throw new HttpError(501, "Deployment runtime status is not configured");
+        }
+        return services.deploymentRuntimeStatus.check(await readDeploymentRuntimeStatusRequest(request));
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/deployments\/diagnostics$/,
+      async handle({ request }) {
+        if (!services.deploymentDiagnostics) {
+          throw new HttpError(501, "Deployment diagnostics are not configured");
+        }
+        return services.deploymentDiagnostics.diagnose(await readDeploymentRuntimeStatusRequest(request));
       }
     },
     {
@@ -150,23 +237,48 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       method: "POST",
       pattern: /^\/repositories\/inspect$/,
       async handle({ request }) {
-        if (!services.repositoryInspection) {
+        const repositoryInspection = services.repositoryInspection;
+        if (!repositoryInspection) {
           throw new HttpError(501, "Repository inspection is not configured");
         }
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
         const body = await readRepositoryInspectionRequest(request);
-        return services.repositoryInspection.inspect(body);
+        const { operation, result } = await services.operations.runPreDeployAttempt(
+          {
+            kind: "repository_inspection",
+            repository: body.repository,
+            gitRef: body.gitRef
+          },
+          () => repositoryInspection.inspect(body),
+          deployableFailureReason
+        );
+        return withOperationId(result, operation.operationId);
       }
     },
     {
       method: "POST",
       pattern: /^\/projects\/register$/,
       async handle({ request }) {
-        if (!services.projectRegistration) {
+        const projectRegistration = services.projectRegistration;
+        if (!projectRegistration) {
           throw new HttpError(501, "Project registration is not configured");
+        }
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
         }
         const body = await readRepositoryInspectionRequest(request);
         try {
-          return await services.projectRegistration.register(body);
+          const { operation, result } = await services.operations.runPreDeployAttempt(
+            {
+              kind: "project_registration",
+            repository: body.repository,
+            gitRef: body.gitRef
+          },
+            () => projectRegistration.register(body)
+          );
+          return withOperationId(result, operation.operationId);
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Project registration failed");
         }
@@ -247,17 +359,32 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       method: "POST",
       pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/inspect$/,
       async handle({ request, params }) {
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
         const body = await readRefRequest(request);
-        const result = await services.inspection.inspect({
-          projectId: params.projectId,
-          gitRef: body.gitRef
-        });
+        const { operation, result } = await services.operations.runPreDeployAttempt(
+          {
+            kind: "project_inspection",
+            projectId: params.projectId,
+            gitRef: body.gitRef
+          },
+          () =>
+            services.inspection.inspect({
+              projectId: params.projectId,
+              gitRef: body.gitRef
+            })
+        );
         return {
-          operationId: result.operationId,
+          operationId: operation.operationId,
+          inspectionOperationId: result.operationId,
           projectId: result.projectId,
           repository: result.repository,
           gitRef: result.gitRef,
-          components: result.registry.components.map((component) => component.name)
+          components: result.registry.components.map((component) => ({
+            name: component.name,
+            actions: Object.keys(component.manifest.deployment.actions)
+          }))
         };
       }
     },
@@ -301,6 +428,21 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
     },
     {
       method: "POST",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/deploy-prerequisites$/,
+      async handle({ request, params }) {
+        if (!services.deployPrerequisites) {
+          throw new HttpError(501, "Deploy prerequisites are not configured");
+        }
+        const body = await readDeployPrerequisitesRequest(request, params.projectId);
+        try {
+          return await services.deployPrerequisites.explain(body);
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Deploy prerequisites check failed");
+        }
+      }
+    },
+    {
+      method: "POST",
       pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/actions\/(?<component>[a-z][a-z0-9-]*)\/(?<action>[a-z][a-z0-9-]*)$/,
       async handle({ request, params }) {
         if (!LIFECYCLE_ACTIONS.has(params.action)) {
@@ -319,7 +461,8 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           component: params.component,
           action: params.action,
           environmentId: services.currentEnvironmentId,
-          profile: body.profile
+          profile: body.profile,
+          deploymentName: body.deploymentName
         });
         return {
           operationId: result.action.operationId,
@@ -351,7 +494,8 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           component: params.component,
           action: params.action,
           environmentId: services.currentEnvironmentId,
-          profile: body.profile
+          profile: body.profile,
+          deploymentName: body.deploymentName
         });
         return operation;
       }
@@ -391,6 +535,32 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
   ];
 }
 
+function deployableFailureReason(result: unknown): string | null {
+  if (!isObjectRecord(result) || result.deployable !== false) {
+    return null;
+  }
+  return typeof result.reason === "string" && result.reason.length > 0
+    ? result.reason
+    : "Repository is not deployable by HiveForge";
+}
+
+function withOperationId(result: unknown, operationId: string): unknown {
+  if (isObjectRecord(result)) {
+    return {
+      ...result,
+      operationId
+    };
+  }
+  return {
+    operationId,
+    result
+  };
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function assertEnvironmentPolicy(
   services: RestApiServices,
   request: { projectId: string; action: string; profile?: string }
@@ -419,13 +589,15 @@ async function readRefRequest(request: Parameters<typeof readJsonBody>[0]): Prom
   return { gitRef: body.gitRef };
 }
 
-async function readActionRequest(request: Parameters<typeof readJsonBody>[0]): Promise<{ gitRef: string; profile?: string }> {
+async function readActionRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<{ gitRef: string; profile?: string; deploymentName?: string }> {
   return readProfiledRefRequest(request);
 }
 
 async function readProfiledRefRequest(
   request: Parameters<typeof readJsonBody>[0]
-): Promise<{ gitRef: string; profile?: string }> {
+): Promise<{ gitRef: string; profile?: string; deploymentName?: string }> {
   const body = await readJsonBody(request);
   if (!isObject(body) || typeof body.gitRef !== "string" || body.gitRef.length === 0) {
     throw new HttpError(400, "Missing required field: gitRef");
@@ -433,9 +605,13 @@ async function readProfiledRefRequest(
   if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
     throw new HttpError(400, "Invalid field: profile");
   }
+  if ("deploymentName" in body && (typeof body.deploymentName !== "string" || !isDockerDeploymentName(body.deploymentName))) {
+    throw new HttpError(400, "Invalid field: deploymentName");
+  }
   return {
     gitRef: body.gitRef,
-    profile: typeof body.profile === "string" ? body.profile : undefined
+    profile: typeof body.profile === "string" ? body.profile : undefined,
+    deploymentName: typeof body.deploymentName === "string" ? body.deploymentName : undefined
   };
 }
 
@@ -490,6 +666,50 @@ async function readRuntimeEnvUnsetRequest(
   return {
     ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
     keys: readStringArray(body.keys, "keys")
+  };
+}
+
+async function readDeployPrerequisitesRequest(
+  request: Parameters<typeof readJsonBody>[0],
+  projectId: string
+): Promise<DeployPrerequisitesRequest> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid deploy prerequisites request body");
+  }
+  if (typeof body.gitRef !== "string" || body.gitRef.length === 0) {
+    throw new HttpError(400, "Missing required field: gitRef");
+  }
+  if (typeof body.component !== "string" || body.component.length === 0) {
+    throw new HttpError(400, "Missing required field: component");
+  }
+  if (typeof body.action !== "string" || !LIFECYCLE_ACTIONS.has(body.action)) {
+    throw new HttpError(400, `Unsupported lifecycle action: ${String(body.action)}`);
+  }
+  if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
+    throw new HttpError(400, "Invalid field: profile");
+  }
+  if ("deploymentMode" in body && body.deploymentMode !== "action" && body.deploymentMode !== "release") {
+    throw new HttpError(400, "Invalid field: deploymentMode");
+  }
+  if ("vars" in body && !isStringRecord(body.vars)) {
+    throw new HttpError(400, "Invalid field: vars");
+  }
+  if ("releaseVars" in body && !isStringRecord(body.releaseVars)) {
+    throw new HttpError(400, "Invalid field: releaseVars");
+  }
+
+  return {
+    projectId,
+    gitRef: body.gitRef,
+    component: body.component,
+    action: body.action,
+    ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
+    ...(typeof body.deploymentMode === "string" ? { deploymentMode: body.deploymentMode as DeploymentMode } : {}),
+    ...(isStringRecord(body.vars) ? { vars: body.vars } : {}),
+    ...(isStringRecord(body.releaseVars) ? { releaseVars: body.releaseVars } : {}),
+    ...(Array.isArray(body.images) ? { images: body.images } : {}),
+    ...(isObject(body.artifact) ? { artifact: body.artifact } : {})
   };
 }
 
@@ -576,6 +796,37 @@ async function readReleaseDeployRequest(
   };
 }
 
+async function readDeploymentRuntimeStatusRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<DeploymentRuntimeStatusRequest> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid deployment runtime status request body");
+  }
+  if ("deploymentId" in body && (typeof body.deploymentId !== "string" || body.deploymentId.length === 0)) {
+    throw new HttpError(400, "Invalid field: deploymentId");
+  }
+  if ("projectId" in body && (typeof body.projectId !== "string" || body.projectId.length === 0)) {
+    throw new HttpError(400, "Invalid field: projectId");
+  }
+  if ("component" in body && (typeof body.component !== "string" || body.component.length === 0)) {
+    throw new HttpError(400, "Invalid field: component");
+  }
+  if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
+    throw new HttpError(400, "Invalid field: profile");
+  }
+  if (!body.deploymentId && (!body.projectId || !body.component)) {
+    throw new HttpError(400, "Missing required field: deploymentId or projectId and component");
+  }
+
+  return {
+    ...(typeof body.deploymentId === "string" ? { deploymentId: body.deploymentId } : {}),
+    ...(typeof body.projectId === "string" ? { projectId: body.projectId } : {}),
+    ...(typeof body.component === "string" ? { component: body.component } : {}),
+    ...(typeof body.profile === "string" ? { profile: body.profile } : {})
+  };
+}
+
 function readReleaseArtifactTemplate(value: Record<string, unknown>): NonNullable<ReleaseDeployOperationRequest["artifact"]> {
   if (!Array.isArray(value.images) || value.images.length === 0) {
     throw new HttpError(400, "Missing required field: artifact.images");
@@ -631,4 +882,8 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDockerDeploymentName(value: string): boolean {
+  return /^[a-z][a-z0-9-]*$/.test(value);
 }

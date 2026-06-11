@@ -9,7 +9,7 @@ deployment.
 PocketHive should not commit magic ZIP bundles. HiveForge already has a managed
 files contract: project-declared `artifacts.managedPaths` are copied from the
 checked-out repository into the managed project tree under
-`HIVEFORGE_DATA_ROOT`.
+the derived runtime data root.
 
 The missing piece is wiring that existing managed file preparation into the
 release deploy pipeline.
@@ -110,7 +110,7 @@ HIVEFORGE_RELEASE_VARS_FILE=<HIVEFORGE_ARTIFACTS_DIR>/release-vars.json
 ```
 
 The JSON file should contain the resolved deployment vars used by
-`deploy_release`, for example:
+`prepare_release_deploy`, for example:
 
 ```json
 {

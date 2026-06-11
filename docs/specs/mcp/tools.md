@@ -20,8 +20,8 @@ The MCP process fails fast unless both variables are set:
 - `HIVEFORGE_BASE_URL`
 - `HIVEFORGE_AUTH_TOKEN`
 
-For the default Docker Compose install, `HIVEFORGE_AUTH_TOKEN` can be read from
-the generated base-dir token file:
+For the default Docker Compose / Portainer install, `HIVEFORGE_AUTH_TOKEN` can
+be read from the generated runtime-root token file:
 
 ```bash
 HIVEFORGE_BASE_URL=http://<host>:3000 \
@@ -29,8 +29,8 @@ HIVEFORGE_AUTH_TOKEN="$(cat /opt/hiveforge/auth-token)" \
 npm run hiveforge-mcp
 ```
 
-MCP does not use `HIVEFORGE_BASE_DIR`. Only the HiveForge REST server owns the
-base directory and runtime files.
+MCP does not read runtime files directly. Only the HiveForge REST server owns
+the runtime root and runtime files.
 
 The optional client-side target launcher reads the selected endpoint from a
 local known-targets file instead of requiring those variables directly:
@@ -123,6 +123,8 @@ Input: none.
 Output: current environment and known environment metadata/capabilities.
 When configured, environment metadata includes project policy for allowed
 project/profile/action combinations.
+The human-facing `name` and optional `description` come from `environments.yaml`
+and should be shown by clients when identifying the connected target.
 
 Capabilities are structured as described in `docs/specs/capabilities.md`. For
 release deployment, clients must treat them as reported environment facts, not
@@ -161,8 +163,104 @@ Behavior: read-only. This tool does not refresh the environment. Use
 
 Input: none.
 
-Output: deployment inventory for the current environment, derived from
-succeeded lifecycle actions in the journal.
+Output: deployment inventory for the current environment, read from HiveForge
+state DB. Each deployment includes `deploymentId`, `deploymentName`, project,
+component, profile, current status, last action, operation id, and update
+timestamp.
+
+### `diagnose_hiveforge_runtime`
+
+Input: none.
+
+Output: read-only diagnostics for the connected HiveForge service:
+
+- fixed HiveForge runtime root and derived paths,
+- derived registry, environment, workspace, journal, data, and runtime-env
+  paths with local read/write status,
+- current environment id/name/kind,
+- managed-root mapping from control-plane path to node-visible path when
+  configured,
+- `configured` vs `unknown` visibility status for runtime-node bind-source
+  access,
+- action contract path names exposed to project actions.
+
+This does not verify every Swarm node can access `managedRoot.bindSourceRoot`; active
+per-node probing is a separate runtime diagnostics slice.
+
+### `check_deployment_runtime_status`
+
+Input:
+
+```json
+{
+  "deploymentId": "deployment-..."
+}
+```
+
+Preferred input is `deploymentId` from `list_deployments`. As a convenience,
+clients may provide `projectId` plus `component`, and optional `profile`; the
+connected HiveForge target resolves that selector through its state DB.
+
+Output: live Docker runtime status for objects matching the exact HiveForge
+deployment label:
+
+- `hiveforge.deployment=<deploymentId>`.
+
+The result includes the deployment id, project/component/profile resolved from
+state DB, required label map, matching containers, matching Swarm services when
+the connected environment has Docker Swarm capability, and a summary of
+`running`, `unhealthy`, `exited`, `missing`, or `unknown`.
+
+Behavior: read-only. This tool does not infer ownership from container names,
+service names, stack names, or compose file names. If no labelled Docker objects
+match, the result is an explicit `missing` status with a reason.
+
+### `diagnose_deployment`
+
+Input:
+
+```json
+{
+  "deploymentId": "deployment-..."
+}
+```
+
+Preferred input is `deploymentId` from `list_deployments`. As with
+`check_deployment_runtime_status`, the REST transport can resolve `projectId`
+plus `component`, and optional `profile`; the MCP tool requires `deploymentId`
+so agents use the explicit deployment inventory object.
+
+Output: one read-only deployment debug view containing:
+
+- HiveForge deployment state from SQLite,
+- live Docker runtime status selected only by `hiveforge.deployment=<deploymentId>`,
+- recorded rendered Compose/Stack artifact for the deployment's last operation,
+- bind-source validation for that recorded Compose artifact,
+- HiveForge runtime path and managed-root diagnostics.
+
+Behavior: read-only. This tool does not re-render Compose, does not infer
+ownership from Docker object names, and does not run project actions.
+
+### `get_deployment_compose`
+
+Input:
+
+```json
+{
+  "operationId": "op-..."
+}
+```
+
+Output: the rendered Compose/Stack artifact recorded for a completed lifecycle
+operation. The response includes artifact path, recorded digest/size, current
+digest/size, whether the current digest still matches the journal, redacted
+content when the artifact is readable, and an explicit `missing` result when no
+artifact was recorded or the recorded file is no longer readable.
+
+Behavior: read-only. HiveForge returns only the artifact recorded by the action
+journal. It does not re-render Compose from the current checkout and does not
+guess artifact paths. Secret-looking lines are redacted before content is
+returned through MCP.
 
 ### `list_operations`
 
@@ -326,6 +424,51 @@ Output: operation ID, `ok`, and validation issues. Ineligible profiles are
 explicit validation failures; for example a `docker-swarm` profile is rejected
 on a `docker-single` environment before an action can start.
 
+### `explain_deploy_prerequisites`
+
+Input:
+
+```json
+{
+  "projectId": "pockethive",
+  "gitRef": "v1.2.3",
+  "component": "stack",
+  "action": "deploy",
+  "profile": "swarm-reduced",
+  "deploymentMode": "release"
+}
+```
+
+Behavior: return a read-only checklist before calling `start_action` or
+`prepare_release_deploy`. This tool does not create Docker labels, secrets,
+volumes, runtime env values, managed files, or mounts.
+
+The first 0.5 slice reports:
+
+- project registration and approved ref status,
+- project manifest load status,
+- component and component action declaration status,
+- environment policy status,
+- profile eligibility status,
+- missing Docker volumes and secrets by name only,
+- missing non-secret runtime env keys,
+- release-mode presence checks for `release.imageTag`,
+  `imageRepository.project`, and image/artifact templates.
+
+Output:
+
+```json
+{
+  "ready": false,
+  "manualPrerequisites": [],
+  "hiveforgePrerequisites": [],
+  "releasePrerequisites": []
+}
+```
+
+`deploymentMode` defaults to `action`. Use `deploymentMode: "release"` when the
+next operation is `prepare_release_deploy`.
+
 ### `start_action`
 
 Input:
@@ -336,7 +479,8 @@ Input:
   "gitRef": "main",
   "component": "api",
   "action": "deploy",
-  "profile": "test"
+  "profile": "test",
+  "deploymentName": "hivewatch-canary"
 }
 ```
 
@@ -347,6 +491,11 @@ a required environment variable. Environment policy may also require and limit
 profiles.
 Resolved runtime env for the selected project/profile is passed into validation
 and the declared action process.
+`deploymentName` is optional. When omitted for a new deployment slot, HiveForge
+uses the project id as the Docker Compose project name or Docker Swarm stack
+name. When supplied, it must be a Docker-safe lower-case name. Existing slots
+keep their stored deployment name and cannot be silently renamed by a later
+request.
 
 Output: operation ID, status, and current logs. Use `get_operation` to poll live
 logs and final stdout/stderr. If the underlying action command fails, the
@@ -354,7 +503,7 @@ operation error includes the failed command, exit status, and working directory;
 operation logs also include redacted stdout/stderr tails when the command
 captured output.
 
-### `deploy_release`
+### `prepare_release_deploy`
 
 Input:
 
@@ -394,14 +543,14 @@ Behavior: validate and prepare a release/image-tag deployment plan. This tool
 does not build images, push images, infer `latest`, infer tags from branches, or
 execute deployment actions. When `gitRef` is supplied, HiveForge checks out the
 project, prepares declared `artifacts.managedPaths` into the managed project
-root, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`, and validates
-`requiredFiles` before returning the plan. When `gitRef` is omitted, callers must
-provide explicit `project` metadata for pure plan preparation.
+root, writes the release vars file under the managed artifacts tree, and
+validates `requiredFiles` before returning the plan. When `gitRef` is omitted,
+callers must provide explicit `project` metadata for pure plan preparation.
 
 Output: resolved release deployment plan, including merged vars and rendered
 image refs. When `artifact.env` is supplied, output also includes rendered env
 values such as `DOCKER_REGISTRY` and `POCKETHIVE_VERSION`. Checkout-backed
-output also includes managed root env values and `HIVEFORGE_RELEASE_VARS_FILE`.
+output also includes action contract path values and `HIVEFORGE_RELEASE_VARS_FILE`.
 
 ### `read_journal`
 
@@ -430,7 +579,7 @@ Target MCP additions:
   using the structured capability contract.
 - `match_project_profiles` - return eligible and ineligible profile/environment
   pairs with explicit missing capability issues.
-- `deploy_release` - currently validates and prepares an explicit release/image
-  tag set. Action execution is intentionally deferred until release artifact
-  rendering is explicit. This tool must not build, push, infer `latest`, infer
-  tags from branches, or select fallback profiles.
+- `prepare_release_deploy` - currently validates and prepares an explicit
+  release/image tag set. Action execution is intentionally deferred until
+  release artifact rendering is explicit. This tool must not build, push, infer
+  `latest`, infer tags from branches, or select fallback profiles.

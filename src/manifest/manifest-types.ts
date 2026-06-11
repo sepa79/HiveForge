@@ -1,5 +1,6 @@
 export interface RootManifest {
   kind: "project";
+  version: "0.5";
   project: {
     name: string;
     repository: string;

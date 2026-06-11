@@ -9,7 +9,12 @@ import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { SystemClock } from "../operation/clock.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
+import { DeploymentComposeService } from "../operation/deployment-compose-service.js";
+import { DeploymentDiagnosticsService } from "../operation/deployment-diagnostics-service.js";
+import { DeployPrerequisitesService } from "../operation/deploy-prerequisites-service.js";
 import { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
+import { DeploymentRuntimeStatusService } from "../operation/deployment-runtime-status-service.js";
+import { DockerDeploymentService } from "../operation/docker-deployment-service.js";
 import { ManagedFilesService } from "../operation/managed-files-service.js";
 import { OperationLogService } from "../operation/operation-log-service.js";
 import { UuidGenerator } from "../operation/id-generator.js";
@@ -18,9 +23,12 @@ import { ProjectInspectionService } from "../operation/project-inspection-servic
 import { ProjectRegistrationService } from "../operation/project-registration-service.js";
 import { RepositoryInspectionService } from "../operation/repository-inspection-service.js";
 import { ProjectValidationService } from "../operation/project-validation-service.js";
+import { SqliteDeploymentStateStore } from "../operation/sqlite-deployment-state-store.js";
 import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { resolveAuthToken } from "../runtime/auth-token.js";
-import { resolveRuntimePaths } from "../runtime/runtime-paths.js";
+import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
+import { HIVEFORGE_CONTAINER_RUNTIME_ROOT, resolveRuntimePaths } from "../runtime/runtime-paths.js";
+import { SelfUpdateService } from "../runtime/self-update-service.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
@@ -30,31 +38,36 @@ import { createRestRoutes } from "./rest-api.js";
 import { createUiRoutes, uiPublicPaths } from "./ui-routes.js";
 
 interface ServerOptions {
-  baseDir?: string;
   registry?: string;
   environments?: string;
   workspace?: string;
   journal?: string;
   dataRoot?: string;
-  hostDataRoot?: string;
 }
 
 const serverOptions = parseServerOptions(process.argv.slice(2));
 const commandRunner = new NodeCommandRunner();
-const runtimePaths = await resolveRuntimePaths({
-  baseDir: serverOptions.baseDir ?? process.env.HIVEFORGE_BASE_DIR,
+const explicitRuntimePaths = {
   registry: serverOptions.registry ?? process.env.HIVEFORGE_PROJECT_REGISTRY_PATH,
   environments: serverOptions.environments ?? process.env.HIVEFORGE_ENVIRONMENTS_PATH,
   workspace: serverOptions.workspace ?? process.env.HIVEFORGE_WORKSPACE_DIR,
   journal: serverOptions.journal ?? process.env.HIVEFORGE_JOURNAL_DIR,
-  dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT,
-  hostDataRoot: serverOptions.hostDataRoot ?? process.env.HIVEFORGE_HOST_DATA_ROOT,
+  dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT
+};
+const usesExplicitRuntimePaths = Object.values(explicitRuntimePaths).some((value) => value !== undefined);
+const runtimePaths = await resolveRuntimePaths({
+  runtimeRoot: usesExplicitRuntimePaths ? undefined : HIVEFORGE_CONTAINER_RUNTIME_ROOT,
+  ...explicitRuntimePaths,
   requireEnvironments: true,
-  defaultEnvironmentDocker: commandRunner
+  defaultEnvironmentDocker: commandRunner,
+  defaultEnvironment: {
+    name: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_NAME"),
+    description: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_DESCRIPTION")
+  }
 });
 const auth = await resolveAuthToken({
   authToken: process.env.HIVEFORGE_AUTH_TOKEN,
-  baseDir: runtimePaths.baseDir
+  runtimeRoot: runtimePaths.runtimeRoot
 });
 process.stdout.write(`HiveForge auth token source: ${auth.source}\n`);
 if (auth.source === "environment" && auth.ignoredTokenPath) {
@@ -72,8 +85,8 @@ const environmentsPath = required(runtimePaths.environments, "--environments");
 const workspaceRoot = runtimePaths.workspace;
 const journalDir = runtimePaths.journal;
 const dataRoot = runtimePaths.dataRoot;
-const hostDataRoot = runtimePaths.hostDataRoot;
 const runtimeEnvPath = runtimePaths.runtimeEnv;
+const stateDbPath = runtimePaths.stateDb;
 const port = Number.parseInt(process.env.HIVEFORGE_PORT ?? "3000", 10);
 const host = process.env.HIVEFORGE_BIND_HOST ?? "127.0.0.1";
 
@@ -82,6 +95,7 @@ const environmentConfig = await loadEnvironmentConfig(environmentsPath);
 const journal = new JsonlJournal(journalDir);
 const runtimeEnv = new RuntimeEnvStore(runtimeEnvPath);
 const ids = new UuidGenerator();
+const deploymentState = new SqliteDeploymentStateStore(stateDbPath, ids);
 const clock = new SystemClock();
 const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
 const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
@@ -92,14 +106,25 @@ const validation = new ProjectValidationService(
   clock
 );
 const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
-const managedFiles = new ManagedFilesService(dataRoot, hostDataRoot);
 const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner);
 const projectRegistration = new ProjectRegistrationService(projectRegistryPath, projectRegistry, repositoryInspection);
 const currentEnvironment = environmentConfig.environments.find((environment) => environment.id === environmentConfig.current);
 if (!currentEnvironment) {
   throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
 }
-const deploy = new DeployOrchestrator(inspection, validation, action, managedFiles, currentEnvironment, runtimeEnv);
+const managedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
+const managedFiles = new ManagedFilesService(dataRoot, managedRootBindSourceRoot);
+const dockerDeployment = new DockerDeploymentService(commandRunner, currentEnvironment);
+const deploy = new DeployOrchestrator(
+  inspection,
+  validation,
+  action,
+  managedFiles,
+  currentEnvironment,
+  runtimeEnv,
+  deploymentState,
+  dockerDeployment
+);
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
 const environmentRefresh = new EnvironmentRefreshService(environmentsPath, environmentConfig, {
@@ -111,8 +136,26 @@ const releaseDeploy = new ReleaseDeployService({
   inspection,
   managedFiles
 });
-const deploymentInventory = new DeploymentInventoryService(journal, currentEnvironment.id);
+const deployPrerequisites = new DeployPrerequisitesService(
+  projectRegistry,
+  inspection,
+  new RequirementValidator(new DockerCliProbe(commandRunner)),
+  runtimeEnv,
+  currentEnvironment
+);
+const deploymentInventory = new DeploymentInventoryService(deploymentState, currentEnvironment.id);
+const deploymentCompose = new DeploymentComposeService(journal);
+const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
+const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
+const selfUpdate = new SelfUpdateService({ appInfo, commandRunner });
+const deploymentDiagnostics = new DeploymentDiagnosticsService(
+  deploymentState,
+  deploymentRuntimeStatus,
+  deploymentCompose,
+  runtimeDiagnostics,
+  currentEnvironment
+);
 
 createHttpServer(
   [
@@ -129,12 +172,18 @@ createHttpServer(
       currentEnvironment,
       environmentPolicy,
       deploymentInventory,
+      deploymentCompose,
+      deploymentDiagnostics,
+      deploymentRuntimeStatus,
+      deployPrerequisites,
       operations,
       runtimeEnv,
+      runtimeDiagnostics,
       repositoryInspection,
       projectRegistration,
       environmentPolicyEditor,
       environmentRefresh,
+      selfUpdate,
       environments: {
         current: currentEnvironment,
         known: environmentConfig.environments
@@ -157,9 +206,6 @@ function parseServerOptions(args: string[]): ServerOptions {
     }
 
     switch (key) {
-      case "--base-dir":
-        options.baseDir = value;
-        break;
       case "--registry":
         options.registry = value;
         break;
@@ -175,9 +221,6 @@ function parseServerOptions(args: string[]): ServerOptions {
       case "--data-root":
         options.dataRoot = value;
         break;
-      case "--host-data-root":
-        options.hostDataRoot = value;
-        break;
       default:
         throw new Error(`Unknown option: ${key}`);
     }
@@ -191,4 +234,9 @@ function required(value: string | undefined, label: string): string {
     throw new Error(`Missing required option: ${label}`);
   }
   return value;
+}
+
+function nonEmptyEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value && value.length > 0 ? value : undefined;
 }

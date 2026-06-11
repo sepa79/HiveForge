@@ -22,31 +22,22 @@ deployment.
 ## Install On A Swarm Manager
 
 Run this on a Swarm manager node. The current install mounts the manager's
-Docker socket, so HiveForge can validate Docker resources and run declared
-actions against that Docker environment.
+Docker socket, so HiveForge can validate Docker resources and run its Docker
+deploy executor against that environment.
 
 ```bash
 mkdir -p /opt/hiveforge
 cd /opt/hiveforge
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:latest \
-  docker compose -f docker-compose.hiveforge.yml up -d
+docker stack deploy -c docker-compose.hiveforge.yml hiveforge
 cat /opt/hiveforge/auth-token
-```
-
-For Portainer or `docker stack deploy`, use the Swarm stack template instead:
-
-```bash
-curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-stack.hiveforge.yml
-docker stack deploy -c docker-stack.hiveforge.yml hiveforge
 docker ps --filter label=com.docker.swarm.service.name=hiveforge_hiveforge
-docker exec <container-id> cat /hf/auth-token
 ```
 
-The stack template uses a named volume and constrains HiveForge to manager
-The stack template uses an absolute host bind at `/opt/hiveforge` by default
-and constrains HiveForge to manager nodes. Do not use the single-node Compose
-file as a Portainer Swarm stack.
+The Compose file uses an absolute host bind at `/opt/hiveforge` by default,
+uses a Compose v3 file version for older stack deploy implementations, and
+constrains HiveForge to manager nodes when used as a Swarm stack. For Portainer,
+paste the same file as a Swarm stack.
 
 Check process health:
 
@@ -157,15 +148,16 @@ start_action(
 ```
 
 For release-driven managed-service projects such as HiveMind, use
-`deploy_release` only where the project contract says release preparation is
-sufficient. The current `deploy_release` tool prepares and validates a release
-plan; execution of release deploy/upgrade actions is still a separate contract
-gap.
+`prepare_release_deploy` only where the project contract says release
+preparation is sufficient. The current `prepare_release_deploy` tool prepares
+and validates a release plan; execution of release deploy/upgrade actions is
+still a separate contract gap.
 
 ## Current Gaps
 
 - Runtime env supports non-secret values only; secret provisioning is not
   implemented.
-- `deploy_release` prepares release plans but does not execute release actions.
+- `prepare_release_deploy` prepares release plans but does not execute release
+  actions.
 - External HiveWatch/HiveMind repositories must carry their own HiveForge
   manifests before they can be deployed by this flow.

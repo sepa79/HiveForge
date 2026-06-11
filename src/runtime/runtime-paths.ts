@@ -5,26 +5,29 @@ import type { CommandRunner } from "../workspace/command-runner.js";
 import { createDefaultEnvironmentYaml } from "./default-environment.js";
 
 export interface RuntimePathOptions {
-  baseDir?: string;
+  runtimeRoot?: string;
   registry?: string;
   environments?: string;
   workspace?: string;
   journal?: string;
   dataRoot?: string;
-  hostDataRoot?: string;
   requireEnvironments?: boolean;
   defaultEnvironmentDocker?: CommandRunner;
+  defaultEnvironment?: {
+    name?: string;
+    description?: string;
+  };
 }
 
 export interface RuntimePaths {
-  baseDir?: string;
+  runtimeRoot?: string;
   registry: string;
   environments?: string;
   workspace: string;
   journal: string;
   dataRoot: string;
-  hostDataRoot?: string;
   runtimeEnv: string;
+  stateDb: string;
 }
 
 export const runtimeFileNames = {
@@ -32,8 +35,11 @@ export const runtimeFileNames = {
   environments: "environments.yaml",
   authToken: "auth-token",
   operations: "operations.jsonl",
-  runtimeEnv: "runtime-env.json"
+  runtimeEnv: "runtime-env.json",
+  stateDb: "hiveforge.sqlite"
 } as const;
+
+export const HIVEFORGE_CONTAINER_RUNTIME_ROOT = "/hf";
 
 const WORKSPACE_DIR = "workspace";
 const JOURNAL_DIR = "journal";
@@ -41,7 +47,6 @@ const DATA_DIR = "data";
 
 const EMPTY_PROJECT_REGISTRY = "projects: []\n";
 export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<RuntimePaths> {
-  const hostDataRoot = normalizeHostDataRoot(options.hostDataRoot);
   const explicitOptions = [
     ["--registry", options.registry],
     ["--environments", options.environments],
@@ -51,14 +56,12 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
   ] as const;
   const providedExplicitOptions = explicitOptions.filter(([, value]) => value);
 
-  if (options.baseDir && providedExplicitOptions.length > 0) {
-    throw new Error(
-      "Use either --base-dir/HIVEFORGE_BASE_DIR or explicit runtime paths, not both."
-    );
+  if (options.runtimeRoot && providedExplicitOptions.length > 0) {
+    throw new Error("Use either --runtime-root or explicit runtime paths, not both.");
   }
 
-  if (options.baseDir) {
-    return initializeBaseDir(options.baseDir, hostDataRoot, options.defaultEnvironmentDocker);
+  if (options.runtimeRoot) {
+    return initializeRuntimeRoot(options.runtimeRoot, options.defaultEnvironmentDocker, options.defaultEnvironment);
   }
 
   const requiredExplicitOptions = explicitOptions.filter(
@@ -69,7 +72,7 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
     throw new Error(
       `Missing required runtime option(s): ${missingOptions.join(
         ", "
-      )}. Use either --base-dir/HIVEFORGE_BASE_DIR or all explicit runtime paths.`
+      )}. Use either --runtime-root or all explicit runtime paths.`
     );
   }
 
@@ -79,48 +82,51 @@ export async function resolveRuntimePaths(options: RuntimePathOptions): Promise<
     workspace: required(options.workspace, "--workspace"),
     journal: required(options.journal, "--journal"),
     dataRoot: required(options.dataRoot, "--data-root"),
-    ...(hostDataRoot ? { hostDataRoot } : {}),
-    runtimeEnv: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.runtimeEnv)
+    runtimeEnv: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.runtimeEnv),
+    stateDb: path.join(required(options.dataRoot, "--data-root"), runtimeFileNames.stateDb)
   };
 }
 
-async function initializeBaseDir(
-  baseDir: string,
-  hostDataRoot?: string,
-  defaultEnvironmentDocker?: CommandRunner
+async function initializeRuntimeRoot(
+  runtimeRoot: string,
+  defaultEnvironmentDocker?: CommandRunner,
+  defaultEnvironment?: RuntimePathOptions["defaultEnvironment"]
 ): Promise<RuntimePaths> {
-  const baseStat = await stat(baseDir).catch((error: unknown) => {
+  const rootStat = await stat(runtimeRoot).catch((error: unknown) => {
     if (isNodeError(error, "ENOENT")) {
-      throw new Error(`Base dir does not exist: ${baseDir}`);
+      throw new Error(`Runtime root does not exist: ${runtimeRoot}`);
     }
     throw error;
   });
-  if (!baseStat.isDirectory()) {
-    throw new Error(`Base dir is not a directory: ${baseDir}`);
+  if (!rootStat.isDirectory()) {
+    throw new Error(`Runtime root is not a directory: ${runtimeRoot}`);
   }
 
-  await access(baseDir, constants.W_OK).catch((error: unknown) => {
+  await access(runtimeRoot, constants.W_OK).catch((error: unknown) => {
     if (isNodeError(error, "EACCES") || isNodeError(error, "EPERM")) {
-      throw new Error(`Base dir is not writable: ${baseDir}`);
+      throw new Error(`Runtime root is not writable: ${runtimeRoot}`);
     }
     throw error;
   });
 
   const runtimePaths = {
-    baseDir,
-    registry: path.join(baseDir, runtimeFileNames.projects),
-    environments: path.join(baseDir, runtimeFileNames.environments),
-    workspace: path.join(baseDir, WORKSPACE_DIR),
-    journal: path.join(baseDir, JOURNAL_DIR),
-    dataRoot: path.join(baseDir, DATA_DIR),
-    ...(hostDataRoot ? { hostDataRoot } : {}),
-    runtimeEnv: path.join(baseDir, DATA_DIR, runtimeFileNames.runtimeEnv)
+    runtimeRoot,
+    registry: path.join(runtimeRoot, runtimeFileNames.projects),
+    environments: path.join(runtimeRoot, runtimeFileNames.environments),
+    workspace: path.join(runtimeRoot, WORKSPACE_DIR),
+    journal: path.join(runtimeRoot, JOURNAL_DIR),
+    dataRoot: path.join(runtimeRoot, DATA_DIR),
+    runtimeEnv: path.join(runtimeRoot, DATA_DIR, runtimeFileNames.runtimeEnv),
+    stateDb: path.join(runtimeRoot, DATA_DIR, runtimeFileNames.stateDb)
   };
 
-  await readdir(baseDir);
+  await readdir(runtimeRoot);
   await writeFileIfMissing(runtimePaths.registry, EMPTY_PROJECT_REGISTRY);
   await writeFileIfMissing(runtimePaths.environments, () =>
-    createDefaultEnvironmentYaml({ docker: defaultEnvironmentDocker })
+    createDefaultEnvironmentYaml({
+      docker: defaultEnvironmentDocker,
+      environment: defaultEnvironment
+    })
   );
   await mkdir(runtimePaths.workspace, { recursive: true });
   await mkdir(runtimePaths.journal, { recursive: true });
@@ -129,16 +135,6 @@ async function initializeBaseDir(
   await writeFileIfMissing(runtimePaths.runtimeEnv, `${JSON.stringify({ version: 1, entries: [] }, null, 2)}\n`);
 
   return runtimePaths;
-}
-
-function normalizeHostDataRoot(hostDataRoot: string | undefined): string | undefined {
-  if (!hostDataRoot) {
-    return undefined;
-  }
-  if (!path.isAbsolute(hostDataRoot)) {
-    throw new Error(`Host data root must be an absolute path: ${hostDataRoot}`);
-  }
-  return path.normalize(hostDataRoot);
 }
 
 async function writeFileIfMissing(filePath: string, content: string | (() => Promise<string>)): Promise<void> {

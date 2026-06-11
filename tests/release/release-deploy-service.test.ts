@@ -127,11 +127,12 @@ describe("release deploy service", () => {
     expect(result.managedFiles?.projectDir).toBe(projectDir);
     expect(result.releaseVarsFile).toBe(path.join(artifactsDir, "release-vars.json"));
     expect(result.plan.env).toMatchObject({
-      HIVEFORGE_PROJECT_DIR: projectDir,
-      HIVEFORGE_STACK_DIR: path.join(projectDir, "stacks"),
-      HIVEFORGE_ARTIFACTS_DIR: artifactsDir,
+      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(projectDir, "stacks", "compose.yml"),
       HIVEFORGE_RELEASE_VARS_FILE: path.join(artifactsDir, "release-vars.json")
     });
+    expect(result.plan.env).not.toHaveProperty("HIVEFORGE_PROJECT_DIR");
+    expect(result.plan.env).not.toHaveProperty("HIVEFORGE_STACK_DIR");
+    expect(result.plan.env).not.toHaveProperty("HIVEFORGE_ARTIFACTS_DIR");
     await expect(readFile(path.join(artifactsDir, "release-vars.json"), "utf8")).resolves.toContain(
       '"release.imageTag": "dev-20260521-1415-gd6819e34"'
     );
@@ -256,6 +257,7 @@ function managedFilesService(
         projectDir: dirs.projectDir,
         stackDir: path.join(dirs.projectDir, "stacks"),
         artifactsDir: dirs.artifactsDir,
+        renderedComposeFile: path.join(dirs.projectDir, "stacks", "compose.yml"),
         prepared: [
           {
             name: "runtime-compose",

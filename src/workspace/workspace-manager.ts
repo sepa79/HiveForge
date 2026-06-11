@@ -16,6 +16,8 @@ export interface CheckoutResult {
   workspacePath: string;
 }
 
+const PROJECT_PREFLIGHT_PATHS = ["hiveforge.yaml", "deploy/hiveforge"] as const;
+
 export class WorkspaceManager {
   constructor(
     private readonly workspaceRoot: string,
@@ -30,6 +32,31 @@ export class WorkspaceManager {
     await mkdir(checkoutParent, { recursive: true });
     const checkoutPath = await mkdtemp(path.join(checkoutParent, `${encodeRefForPath(request.gitRef)}-`));
     await this.commandRunner.run("git", ["clone", "--no-checkout", project.repository, checkoutPath]);
+    await this.commandRunner.run("git", ["checkout", request.gitRef], { cwd: checkoutPath });
+
+    return {
+      projectId: project.id,
+      repository: project.repository,
+      gitRef: request.gitRef,
+      workspacePath: checkoutPath
+    };
+  }
+
+  async checkoutManifestPreflight(request: CheckoutRequest): Promise<CheckoutResult> {
+    const project = selectRegisteredProject(this.projectRegistry, request.projectId, request.gitRef);
+    const checkoutParent = path.join(this.workspaceRoot, project.id);
+
+    await mkdir(checkoutParent, { recursive: true });
+    const checkoutPath = await mkdtemp(path.join(checkoutParent, `${encodeRefForPath(request.gitRef)}-preflight-`));
+    await this.commandRunner.run("git", [
+      "clone",
+      "--no-checkout",
+      "--filter=blob:none",
+      "--sparse",
+      project.repository,
+      checkoutPath
+    ]);
+    await this.commandRunner.run("git", ["sparse-checkout", "set", ...PROJECT_PREFLIGHT_PATHS], { cwd: checkoutPath });
     await this.commandRunner.run("git", ["checkout", request.gitRef], { cwd: checkoutPath });
 
     return {
