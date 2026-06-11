@@ -89,7 +89,14 @@ docs/specs/
 
 1. Promote accepted 0.5.x MCP readiness changes from
    `docs/ai/HIVEFORGE_0_5_PLAN.md` into `mcp/tools.md` and OpenAPI.
-2. Implement release deploy/upgrade API and MCP operations from `releases.md`.
-3. Define repository bootstrap/edit tools for MCP.
-4. Extend UI operator console actions and failure states.
-5. Decide whether journal/event history also moves into SQLite.
+2. Define admin/operator access roles for project registration, policy edits,
+   trust-mode approvals, risky-mount approvals, deployment execution, UI, MCP,
+   and REST errors.
+3. Define deployment trust modes in the manifest, policy, UI/API/MCP, and
+   runtime diagnostics contracts: `restricted` for HiveForge-owned Docker
+   execution and `trusted` for visibly approved project-owned Docker actions.
+4. Implement restricted release deploy/upgrade API and MCP operations from
+   `releases.md`.
+5. Define repository bootstrap/edit tools for MCP.
+6. Extend UI operator console actions and failure states.
+7. Decide whether journal/event history also moves into SQLite.
