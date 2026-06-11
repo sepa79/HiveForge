@@ -11,6 +11,9 @@
   and wait for Docker resources to disappear.
 - Add runtime task diagnostics for deployed Docker services so unhealthy
   deployments expose service task state in REST, MCP, and OpenAPI surfaces.
+- Consolidate HiveForge installation templates to one Compose file that works
+  with `docker compose up` and Portainer/Swarm stacks while preserving manager
+  placement constraints.
 - Document the 0.5 deploy flow updates for external bind sources and Docker
   removal semantics.
 

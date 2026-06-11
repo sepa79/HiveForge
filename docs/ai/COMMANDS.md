@@ -32,16 +32,11 @@ Build the deploy container:
 docker build -t hiveforge:local .
 ```
 
-Validate the Docker Compose install template:
+Validate the Docker install template for Compose and Swarm stack use:
 
 ```bash
 docker compose -f deploy/docker-compose.hiveforge.yml config
-```
-
-Validate the Docker Swarm stack template:
-
-```bash
-docker compose -f deploy/docker-stack.hiveforge.yml config
+docker stack config -c deploy/docker-compose.hiveforge.yml
 ```
 
 ## Test
@@ -189,7 +184,7 @@ image build through GitHub Actions. Tagged releases publish
 
 ## Deployment
 
-Run HiveForge with Docker Compose on a Docker host:
+Run HiveForge with Docker Compose:
 
 ```bash
 mkdir -p /opt/hiveforge
@@ -199,12 +194,17 @@ docker compose -f docker-compose.hiveforge.yml up -d
 cat auth-token
 ```
 
-See `docs/install/docker-compose.md`.
+For Portainer, paste the same `deploy/docker-compose.hiveforge.yml` file as a
+Swarm stack. See `docs/install/docker-compose.md`.
 
 ## Known command caveats
 
 - Add commands when new runnable surfaces are introduced.
 - Do not invent commands in PRs; verify them locally first.
+- Modern `docker compose config` warns that top-level `version` is obsolete in
+  `deploy/docker-compose.hiveforge.yml`. Keep `version: "3.8"` anyway because
+  older Portainer/Swarm stack deploy implementations require the Compose v3
+  contract for `deploy.placement`.
 
 ## Agent command rules
 

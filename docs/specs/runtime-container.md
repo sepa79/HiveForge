@@ -26,10 +26,10 @@ The preferred container install uses one mounted HiveForge runtime root:
 - fixed container path `/hf`
 - host bind mount, for example `/opt/hiveforge:/hf`
 
-For Swarm stack and Portainer installs, the runtime root should be backed by a
-host bind or shared filesystem mounted at `/hf`. Relative host bind mounts such
-as `./:/hf` are only for `docker compose up` on one known manager node and do
-not provide a portable host-visible path contract.
+For Docker Compose, Swarm stack, and Portainer installs, the runtime root should
+be backed by a host bind or shared filesystem mounted at `/hf`. Relative host
+bind mounts do not provide a portable host-visible path contract and are not
+part of the supported HiveForge install template.
 
 This mode is mutually exclusive with explicit runtime paths. HiveForge
 initializes missing runtime files and directories under the runtime root:

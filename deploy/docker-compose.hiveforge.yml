@@ -1,9 +1,9 @@
+version: "3.8"
+
 services:
   hiveforge:
     image: ${HIVEFORGE_IMAGE:-ghcr.io/sepa79/hiveforge:latest}
     restart: unless-stopped
-    ports:
-      - "${HIVEFORGE_HTTP_BIND:-0.0.0.0:3000}:3000"
     environment:
       HIVEFORGE_AUTH_TOKEN: ${HIVEFORGE_AUTH_TOKEN:-}
       # Used only when HiveForge creates a missing /hf/environments.yaml on first start.
@@ -17,7 +17,21 @@ services:
       http_proxy: ${http_proxy:-}
       https_proxy: ${https_proxy:-}
       no_proxy: ${no_proxy:-}
+    ports:
+      - target: 3000
+        published: ${HIVEFORGE_HTTP_PORT:-3000}
+        protocol: tcp
+        mode: ingress
     volumes:
-      # Change the host path before deploy when HiveForge data should live elsewhere.
-      - /opt/hiveforge:/hf
+      # Change this host path before deploy when HiveForge data should live elsewhere.
+      - type: bind
+        source: /opt/hiveforge
+        target: /hf
       - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.role == manager

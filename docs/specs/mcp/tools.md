@@ -20,8 +20,8 @@ The MCP process fails fast unless both variables are set:
 - `HIVEFORGE_BASE_URL`
 - `HIVEFORGE_AUTH_TOKEN`
 
-For the default Docker Compose install, `HIVEFORGE_AUTH_TOKEN` can be read from
-the generated runtime-root token file:
+For the default Docker Compose / Portainer install, `HIVEFORGE_AUTH_TOKEN` can
+be read from the generated runtime-root token file:
 
 ```bash
 HIVEFORGE_BASE_URL=http://<host>:3000 \

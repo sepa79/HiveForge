@@ -5,9 +5,9 @@ Use these prompts when asking an AI agent to operate HiveForge.
 ## Prepare Install
 
 ```text
-Help me prepare a Docker Compose installation for HiveForge on Docker host <host>.
-Use deploy/docker-compose.assisted.example.yml as the base.
-Generate docker-compose.yml, projects.yaml, environments.yaml, and a short runbook.
+Help me prepare a Docker Compose or Portainer installation for HiveForge on host <host>.
+Use deploy/docker-compose.hiveforge.yml as the base.
+Generate docker-compose.hiveforge.yml, projects.yaml, environments.yaml, and a short runbook.
 Ask for missing host paths, token source, image tag, project registry, or environment policy.
 Do not invent secrets, registry entries, profiles, or actions.
 Do not run the installation unless I explicitly ask you to.

@@ -43,8 +43,6 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
 
 1. Install HiveForge on the target Docker/Swarm environment.
 
-   For `docker compose up` on one manager node:
-
    ```bash
    mkdir -p /opt/hiveforge
    cd /opt/hiveforge
@@ -53,13 +51,13 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    cat /opt/hiveforge/auth-token
    ```
 
-   The install templates mount `/opt/hiveforge` into the HiveForge container at
+   The install template mounts `/opt/hiveforge` into the HiveForge container at
    `/hf`. Edit the left side of that bind mount before deploy when the host
    directory should be somewhere else.
 
-   For Portainer or `docker stack deploy`, use
-   [deploy/docker-stack.hiveforge.yml](deploy/docker-stack.hiveforge.yml)
-   instead. See [First Swarm quickstart](docs/quickstart/first-swarm.md).
+   For Portainer, paste
+   [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml) as a
+   Swarm stack. See [First Swarm quickstart](docs/quickstart/first-swarm.md).
 
 2. Start the MCP server from your workstation.
 
@@ -160,17 +158,16 @@ MCP connects to the REST server. It does not read runtime files directly.
 
 ## Install HiveForge
 
-HiveForge can run as a Docker Compose service on a target Docker host.
+HiveForge runs from one Docker Compose file that works with `docker compose up`
+and Portainer Swarm stacks.
 
-Use [Docker Compose install](docs/install/docker-compose.md),
+Use [Docker Compose / Portainer install](docs/install/docker-compose.md),
 [first Swarm quickstart](docs/quickstart/first-swarm.md),
-[deploy/docker-compose.assisted.example.yml](deploy/docker-compose.assisted.example.yml),
-[deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml),
-and [deploy/docker-stack.hiveforge.yml](deploy/docker-stack.hiveforge.yml)
-as the installation source of truth.
+and [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml) as
+the installation source of truth.
 
-The default Compose install uses one mounted runtime root. HiveForge creates
-missing runtime files there on first start and generates `auth-token` when an
+The install file uses one mounted runtime root. HiveForge creates missing
+runtime files there on first start and generates `auth-token` when an
 operator-provided `HIVEFORGE_AUTH_TOKEN` is not set. Project deployment remains
 blocked until project registry and environment policy entries are explicitly
 configured.

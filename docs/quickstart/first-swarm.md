@@ -29,24 +29,15 @@ deploy executor against that environment.
 mkdir -p /opt/hiveforge
 cd /opt/hiveforge
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:latest \
-  docker compose -f docker-compose.hiveforge.yml up -d
+docker stack deploy -c docker-compose.hiveforge.yml hiveforge
 cat /opt/hiveforge/auth-token
-```
-
-For Portainer or `docker stack deploy`, use the Swarm stack template instead:
-
-```bash
-curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-stack.hiveforge.yml
-docker stack deploy -c docker-stack.hiveforge.yml hiveforge
 docker ps --filter label=com.docker.swarm.service.name=hiveforge_hiveforge
-docker exec <container-id> cat /hf/auth-token
 ```
 
-The stack template uses a named volume and constrains HiveForge to manager
-The stack template uses an absolute host bind at `/opt/hiveforge` by default
-and constrains HiveForge to manager nodes. Do not use the single-node Compose
-file as a Portainer Swarm stack.
+The Compose file uses an absolute host bind at `/opt/hiveforge` by default,
+uses a Compose v3 file version for older stack deploy implementations, and
+constrains HiveForge to manager nodes when used as a Swarm stack. For Portainer,
+paste the same file as a Swarm stack.
 
 Check process health:
 

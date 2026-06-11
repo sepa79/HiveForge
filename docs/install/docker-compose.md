@@ -1,52 +1,68 @@
-# Install HiveForge With Docker Compose Or Swarm
+# Install HiveForge With Docker Compose Or Portainer
 
-HiveForge installs into one operator-owned directory. The container mounts that
-directory at `/hf`; the HiveForge server always uses `/hf` as its container
-runtime root and initializes missing runtime files there on first start.
+HiveForge installs from one Docker Compose file:
 
-## Docker Compose On One Swarm Manager
+```text
+deploy/docker-compose.hiveforge.yml
+```
+
+The same file is supported for:
+
+- `docker compose up` on a Docker or Swarm manager host,
+- Portainer as a Swarm stack,
+- `docker stack deploy` on a Swarm manager.
+
+The file includes ordinary Compose settings for local `docker compose up` and
+`deploy.placement` for Portainer/Swarm. It keeps `version: "3.8"` so older stack
+deploy implementations accept the placement section.
+
+HiveForge mounts one operator-owned runtime directory at `/hf`; the HiveForge
+server always uses `/hf` as its container runtime root and initializes missing
+runtime files there on first start.
+
+## Docker Compose
+
+Run this on the target Docker host or on one Swarm manager:
 
 ```bash
 mkdir -p /opt/hiveforge
 cd /opt/hiveforge
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
 docker compose -f docker-compose.hiveforge.yml up -d
+cat /opt/hiveforge/auth-token
 ```
 
-Use this mode when you SSH to one Docker or Swarm manager node and want
-HiveForge runtime files directly under `/opt/hiveforge`.
+## Portainer Or Swarm Stack
 
-## Swarm Stack / Portainer
+For Portainer, paste the same `deploy/docker-compose.hiveforge.yml` file as a
+Swarm stack.
 
-Use `deploy/docker-stack.hiveforge.yml` when you want to paste a stack into
-Portainer or run `docker stack deploy`. This variant uses an absolute bind mount
-instead of `./:/hf`, because relative bind mounts are not portable in Swarm
-stacks.
+For CLI stack deploy, run this on a Swarm manager:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-stack.hiveforge.yml
-docker stack deploy -c docker-stack.hiveforge.yml hiveforge
+mkdir -p /opt/hiveforge
+cd /opt/hiveforge
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
+docker stack deploy -c docker-compose.hiveforge.yml hiveforge
+cat /opt/hiveforge/auth-token
 ```
 
-For Portainer, paste the contents of
-`deploy/docker-stack.hiveforge.yml` as a Swarm stack. The service is constrained
-to manager nodes because it mounts `/var/run/docker.sock`.
-If the host path is not `/opt/hiveforge`, edit the left side of the `/hf` bind
-mount in the Compose or Stack file before deploy.
+The service is constrained to manager nodes because it mounts
+`/var/run/docker.sock`. If the host path is not `/opt/hiveforge`, edit the `/hf`
+bind source in the Compose file before deploy.
 
-Read the generated token from the running task:
+Read the generated token from the running task when host access is inconvenient:
 
 ```bash
 docker ps --filter label=com.docker.swarm.service.name=hiveforge_hiveforge
 docker exec <container-id> cat /hf/auth-token
 ```
 
-After first start, the directory contains:
+After first start, the runtime directory contains:
 
 ```text
 auth-token
 data/
-docker-compose.hiveforge.yml
 environments.yaml
 journal/
   operations.jsonl
@@ -54,18 +70,8 @@ projects.yaml
 workspace/
 ```
 
-Read the generated token on the host:
-
-```bash
-cat /opt/hiveforge/auth-token
-```
-
-For Swarm stack installs, the token is also under the configured host
-runtime-root directory, for example `/opt/hiveforge/auth-token`, unless you intentionally provide
-`HIVEFORGE_AUTH_TOKEN`.
-
-API and MCP clients use it as a bearer token. The UI shell loads without auth,
-but its API requests require the same token.
+API and MCP clients use the token as a bearer token. The UI shell loads without
+auth, but its API requests require the same token.
 
 The public process health endpoint is:
 
@@ -74,6 +80,8 @@ http://<host>:3000/health
 ```
 
 It does not require the bearer token.
+
+## MCP
 
 Start MCP against the installed HiveForge endpoint with:
 
@@ -90,7 +98,7 @@ the published image on your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.4.4 \
+  ghcr.io/sepa79/hiveforge:latest \
   npm run hiveforge-mcp
 ```
 
@@ -99,12 +107,15 @@ MCP connects to the HiveForge REST endpoint. It does not read `projects.yaml`,
 
 ## Operator-Provided Token
 
-To provide the token yourself, create `.env` before starting Compose:
+For `docker compose up`, put the token in `.env` before starting:
 
 ```bash
 printf 'HIVEFORGE_AUTH_TOKEN=%s\n' 'replace-me' > .env
 docker compose -f docker-compose.hiveforge.yml up -d
 ```
+
+For Portainer or `docker stack deploy`, set `HIVEFORGE_AUTH_TOKEN` as a stack
+environment variable before deploying.
 
 If `HIVEFORGE_AUTH_TOKEN` is set, HiveForge uses it and does not create
 `auth-token`.
@@ -117,8 +128,8 @@ runtime-root token file is ignored without printing either token value.
 ## Environment Display Metadata
 
 On first start, HiveForge creates `/hf/environments.yaml` when it is missing.
-The Compose and Stack templates can seed the human-facing environment label and
-description for that generated file:
+The Compose file can seed the human-facing environment label and description
+for that generated file:
 
 ```bash
 cat >> .env <<'EOF'
@@ -127,6 +138,9 @@ HIVEFORGE_ENVIRONMENT_DESCRIPTION=Home lab Docker Swarm on 192.168.88.50 using /
 EOF
 docker compose -f docker-compose.hiveforge.yml up -d
 ```
+
+For Portainer or `docker stack deploy`, provide the same values as stack
+environment variables before deploying.
 
 After `environments.yaml` exists, edit `name` and `description` there. HiveForge
 does not overwrite existing environment metadata on restart, redeploy, or node
@@ -138,8 +152,8 @@ HiveForge clones registered repositories from inside the HiveForge container.
 If that container needs a corporate HTTP proxy to reach GitHub or another Git
 host, configure the proxy on the HiveForge service itself.
 
-For Docker Compose installs, put the standard proxy variables in the same
-operator-owned directory as `docker-compose.hiveforge.yml`:
+For `docker compose up`, put the standard proxy variables in `.env` next to the
+Compose file:
 
 ```bash
 cat >> .env <<'EOF'
@@ -151,11 +165,11 @@ EOF
 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
-For Swarm stack or Portainer installs, provide the same `HTTP_PROXY`,
+For Portainer or `docker stack deploy`, provide the same `HTTP_PROXY`,
 `HTTPS_PROXY`, and `NO_PROXY` values as stack environment variables before the
-stack is deployed. The Compose and Stack templates pass uppercase and lowercase
-proxy variable names through to the HiveForge container when those values are
-set. `git clone` and declared lifecycle action processes inherit that container
+stack is deployed. The Compose file passes uppercase and lowercase proxy
+variable names through to the HiveForge container when those values are set.
+`git clone` and declared lifecycle action processes inherit that container
 environment.
 
 MCP proxy configuration on the workstation is separate. It only affects the MCP
@@ -186,15 +200,15 @@ The generated environment derives the HiveForge container's managed root
 internally as `/hf/data`. When project deployments need Docker bind sources, set
 `capabilities.managedRoot.bindSourceRoot` to the host-side runtime root as seen
 by the target Docker node, for example `/opt/hiveforge` or
-`/mnt/shared_nfs/hiveforge`. HiveForge reports this mapping through
-runtime diagnostics; it does not infer or repair host mount points.
+`/mnt/shared_nfs/hiveforge`. HiveForge reports this mapping through runtime
+diagnostics; it does not infer or repair host mount points.
 
 ## Docker Access
 
-The Compose file mounts `/var/run/docker.sock` because the current HiveForge POC
-validates Docker requirements and runs declared actions that target Docker or
-Swarm. This gives the HiveForge container Docker control on the host. If that is
-not acceptable, do not install this Compose file as-is.
+The Compose file mounts `/var/run/docker.sock` because HiveForge validates
+Docker requirements and runs the Docker deployment executor against the target
+Docker or Swarm environment. This gives the HiveForge container Docker control
+on the host. If that is not acceptable, do not install this file as-is.
 
 On a Swarm worker, HiveForge startup fails when creating a new runtime-root
 environment file. Run HiveForge on a manager node or provide an explicit
@@ -205,11 +219,17 @@ environment file. Run HiveForge on a manager node or provide an explicit
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.4.4 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.0 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
-The default public bind is `0.0.0.0:3000`. Override it with:
+For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or
+edit the image in the Compose file.
+
+The default public port is `3000`. Override it with:
 
 ```bash
-HIVEFORGE_HTTP_BIND=127.0.0.1:3000 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_HTTP_PORT=13000 docker compose -f docker-compose.hiveforge.yml up -d
 ```
+
+For Portainer or `docker stack deploy`, set `HIVEFORGE_HTTP_PORT` before deploy
+or edit the published port in the Compose file.
