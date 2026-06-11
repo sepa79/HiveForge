@@ -31,10 +31,32 @@ relevant runtime/workspace spec.
 
 ### 0.5.1
 
-- Execute release deploy/upgrade after `prepare_release_deploy`; no build
-  fallback and no repo/ref action fallback.
+- Introduce explicit deployment trust modes:
+  - `restricted`: project actions prepare/render files and HiveForge performs
+    Docker deploy/remove/purge. This is the default direction for HiveMind,
+    HiveWatch, and PocketHive release-driven deployments.
+  - `trusted`: project-owned Ansible actions may use Docker directly and own
+    deploy/update/remove/purge behavior. This preserves SkippyBot-style
+    component-targeted Compose actions without pretending Docker access is
+    sandboxed.
+- Execute restricted release deploy/upgrade after `prepare_release_deploy`; no
+  build fallback and no repo/ref action fallback.
+- Add explicit trusted-mode warnings in UI/API/MCP. Trusted mode is operator
+  code with Docker access, not a security boundary.
+- Introduce explicit access roles:
+  - `admin`: may register projects/refs, edit environment policy, approve
+    trusted mode, approve risky mounts such as `/var/run/docker.sock`, manage
+    runtime configuration, and run deployments.
+  - `operator`: may inspect, deploy/update/remove/upgrade/purge only already
+    registered and policy-allowed projects/profiles/actions, and read operation
+    diagnostics.
+- Pass `HIVEFORGE_DEPLOYMENT_ID` to trusted actions and require/validate the
+  simple `hiveforge.deployment=<deploymentId>` label when a project declares
+  Docker effects. Store project/component/profile/action/trust metadata in
+  HiveForge state, not as duplicated Docker labels.
 - Add UI for deploy prerequisites: manual prerequisites, missing labels,
-  secrets, mounts, release vars, and image refs.
+  secrets, mounts, release vars, image refs, trust mode, Docker socket exposure,
+  and operator approvals for risky mounts such as `/var/run/docker.sock`.
 - Improve compose/artifact UI with redaction, download/copy, and
   operation-linked artifact history.
 
@@ -47,10 +69,11 @@ relevant runtime/workspace spec.
 
 ### 0.5.3
 
-- Harden isolated action runner execution with per-operation runner containers,
-  narrow mounts, no Docker socket for project Ansible, and explicit allowed
-  tools.
-- Update security documentation around the action runner contract.
+- Harden restricted action runner execution with per-operation runner
+  containers, narrow mounts, no Docker socket for restricted project Ansible,
+  and explicit allowed tools.
+- Document trusted runner execution separately: trusted actions may receive
+  Docker access by design, must be visibly approved, and are not a sandbox.
 
 ### 0.5.4
 
@@ -78,8 +101,15 @@ relevant runtime/workspace spec.
   deployment.
 - Give operators diagnostics for HiveForge's own runtime paths and managed-root
   accessibility across Docker/Swarm nodes.
-- Run project deployment actions outside the HiveForge control-plane container,
-  with a smaller, explicit filesystem and Docker privilege boundary.
+- Support both restricted and trusted deployment modes without hiding the
+  security tradeoff.
+- Run restricted project deployment actions outside the HiveForge control-plane
+  container, with a smaller, explicit filesystem and Docker privilege boundary.
+- Preserve trusted project-owned actions for consumers that need flexible
+  component-level Docker behavior.
+- Separate administrative approval from day-to-day deployment so an AI/operator
+  can deploy an already-approved project without direct environment access and
+  without permission to onboard new repositories or widen policy.
 - Give operators a project-centered UI view for deployments, artifacts,
   prerequisites, labels, runtime status, and workspace cleanup.
 - Preserve HiveForge operator data across HiveForge container redeploys and
@@ -94,13 +124,19 @@ relevant runtime/workspace spec.
   runtime config automatically.
 - Do not infer deployment ownership from Docker Compose service names,
   container names, or image names.
+- Do not force every consumer into HiveForge-owned Docker execution. Trusted
+  project-owned actions remain a first-class mode.
+- Do not present trusted mode as sandboxed. Docker socket access in trusted mode
+  is full Docker-host control.
+- Do not let an operator-role token register repositories, widen environment
+  policy, enable trusted mode, or approve risky mounts.
 - Do not return unredacted rendered files that may contain secret values.
 - Do not reset, regenerate, or overwrite existing HiveForge runtime files during
   update-in-place.
 - Do not treat configured `managedRoot.shared: true` as proven unless HiveForge
   can verify or clearly report the basis for that claim.
-- Do not run project-owned Ansible/playbook code in the HiveForge control-plane
-  container once the isolated runner contract exists.
+- Do not run restricted project-owned Ansible/playbook code in the HiveForge
+  control-plane container once the isolated runner contract exists.
 - Do not mount the full HiveForge runtime root, auth token, registry,
   environment config, journal, or runtime-env store into project action runners.
 - Do not make the UI implement separate deploy, readiness, diagnostics, artifact,
@@ -578,14 +614,72 @@ Acceptance:
   fixed at `/hf`; explicit runtime path variables are maintainer/packaging
   escape hatches, not the normal install contract.
 
-## 7. Isolated Project Action Runner
+## 7. Admin And Operator Access Roles
 
-Status: partially implemented. Main deploy flow now treats Ansible as render/
-preparation and HiveForge as the Docker deploy executor for active lifecycle
-actions. HiveForge injects `hiveforge.deployment=<deploymentId>` into the
-rendered Compose/Stack file before running Docker. Remaining work: move Ansible
-execution into an isolated runner container, remove Docker access from that
-runner image, and add HF-owned remove/purge Docker execution.
+Status: planned direction after 0.5.0. Current HiveForge uses one bearer token
+for authenticated API/MCP calls. That is enough for the POC, but it does not
+separate administrative environment changes from normal deployment work.
+
+The target workflow is:
+
+```text
+admin approves project/ref/profile/trust mode once
+operator or AI agent deploys and tests approved project through MCP
+operator does not need direct SSH/Docker/Portainer access to the environment
+```
+
+Roles:
+
+- `admin`: can inspect and register repositories, add or remove registered
+  project refs, edit environment policy, allow actions/profiles/trust modes,
+  approve risky mounts such as `/var/run/docker.sock`, manage non-secret
+  runtime configuration, update HiveForge, and run deployments.
+- `operator`: can inspect current state, run lifecycle actions for
+  already-registered and policy-allowed project/profile/action/trustMode
+  combinations, read operation logs, read diagnostics, and view rendered
+  artifacts with redaction.
+
+Authorization rules:
+
+- Repository inspection remains read-only and may be available to both roles,
+  but registration is admin-only.
+- Environment policy editing is admin-only.
+- Enabling `trusted` mode for a project/profile/action is admin-only.
+- Approving risky restricted artifacts, including a rendered service that mounts
+  `/var/run/docker.sock`, is admin-only unless a later policy explicitly grants
+  that approval to a narrower role.
+- Deploy/update/remove/upgrade/purge are allowed to both admin and operator only
+  after registration, environment policy, profile eligibility, and trust-mode
+  checks pass.
+- Operator tokens must fail explicitly on admin-only operations. Do not silently
+  downgrade, queue, or reinterpret admin requests.
+
+Open design decisions:
+
+- Whether the first implementation uses separate admin/operator bearer tokens,
+  token records under `/hf`, or an external auth provider.
+- Whether UI login chooses a role from the supplied token or shows role-scoped
+  controls after token validation.
+- How MCP exposes role and permission failures so agents stop and ask for admin
+  approval instead of retrying.
+
+Acceptance:
+
+- `register_project` and `set_environment_project_policy` fail for an operator
+  token.
+- A normal operator can deploy a policy-approved restricted HiveMind/HiveWatch/
+  PocketHive release without direct environment access.
+- A normal operator can deploy a policy-approved trusted SkippyBot component
+  only when an admin already allowed trusted mode for that project/profile/action.
+- API/UI/MCP responses show the current role and explain admin-required
+  failures without exposing token values.
+
+## 8. Project Action Trust Modes And Restricted Runner
+
+Status: planned direction after 0.5.0. The earlier plan made HiveForge-owned
+Docker execution the only target. SkippyBot proves that would make HiveForge too
+primitive for trusted component-level deployments. 0.5.1 should instead add an
+explicit trust-mode split.
 
 Current behavior runs project-declared Ansible actions in the HiveForge
 container. That makes project action code trusted with the HiveForge control
@@ -593,14 +687,26 @@ plane's filesystem and Docker socket. It can read or modify `auth-token`,
 `projects.yaml`, `environments.yaml`, `data/runtime-env.json`, the journal, and
 other projects' deployment data.
 
-This also makes path contracts confusing: Ansible runs with container-visible
-paths such as `/hf/data/...`, while Docker/Swarm bind sources must be paths that
-exist on the runtime nodes, such as `/mnt/shared_nfs/hiveforge/...`.
+The new contract must not pretend one execution model covers all projects.
 
-0.5.x should move project action execution into an isolated action runner
-container per operation.
+Trust modes:
 
-Runner boundary:
+- `restricted`: project actions do not receive Docker socket access. They
+  prepare or render artifacts, and HiveForge owns Docker deploy/remove/purge.
+  HiveMind, HiveWatch, and PocketHive should use this mode for release-driven
+  deployments.
+- `trusted`: project actions are trusted operator code and may receive Docker
+  access. They own deploy/update/remove/purge semantics, including targeted
+  component-level Compose actions such as SkippyBot's
+  `docker compose up -d --no-build --no-deps --force-recreate <service>`.
+  HiveForge must surface that this is not sandboxed.
+
+This also makes path contracts mode-specific. Restricted actions should use
+task-oriented paths that HiveForge can validate before applying Docker changes.
+Trusted actions may need project-specific paths for compatibility, but the
+manifest must declare trusted mode instead of getting Docker access implicitly.
+
+Restricted runner boundary:
 
 - The HiveForge control-plane container keeps `/hf`, registry, environments,
   auth token, runtime-env store, journal, and API state.
@@ -611,8 +717,8 @@ Runner boundary:
   environments file, journal, or runtime-env store.
 - The runner should be ephemeral per operation and removed after completion,
   unless an explicit debug-retention mode is requested.
-- The runner must not receive Docker socket access; HiveForge performs the
-  apply/deploy step itself.
+- The restricted runner must not receive Docker socket access; HiveForge
+  performs the apply/deploy/remove/purge Docker step itself.
 - The project action contract is Ansible-only. The runner guarantees
   `ansible-playbook`, packaged Ansible built-ins, POSIX shell execution for
   explicit shell/command tasks, basic Unix file utilities, `curl`, `jq`, and CA
@@ -625,7 +731,25 @@ Runner boundary:
   agent/socket access, project-specific CLIs, Ansible collections, or roles
   unless they are explicitly declared and provided.
 
-Path contract for Docker/Swarm action runners:
+Trusted runner boundary:
+
+- Trusted actions may receive Docker socket access or Docker CLI access when the
+  environment policy explicitly allows trusted mode for the project/profile.
+- Trusted mode is full Docker-host control. HiveForge cannot enforce "only this
+  project's containers" with a raw Docker socket.
+- Trusted actions may run project-owned deploy/update/remove/purge playbooks.
+  This keeps SkippyBot-style per-component cleanup and targeted service restart
+  valid.
+- HiveForge should still pass `HIVEFORGE_DEPLOYMENT_ID` and require declared
+  Docker effects to apply `hiveforge.deployment=<deploymentId>` where practical.
+  That label is for diagnostics and inventory, not for security isolation.
+- HiveForge stores project/component/profile/action/trustMode/operationId in
+  SQLite state keyed by `deploymentId`; Docker labels should stay minimal.
+- If trusted actions do not create resources with the expected deployment label,
+  HiveForge reports the deployment as untracked or diagnostics-degraded rather
+  than guessing ownership from names.
+
+Path contract for restricted Docker/Swarm action runners:
 
 Project repositories must declare the breaking action contract version in the
 root manifest:
@@ -709,6 +833,11 @@ Validation rules:
 
 Open design decisions:
 
+- Exact manifest shape for `deployment.trustMode` and environment policy gates
+  that allow or deny trusted mode.
+- How trusted projects declare expected Docker effects, for example Compose
+  project name, targeted services, and required
+  `hiveforge.deployment=<deploymentId>` labels.
 - Whether the runner image is the HiveForge image with a restricted entrypoint
   or a separate minimal image containing Ansible without Docker CLI.
 - How projects declare any extra Ansible collections/roles or helper tools
@@ -721,27 +850,36 @@ Open design decisions:
   containers running.
 - How to express system bind allowlists in the manifest/environment contract
   without reintroducing magic strings.
+- Whether a future Docker API proxy or authorization plugin is worth adding so
+  trusted-style Compose flexibility can become technically restricted. Raw
+  Docker socket access must remain documented as unrestricted.
 
 Acceptance:
 
-- A project action cannot read or modify `auth-token`, `projects.yaml`,
-  `environments.yaml`, `data/runtime-env.json`, or the journal through normal
-  runner mounts.
+- A restricted project action cannot read or modify `auth-token`,
+  `projects.yaml`, `environments.yaml`, `data/runtime-env.json`, or the journal
+  through normal runner mounts.
+- A trusted action is visibly marked trusted in API/UI/MCP output before
+  execution and is not described as sandboxed.
 - A repository missing `version: "0.5"` fails during inspect/register before
   action execution.
 - A small Swarm smoke project can write config files to
   `HIVEFORGE_BIND_SOURCE_DIR`, write or use `HIVEFORGE_RENDERED_COMPOSE_FILE`,
-  deploy the stack, and run successfully on a worker node.
+  let HiveForge deploy the stack in restricted mode, and run successfully on a
+  worker node.
 - The same smoke fails clearly if the rendered Compose file contains `/hf/...`
   as a bind source.
+- A trusted SkippyBot-style smoke can run a project-owned targeted Compose
+  action and HiveForge can still find labeled resources when the action applies
+  `hiveforge.deployment=<deploymentId>`.
 - Operation status fails when Swarm tasks are rejected for missing bind sources.
 - Runtime diagnostics and project UI can show the rendered bind source path,
   node visibility result, and Docker task error.
 
-## 8. PocketHive Release Deploy Follow-Through
+## 9. PocketHive Release Deploy Follow-Through
 
 PocketHive remains blocked until the old compatibility deploy action is replaced
-with a release-driven runtime path.
+with a restricted, release-driven runtime path.
 
 Required work:
 
@@ -752,7 +890,11 @@ Required work:
   `artifacts.managedPaths`.
 - Make `prepare_release_deploy` prove that required runtime files and image vars
   are present before any execution step.
-- Add the later execution contract separately from the prepare tool.
+- Add the later restricted execution contract separately from the prepare tool.
+- Require operator-visible approval when a rendered PocketHive/HiveMind/HiveWatch
+  Compose/Stack artifact mounts `/var/run/docker.sock` into an application
+  service. This warning is about the deployed service's privileges, not about
+  granting Docker access to the restricted action runner.
 
 Acceptance:
 
@@ -761,8 +903,11 @@ Acceptance:
 - HiveForge does not require Maven/Java to deploy PocketHive.
 - `latest` and unqualified PocketHive application image refs are rejected before
   execution.
+- PocketHive release deployment uses `restricted` mode: project actions prepare
+  artifacts, HiveForge applies Docker changes, and there is no fallback to
+  trusted repo/ref Ansible actions.
 
-## 9. Workspace Retention And Cleanup
+## 10. Workspace Retention And Cleanup
 
 Current behavior: every checkout uses a fresh workspace directory under
 `<workspaceRoot>/<projectId>/<encodedRef>-<random>/`, and old checkout
@@ -802,7 +947,7 @@ Behavior rules:
   `<runtime-root>/data/deployed/<projectId>/`; workspace cleanup is only for git
   checkout workspaces.
 
-## 10. Project Operator UI View
+## 11. Project Operator UI View
 
 Add or expand a project-centered UI view so a human operator can understand one
 project without jumping between environment, journal, operation, and raw config
@@ -876,7 +1021,7 @@ Acceptance:
 - UI tests cover at least rendering of unknown/degraded states, redacted
   artifact evidence, and cleanup dry-run results.
 
-## 11. New-Agent Runbook Update
+## 12. New-Agent Runbook Update
 
 Update `docs/ai/USE_HIVEFORGE.md` after the tools exist.
 
@@ -906,6 +1051,10 @@ read_journal
 The runbook must clearly say:
 
 - `prepare_release_deploy` is not execution.
+- Admin-only operations such as `register_project`,
+  `set_environment_project_policy`, trusted-mode approval, and risky-mount
+  approval must stop with an admin-required message when the current token is an
+  operator token.
 - Manual prerequisites remain manual unless a separate explicit provisioning
   workflow exists.
 - `get_deployment_artifact` returns operation evidence; it must not silently

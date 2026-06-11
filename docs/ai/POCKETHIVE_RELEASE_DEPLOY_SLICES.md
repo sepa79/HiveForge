@@ -13,6 +13,14 @@ behind MCP, and CLI may exist only for maintainer/debug use.
 - HiveForge currently supports repo/ref lifecycle actions through `start_action`.
 - `docs/specs/releases.md` and `docs/specs/deployment-artifacts.md` define the
   release-driven target model.
+- The broader 0.5.1 direction splits deployment execution into explicit trust
+  modes. PocketHive release deploy belongs to `restricted` mode: project actions
+  may prepare/render artifacts, but HiveForge owns Docker deploy/remove/purge.
+  This does not remove `trusted` project-owned Ansible actions for consumers
+  such as SkippyBot.
+- The broader 0.5.1 direction also separates `admin` from `operator`: admins
+  register projects, edit policy, and approve risky mounts; operators deploy
+  already-approved project/profile/action/trustMode combinations.
 - `src/config/deployment-vars.ts` already has explicit project/environment/release
   var overlay helpers.
 - PocketHive currently has a HiveForge POC action that runs `build-hive.sh
@@ -221,8 +229,8 @@ Done when:
 
 ## Slice 8 - PocketHive Integration
 
-Purpose: switch PocketHive from compatibility bridge to release artifacts and
-managed runtime files.
+Purpose: switch PocketHive from compatibility bridge to restricted release
+artifacts and managed runtime files.
 
 For the broader HiveForge 0.5.x MCP/readiness plan, including the breaking
 `prepare_release_deploy` rename, deploy prerequisites
@@ -239,6 +247,13 @@ Deliverables:
   files.
 - Reuse `tools/docker/remote-images.sh` for local registry image publication.
 - Fix stale GHCR docs.
+- Declare PocketHive's HiveForge release path as `restricted`, not `trusted`.
+- Surface an operator approval warning when the rendered PocketHive artifact
+  mounts `/var/run/docker.sock` into an application service. That warning does
+  not grant Docker access to the action runner.
+- Require admin approval for that risky-mount approval. Normal operators may
+  deploy only after the project/ref/profile/action/trustMode and any required
+  risky-mount approval are already in policy.
 
 Done when:
 
@@ -246,10 +261,16 @@ Done when:
 - Deploy path does not build or push images.
 - Runtime files are copied from checkout into the HiveForge-managed project
   root, not loaded from committed ZIPs or hidden local state.
+- Docker changes are applied by HiveForge's restricted executor, not by
+  PocketHive repo/ref Ansible actions.
 
 ## Hard Rules Across All Slices
 
 - No hidden fallback from release deploy to repo/ref action deploy.
+- No hidden fallback from restricted release deploy to trusted project-owned
+  Ansible.
+- No normal operator path for registering PocketHive, widening policy, enabling
+  trusted mode, or approving `/var/run/docker.sock` mounts.
 - No deriving tags from branch names, git refs, dirty state, or local images.
 - No implicit `latest`.
 - No Docker host/SSH/Proxmox details in PocketHive project contracts.
