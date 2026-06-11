@@ -37,6 +37,20 @@ hiveforge.deployment=<deployment_id>
 Project, component, profile, environment, current operation, and timestamps live
 in SQLite, not as duplicated Docker labels.
 
+Each row also stores one `deployment_name`. Docker Compose project names and
+Docker Swarm stack names use this runtime deployment name:
+
+```text
+<deployment_name>
+```
+
+The default `deployment_name` for a new slot is the project id, for example
+`hivewatch`. REST and MCP callers may supply an explicit deployment name for a
+new slot. HiveForge must not silently rename an existing slot; changing the
+deployment name requires an explicit new slot/removal flow. Docker project/stack
+names must not contain the `deployment_id`; that id belongs in
+`hiveforge.deployment` and SQLite state.
+
 The unique deployment slot key is:
 
 ```text

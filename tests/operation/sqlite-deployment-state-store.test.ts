@@ -18,6 +18,7 @@ describe("sqlite deployment state store", () => {
 
     expect(preparing).toMatchObject({
       deploymentId: "deployment-1",
+      deploymentName: "hivewatch",
       status: "preparing",
       lastAction: "deploy",
       operationId: "op-1"
@@ -45,6 +46,7 @@ describe("sqlite deployment state store", () => {
     await expect(store.listDeployments("local")).resolves.toEqual([
       {
         deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
         environment: "local",
         project: "hivewatch",
         repository: "https://github.com/sepa79/HiveWatch.git",
@@ -67,6 +69,7 @@ describe("sqlite deployment state store", () => {
 
     expect(removed).toMatchObject({
       deploymentId: "deployment-1",
+      deploymentName: "hivewatch",
       status: "removed",
       lastAction: "remove",
       operationId: "op-2"
@@ -91,16 +94,40 @@ describe("sqlite deployment state store", () => {
 
     expect(failed).toMatchObject({
       deploymentId: "deployment-1",
+      deploymentName: "hivewatch",
       status: "failed",
       lastAction: "deploy",
       operationId: "op-1"
     });
   });
+
+  it("stores an explicit deployment name and reuses it for later slot updates", async () => {
+    const store = new SqliteDeploymentStateStore(":memory:", new SequenceIds());
+
+    const first = await store.ensureDeployment(
+      actionInput({ action: "deploy", operationId: "op-1", deploymentName: "hivewatch-canary" })
+    );
+    const second = await store.recordLifecycleAction(actionInput({ action: "upgrade", operationId: "op-2" }));
+
+    expect(first.deploymentName).toBe("hivewatch-canary");
+    expect(second?.deploymentName).toBe("hivewatch-canary");
+  });
+
+  it("rejects changing the deployment name for an existing slot", async () => {
+    const store = new SqliteDeploymentStateStore(":memory:", new SequenceIds());
+
+    await store.ensureDeployment(actionInput({ action: "deploy", operationId: "op-1", deploymentName: "hivewatch" }));
+
+    await expect(
+      store.ensureDeployment(actionInput({ action: "deploy", operationId: "op-2", deploymentName: "hivewatch-canary" }))
+    ).rejects.toThrow("refusing to change it to hivewatch-canary");
+  });
 });
 
-function actionInput(overrides: { action: string; operationId: string; gitRef?: string }) {
+function actionInput(overrides: { action: string; operationId: string; gitRef?: string; deploymentName?: string }) {
   return {
     environment: "local",
+    ...(overrides.deploymentName ? { deploymentName: overrides.deploymentName } : {}),
     project: "hivewatch",
     repository: "https://github.com/sepa79/HiveWatch.git",
     gitRef: overrides.gitRef ?? "main",

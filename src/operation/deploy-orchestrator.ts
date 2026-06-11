@@ -18,6 +18,7 @@ export interface DeployRequest {
   action: string;
   environmentId?: string;
   profile?: string;
+  deploymentName?: string;
   progress?: DeployProgressReporter;
 }
 
@@ -157,6 +158,7 @@ export class DeployOrchestrator {
 
     const stateInput = {
       environment: environmentId,
+      ...(input.request.deploymentName ? { deploymentName: input.request.deploymentName } : {}),
       project: input.inspection.projectId,
       repository: input.inspection.repository,
       gitRef: input.inspection.gitRef,
@@ -196,6 +198,10 @@ export class DeployOrchestrator {
     try {
       await this.dockerDeployment.deploy({
         deploymentId: deployment.deploymentId,
+        deploymentName: deployment.deploymentName,
+        project: deployment.project,
+        component: deployment.component,
+        ...(deployment.profile ? { profile: deployment.profile } : {}),
         composeFile: input.managedFiles.renderedComposeFile,
         ...(input.managedFiles.bindSourceDir ? { bindSourceDir: input.managedFiles.bindSourceDir } : {})
       });

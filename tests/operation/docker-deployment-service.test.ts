@@ -24,7 +24,16 @@ describe("docker deployment service", () => {
     const calls: unknown[] = [];
     const service = new DockerDeploymentService(commandRunner(calls), environment(["docker-single"]));
 
-    await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).resolves.toMatchObject({
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        project: "hivewatch",
+        component: "api",
+        profile: "test",
+        composeFile
+      })
+    ).resolves.toMatchObject({
       deploymentId: "deployment-1",
       composeFile,
       runtime: "docker-single"
@@ -33,7 +42,7 @@ describe("docker deployment service", () => {
     expect(calls).toEqual([
       {
         command: "docker",
-        args: ["compose", "-p", "hf-6d187e3ec9", "-f", composeFile, "up", "-d"]
+        args: ["compose", "-p", "hivewatch", "-f", composeFile, "up", "-d"]
       }
     ]);
     const rendered = YAML.parse(await readFile(composeFile, "utf8"));
@@ -55,14 +64,43 @@ describe("docker deployment service", () => {
     const calls: unknown[] = [];
     const service = new DockerDeploymentService(commandRunner(calls), environment(["docker-swarm"]));
 
-    await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).resolves.toMatchObject({
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        project: "hivewatch",
+        component: "api",
+        composeFile
+      })
+    ).resolves.toMatchObject({
       runtime: "docker-swarm"
     });
 
     expect(calls).toEqual([
       {
         command: "docker",
-        args: ["stack", "deploy", "-c", composeFile, "hf-6d187e3ec9"]
+        args: ["stack", "deploy", "-c", composeFile, "hivewatch"]
+      }
+    ]);
+  });
+
+  it("uses an explicit deployment name when provided", async () => {
+    const composeFile = await writeCompose("services:\n  api:\n    image: hivewatch:test\n");
+    const calls: unknown[] = [];
+    const service = new DockerDeploymentService(commandRunner(calls), environment(["docker-swarm"]));
+
+    await service.deploy({
+      deploymentId: "deployment-1",
+      deploymentName: "hivewatch-canary",
+      project: "hivewatch",
+      component: "api",
+      composeFile
+    });
+
+    expect(calls).toEqual([
+      {
+        command: "docker",
+        args: ["stack", "deploy", "-c", composeFile, "hivewatch-canary"]
       }
     ]);
   });
@@ -71,9 +109,33 @@ describe("docker deployment service", () => {
     const composeFile = await writeCompose("services:\n  service-name-that-is-too-long-for-hiveforge-swarm-stack-prefix:\n    image: hivewatch:test\n");
     const service = new DockerDeploymentService(commandRunner([]), environment(["docker-swarm"]));
 
-    await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).rejects.toThrow(
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        project: "hivewatch",
+        component: "api",
+        profile: "swarm-reduced",
+        composeFile
+      })
+    ).rejects.toThrow(
       "Rendered compose service name is too long for Docker Swarm"
     );
+  });
+
+  it("rejects unsafe deployment names instead of hiding them behind hashes", async () => {
+    const composeFile = await writeCompose("services:\n  api:\n    image: hivewatch:test\n");
+    const service = new DockerDeploymentService(commandRunner([]), environment(["docker-swarm"]));
+
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        deploymentName: "HiveWatch",
+        project: "hivewatch",
+        component: "api",
+        composeFile
+      })
+    ).rejects.toThrow("Deployment name is not safe for Docker project/stack names: HiveWatch");
   });
 
   it("rejects bind sources outside the HiveForge bind source directory", async () => {
@@ -91,6 +153,9 @@ describe("docker deployment service", () => {
     await expect(
       service.deploy({
         deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        project: "hivewatch",
+        component: "api",
         composeFile,
         bindSourceDir: "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch"
       })
@@ -114,6 +179,9 @@ describe("docker deployment service", () => {
     await expect(
       service.deploy({
         deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        project: "hivewatch",
+        component: "api",
         composeFile,
         bindSourceDir: "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch"
       })
@@ -131,7 +199,15 @@ describe("docker deployment service", () => {
     ]);
     const service = new DockerDeploymentService(commandRunner([]), environment(["docker-single"]));
 
-    await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).rejects.toThrow(
+    await expect(
+      service.deploy({
+        deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        project: "hivewatch",
+        component: "api",
+        composeFile
+      })
+    ).rejects.toThrow(
       "no HIVEFORGE_BIND_SOURCE_DIR"
     );
   });

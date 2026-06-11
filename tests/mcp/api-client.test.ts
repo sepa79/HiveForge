@@ -233,14 +233,15 @@ describe("HiveForge MCP API client", () => {
       gitRef: "main",
       component: "api",
       action: "deploy",
-      profile: "test"
+      profile: "test",
+      deploymentName: "hivewatch-canary"
     });
 
     expect(calls[0]).toMatchObject({
       url: "http://127.0.0.1:3000/operations/projects/hivewatch-local/actions/api/deploy",
       init: {
         method: "POST",
-        body: JSON.stringify({ gitRef: "main", profile: "test" })
+        body: JSON.stringify({ gitRef: "main", profile: "test", deploymentName: "hivewatch-canary" })
       }
     });
   });

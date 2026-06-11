@@ -51,7 +51,14 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     }) => call(() => apiClient.explainDeployPrerequisites(input)),
     validateRequirements: (input: { projectId: string; gitRef: string; profile?: string }) =>
       call(() => apiClient.validateRequirements(input)),
-    startAction: (input: { projectId: string; gitRef: string; component: string; action: string; profile?: string }) =>
+    startAction: (input: {
+      projectId: string;
+      gitRef: string;
+      component: string;
+      action: string;
+      profile?: string;
+      deploymentName?: string;
+    }) =>
       call(() => apiClient.startAction(input)),
     prepareReleaseDeploy: (input: ReleaseDeployApiInput) => call(() => apiClient.prepareReleaseDeploy(input))
   };

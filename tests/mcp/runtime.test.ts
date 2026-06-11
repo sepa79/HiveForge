@@ -258,6 +258,35 @@ describe("HiveForge MCP runtime", () => {
     });
   });
 
+  it("starts lifecycle actions with an explicit deployment name through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async startAction(input: unknown) {
+        return { operationId: "uiop-1", input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.startAction({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "service",
+      action: "deploy",
+      profile: "docker-swarm",
+      deploymentName: "hivewatch-canary"
+    });
+
+    expect(result.structuredContent).toEqual({
+      operationId: "uiop-1",
+      input: {
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "service",
+        action: "deploy",
+        profile: "docker-swarm",
+        deploymentName: "hivewatch-canary"
+      }
+    });
+  });
+
   it("sets environment project policy through the runtime", async () => {
     const runtime = createHiveForgeMcpRuntime({
       async setEnvironmentProjectPolicy(input: unknown) {

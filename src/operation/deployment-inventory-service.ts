@@ -2,6 +2,7 @@ import type { DeploymentStateRecord, DeploymentStateStatus, DeploymentStateStore
 
 export interface DeploymentInventoryItem {
   deploymentId: string;
+  deploymentName: string;
   environment: string;
   project: string;
   repository: string;
@@ -30,6 +31,7 @@ export class DeploymentInventoryService {
 function inventoryItem(record: DeploymentStateRecord): DeploymentInventoryItem {
   return {
     deploymentId: record.deploymentId,
+    deploymentName: record.deploymentName,
     environment: record.environment,
     project: record.project,
     repository: record.repository,

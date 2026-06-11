@@ -43,6 +43,7 @@ describe("deployment runtime status service", () => {
 
     await expect(service.check({ projectId: "hivewatch", component: "api" })).resolves.toEqual({
       deploymentId: "deployment-1",
+      deploymentName: "hivewatch",
       projectId: "hivewatch",
       component: "api",
       summary: "running",
@@ -81,6 +82,7 @@ describe("deployment runtime status service", () => {
 
     await expect(service.check({ deploymentId: "deployment-1" })).resolves.toEqual({
       deploymentId: "deployment-1",
+      deploymentName: "hivewatch",
       projectId: "hivewatch",
       component: "api",
       summary: "missing",
@@ -248,6 +250,7 @@ function stateStore(records: DeploymentStateRecord[]): DeploymentStateStore {
 function deployment(): DeploymentStateRecord {
   return {
     deploymentId: "deployment-1",
+    deploymentName: "hivewatch",
     environment: "docker",
     project: "hivewatch",
     repository: "https://github.com/sepa79/HiveWatch.git",

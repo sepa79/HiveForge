@@ -111,6 +111,28 @@ describe("REST API", () => {
     ]);
   });
 
+  it("passes deploymentName from action requests to the orchestrator", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/actions/api/deploy`, {
+      method: "POST",
+      body: JSON.stringify({ gitRef: "main", deploymentName: "hivewatch-canary" })
+    });
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual([
+      {
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        environmentId: "local",
+        deploymentName: "hivewatch-canary"
+      }
+    ]);
+  });
+
   it("rejects action requests outside environment policy", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -282,6 +304,7 @@ describe("REST API", () => {
       deployments: [
         {
           deploymentId: "deployment-1",
+          deploymentName: "hivewatch",
           environment: "local",
           project: "hivewatch",
           component: "api",
@@ -366,7 +389,7 @@ describe("REST API", () => {
 
     const response = await fetch(`${baseUrl}/operations/projects/hivewatch/actions/api/deploy`, {
       method: "POST",
-      body: JSON.stringify({ gitRef: "main", profile: "test" })
+      body: JSON.stringify({ gitRef: "main", profile: "test", deploymentName: "hivewatch-canary" })
     });
 
     expect(response.status).toBe(200);
@@ -376,6 +399,15 @@ describe("REST API", () => {
       projectId: "hivewatch",
       component: "api",
       action: "deploy"
+    });
+    expect(calls).toContainEqual({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      environmentId: "local",
+      profile: "test",
+      deploymentName: "hivewatch-canary"
     });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -921,6 +953,7 @@ async function startServer(
             deployments: [
               {
                 deploymentId: "deployment-1",
+                deploymentName: "hivewatch",
                 environment: "local",
                 project: "hivewatch",
                 component: "api",

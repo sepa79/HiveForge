@@ -164,8 +164,9 @@ Behavior: read-only. This tool does not refresh the environment. Use
 Input: none.
 
 Output: deployment inventory for the current environment, read from HiveForge
-state DB. Each deployment includes `deploymentId`, project, component, profile,
-current status, last action, operation id, and update timestamp.
+state DB. Each deployment includes `deploymentId`, `deploymentName`, project,
+component, profile, current status, last action, operation id, and update
+timestamp.
 
 ### `diagnose_hiveforge_runtime`
 
@@ -478,7 +479,8 @@ Input:
   "gitRef": "main",
   "component": "api",
   "action": "deploy",
-  "profile": "test"
+  "profile": "test",
+  "deploymentName": "hivewatch-canary"
 }
 ```
 
@@ -489,6 +491,11 @@ a required environment variable. Environment policy may also require and limit
 profiles.
 Resolved runtime env for the selected project/profile is passed into validation
 and the declared action process.
+`deploymentName` is optional. When omitted for a new deployment slot, HiveForge
+uses the project id as the Docker Compose project name or Docker Swarm stack
+name. When supplied, it must be a Docker-safe lower-case name. Existing slots
+keep their stored deployment name and cannot be silently renamed by a later
+request.
 
 Output: operation ID, status, and current logs. Use `get_operation` to poll live
 logs and final stdout/stderr. If the underlying action command fails, the

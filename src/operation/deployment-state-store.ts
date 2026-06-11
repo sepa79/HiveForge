@@ -2,6 +2,7 @@ export type DeploymentStateStatus = "preparing" | "deployed" | "removed" | "fail
 
 export interface DeploymentStateRecord {
   deploymentId: string;
+  deploymentName: string;
   environment: string;
   project: string;
   repository: string;
@@ -16,6 +17,7 @@ export interface DeploymentStateRecord {
 
 export interface RecordLifecycleDeploymentInput {
   environment: string;
+  deploymentName?: string;
   project: string;
   repository: string;
   gitRef: string;
@@ -28,6 +30,7 @@ export interface RecordLifecycleDeploymentInput {
 
 export interface EnsureDeploymentInput {
   environment: string;
+  deploymentName?: string;
   project: string;
   repository: string;
   gitRef: string;

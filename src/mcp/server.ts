@@ -9,6 +9,7 @@ import { HiveForgeApiClient } from "./api-client.js";
 import { createHiveForgeMcpRuntime } from "./runtime.js";
 
 const lifecycleAction = z.enum(["deploy", "remove", "purge", "update", "upgrade"]);
+const dockerDeploymentName = z.string().regex(/^[a-z][a-z0-9-]*$/);
 const runtimeEnvValues = z.record(z.string().regex(/^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$/), z.string());
 const runtimeEnvKeys = z.array(z.string().regex(/^(?!HIVEFORGE_)[A-Z][A-Z0-9_]*$/)).min(1);
 const releaseVarsSchema = z.record(z.string().min(1), z.string());
@@ -138,7 +139,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     {
       title: "Check deployment runtime status",
       description:
-        "Inspect Docker containers/services matching the HiveForge deployment UUID label.",
+        "Inspect Docker containers/services matching the HiveForge deployment label.",
       inputSchema: {
         deploymentId: z.string().min(1).optional(),
         projectId: z.string().min(1).optional(),
@@ -315,7 +316,8 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
         gitRef: z.string().min(1),
         component: z.string().min(1),
         action: lifecycleAction,
-        profile: z.string().min(1).optional()
+        profile: z.string().min(1).optional(),
+        deploymentName: dockerDeploymentName.optional()
       }
     },
     runtime.startAction

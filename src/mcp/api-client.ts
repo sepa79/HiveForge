@@ -263,6 +263,7 @@ export class HiveForgeApiClient {
     component: string;
     action: string;
     profile?: string;
+    deploymentName?: string;
   }): Promise<unknown> {
     return this.request({
       method: "POST",
@@ -271,7 +272,8 @@ export class HiveForgeApiClient {
       )}/${encodeURIComponent(input.action)}`,
       body: {
         gitRef: input.gitRef,
-        ...(input.profile ? { profile: input.profile } : {})
+        ...(input.profile ? { profile: input.profile } : {}),
+        ...(input.deploymentName ? { deploymentName: input.deploymentName } : {})
       }
     });
   }

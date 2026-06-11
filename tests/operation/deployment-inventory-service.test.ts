@@ -8,6 +8,7 @@ describe("deployment inventory service", () => {
       stateStore([
         {
           deploymentId: "deployment-1",
+          deploymentName: "hivewatch",
           environment: "local",
           project: "hivewatch",
           repository: "https://github.com/sepa79/HiveWatch.git",
@@ -27,6 +28,7 @@ describe("deployment inventory service", () => {
       deployments: [
         {
           deploymentId: "deployment-1",
+          deploymentName: "hivewatch",
           environment: "local",
           project: "hivewatch",
           repository: "https://github.com/sepa79/HiveWatch.git",

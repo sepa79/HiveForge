@@ -431,7 +431,8 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           component: params.component,
           action: params.action,
           environmentId: services.currentEnvironmentId,
-          profile: body.profile
+          profile: body.profile,
+          deploymentName: body.deploymentName
         });
         return {
           operationId: result.action.operationId,
@@ -463,7 +464,8 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           component: params.component,
           action: params.action,
           environmentId: services.currentEnvironmentId,
-          profile: body.profile
+          profile: body.profile,
+          deploymentName: body.deploymentName
         });
         return operation;
       }
@@ -557,13 +559,15 @@ async function readRefRequest(request: Parameters<typeof readJsonBody>[0]): Prom
   return { gitRef: body.gitRef };
 }
 
-async function readActionRequest(request: Parameters<typeof readJsonBody>[0]): Promise<{ gitRef: string; profile?: string }> {
+async function readActionRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<{ gitRef: string; profile?: string; deploymentName?: string }> {
   return readProfiledRefRequest(request);
 }
 
 async function readProfiledRefRequest(
   request: Parameters<typeof readJsonBody>[0]
-): Promise<{ gitRef: string; profile?: string }> {
+): Promise<{ gitRef: string; profile?: string; deploymentName?: string }> {
   const body = await readJsonBody(request);
   if (!isObject(body) || typeof body.gitRef !== "string" || body.gitRef.length === 0) {
     throw new HttpError(400, "Missing required field: gitRef");
@@ -571,9 +575,13 @@ async function readProfiledRefRequest(
   if ("profile" in body && (typeof body.profile !== "string" || body.profile.length === 0)) {
     throw new HttpError(400, "Invalid field: profile");
   }
+  if ("deploymentName" in body && (typeof body.deploymentName !== "string" || !isDockerDeploymentName(body.deploymentName))) {
+    throw new HttpError(400, "Invalid field: deploymentName");
+  }
   return {
     gitRef: body.gitRef,
-    profile: typeof body.profile === "string" ? body.profile : undefined
+    profile: typeof body.profile === "string" ? body.profile : undefined,
+    deploymentName: typeof body.deploymentName === "string" ? body.deploymentName : undefined
   };
 }
 
@@ -844,4 +852,8 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDockerDeploymentName(value: string): boolean {
+  return /^[a-z][a-z0-9-]*$/.test(value);
 }

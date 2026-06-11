@@ -16,6 +16,7 @@ export interface DeploymentRuntimeStatusRequest {
 
 export interface DeploymentRuntimeStatusResult {
   deploymentId?: string;
+  deploymentName?: string;
   projectId?: string;
   component?: string;
   profile?: string;
@@ -62,6 +63,7 @@ export class DeploymentRuntimeStatusService {
     if (deployment.status === "removed") {
       return {
         deploymentId: deployment.deploymentId,
+        deploymentName: deployment.deploymentName,
         projectId: deployment.project,
         component: deployment.component,
         ...(deployment.profile ? { profile: deployment.profile } : {}),
@@ -81,6 +83,7 @@ export class DeploymentRuntimeStatusService {
 
     return {
       deploymentId: deployment.deploymentId,
+      deploymentName: deployment.deploymentName,
       projectId: deployment.project,
       component: deployment.component,
       ...(deployment.profile ? { profile: deployment.profile } : {}),

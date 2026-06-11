@@ -243,7 +243,7 @@ paths:
       summary: Check live Docker runtime status for a labelled deployment
       description: >
         Looks up Docker containers and, on Swarm environments, services by the
-        single HiveForge deployment UUID label only. This endpoint does not
+        single HiveForge deployment label only. This endpoint does not
         infer deployment ownership from names.
       operationId: checkDeploymentRuntimeStatus
       requestBody:
@@ -574,6 +574,8 @@ components:
           type: string
           minLength: 1
         profile:
+          $ref: "#/components/schemas/Identifier"
+        deploymentName:
           $ref: "#/components/schemas/Identifier"
     DeployPrerequisitesRequest:
       type: object
@@ -1064,6 +1066,8 @@ components:
       properties:
         deploymentId:
           type: string
+        deploymentName:
+          $ref: "#/components/schemas/Identifier"
         projectId:
           $ref: "#/components/schemas/Identifier"
         component:
@@ -1374,10 +1378,12 @@ components:
           type: string
     Deployment:
       type: object
-      required: [deploymentId, environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
+      required: [deploymentId, deploymentName, environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
       properties:
         deploymentId:
           type: string
+        deploymentName:
+          $ref: "#/components/schemas/Identifier"
         environment:
           $ref: "#/components/schemas/Identifier"
         project:
@@ -1425,6 +1431,8 @@ components:
         environmentId:
           $ref: "#/components/schemas/Identifier"
         profile:
+          $ref: "#/components/schemas/Identifier"
+        deploymentName:
           $ref: "#/components/schemas/Identifier"
         startedAt:
           type: string

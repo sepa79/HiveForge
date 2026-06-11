@@ -216,6 +216,7 @@ function stateStore(records: DeploymentStateRecord[]): DeploymentStateStore {
 function deploymentRecord(): DeploymentStateRecord {
   return {
     deploymentId: "deployment-1",
+    deploymentName: "hivewatch",
     environment: "docker",
     project: "hivewatch",
     repository: "https://github.com/sepa79/HiveWatch.git",

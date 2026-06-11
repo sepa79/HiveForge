@@ -31,6 +31,14 @@ The 0.5 deploy flow is:
 Each step is explicit. A failed step stops the flow; later steps do not run.
 The action journal records the lifecycle operation outcome. The SQLite state DB
 records the current deployment slot status and stable `deploymentId`.
+Docker Compose project names and Docker Swarm stack names use a runtime
+deployment name. The default deployment name is the project id, for example
+`hivewatch`. REST and MCP callers may pass an explicit `deploymentName` when
+they need a separate runtime name, for example `hivewatch-canary`. Existing
+deployment slots keep their stored deployment name; HiveForge rejects attempts
+to silently rename an existing slot. The stable `deploymentId` is not used in
+Docker project/stack names; Docker ownership is selected by the injected
+`hiveforge.deployment=<deploymentId>` label.
 
 The contract version gate runs before full checkout and before any project
 action. A missing or unsupported root `version` is a breaking-change failure,

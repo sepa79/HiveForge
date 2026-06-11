@@ -84,11 +84,13 @@ export class SqliteDeploymentStateStore implements DeploymentStateStore {
       profile: input.profile
     });
     const deploymentId = existing?.deploymentId ?? this.ids.nextId("deployment");
+    const deploymentName = deploymentNameFor(input, existing);
 
     this.db
       .prepare(
         `INSERT INTO deployments (
            deployment_id,
+           deployment_name,
            environment,
            project,
            repository,
@@ -100,8 +102,9 @@ export class SqliteDeploymentStateStore implements DeploymentStateStore {
            last_action,
            operation_id,
            updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(environment, project, component, profile_key) DO UPDATE SET
+           deployment_name = excluded.deployment_name,
            repository = excluded.repository,
            git_ref = excluded.git_ref,
            profile = excluded.profile,
@@ -112,6 +115,7 @@ export class SqliteDeploymentStateStore implements DeploymentStateStore {
       )
       .run(
         deploymentId,
+        deploymentName,
         input.environment,
         input.project,
         input.repository,
@@ -158,6 +162,7 @@ export class SqliteDeploymentStateStore implements DeploymentStateStore {
         component TEXT NOT NULL,
         profile TEXT,
         profile_key TEXT NOT NULL,
+        deployment_name TEXT,
         status TEXT NOT NULL CHECK(status IN ('preparing', 'deployed', 'removed', 'failed')),
         last_action TEXT NOT NULL,
         operation_id TEXT NOT NULL,
@@ -165,12 +170,28 @@ export class SqliteDeploymentStateStore implements DeploymentStateStore {
         UNIQUE(environment, project, component, profile_key)
       );
     `);
+    this.ensureDeploymentNameColumn();
+  }
+
+  private ensureDeploymentNameColumn(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(deployments)`).all();
+    const hasDeploymentName = columns.some(
+      (column) =>
+        typeof column === "object" &&
+        column !== null &&
+        "name" in column &&
+        column.name === "deployment_name"
+    );
+    if (!hasDeploymentName) {
+      this.db.exec(`ALTER TABLE deployments ADD COLUMN deployment_name TEXT`);
+    }
   }
 }
 
 function rowToDeployment(row: Record<string, unknown>): DeploymentStateRecord {
   return {
     deploymentId: stringField(row, "deployment_id"),
+    deploymentName: optionalStringField(row, "deployment_name") ?? stringField(row, "project"),
     environment: stringField(row, "environment"),
     project: stringField(row, "project"),
     repository: stringField(row, "repository"),
@@ -182,6 +203,27 @@ function rowToDeployment(row: Record<string, unknown>): DeploymentStateRecord {
     operationId: stringField(row, "operation_id"),
     updatedAt: stringField(row, "updated_at")
   };
+}
+
+function deploymentNameFor(
+  input: RecordLifecycleDeploymentInput | EnsureDeploymentInput | RecordDeploymentFailureInput,
+  existing: DeploymentStateRecord | null
+): string {
+  const requested = input.deploymentName ?? existing?.deploymentName ?? input.project;
+  assertDeploymentName(requested);
+  if (existing?.deploymentName && input.deploymentName && input.deploymentName !== existing.deploymentName) {
+    throw new Error(
+      `Deployment name for existing slot ${input.project}/${input.component} is ${existing.deploymentName}; ` +
+        `refusing to change it to ${input.deploymentName}.`
+    );
+  }
+  return requested;
+}
+
+function assertDeploymentName(value: string): void {
+  if (!/^[a-z][a-z0-9-]*$/.test(value)) {
+    throw new Error(`Deployment name is not safe for Docker project/stack names: ${value}`);
+  }
 }
 
 function deploymentStatus(row: Record<string, unknown>): DeploymentStateRecord["status"] {

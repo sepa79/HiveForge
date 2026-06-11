@@ -25,6 +25,7 @@ export interface OperationRecord {
   action?: string;
   environmentId?: string;
   profile?: string;
+  deploymentName?: string;
   startedAt: string;
   endedAt?: string;
   logs: OperationLogEntry[];
@@ -72,6 +73,7 @@ export class OperationLogService {
       action: request.action,
       ...(request.environmentId ? { environmentId: request.environmentId } : {}),
       ...(request.profile ? { profile: request.profile } : {}),
+      ...(request.deploymentName ? { deploymentName: request.deploymentName } : {}),
       startedAt: this.clock.now().toISOString(),
       logs: []
     };

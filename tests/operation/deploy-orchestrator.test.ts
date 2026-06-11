@@ -272,6 +272,10 @@ describe("deploy orchestrator", () => {
       {
         dockerDeploy: {
           deploymentId: "deployment-1",
+          deploymentName: "hivewatch",
+          project: "hivewatch",
+          component: "api",
+          profile: "test",
           composeFile: "/data/deployed/hivewatch/stacks/compose.yml",
           bindSourceDir: "/srv/hiveforge/data/deployed/hivewatch"
         }
@@ -286,6 +290,46 @@ describe("deploy orchestrator", () => {
         })
       }
     ]);
+  });
+
+  it("passes an explicit deployment name to the HiveForge Docker deploy step", async () => {
+    const calls: unknown[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[]),
+      validationService(calls as string[]),
+      actionServiceThatRunsAfterHook(calls),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-single"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls),
+      dockerDeployment(calls)
+    );
+
+    await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      environmentId: "local",
+      deploymentName: "hivewatch-canary"
+    });
+
+    expect(calls).toContainEqual({
+      ensureDeployment: expect.objectContaining({
+        deploymentName: "hivewatch-canary"
+      })
+    });
+    expect(calls).toContainEqual({
+      dockerDeploy: expect.objectContaining({
+        deploymentId: "deployment-1",
+        deploymentName: "hivewatch-canary"
+      })
+    });
   });
 
   it("records failed deployment state when HiveForge Docker deploy fails", async () => {
@@ -426,6 +470,7 @@ function deploymentState(calls: unknown[]): DeploymentStateStore {
       calls.push({ ensureDeployment: input });
       return {
         deploymentId: "deployment-1",
+        deploymentName: input.deploymentName ?? "hivewatch",
         environment: input.environment,
         project: input.project,
         repository: input.repository,
@@ -442,6 +487,7 @@ function deploymentState(calls: unknown[]): DeploymentStateStore {
       calls.push({ recordLifecycleAction: input });
       return {
         deploymentId: "deployment-1",
+        deploymentName: input.deploymentName ?? "hivewatch",
         environment: input.environment,
         project: input.project,
         repository: input.repository,
@@ -458,6 +504,7 @@ function deploymentState(calls: unknown[]): DeploymentStateStore {
       calls.push({ recordDeploymentFailure: input });
       return {
         deploymentId: "deployment-1",
+        deploymentName: input.deploymentName ?? "hivewatch",
         environment: input.environment,
         project: input.project,
         repository: input.repository,
