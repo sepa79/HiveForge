@@ -15,7 +15,8 @@
   with `docker compose up` and Portainer/Swarm stacks while preserving manager
   placement constraints.
 - Add an operator UI `Update HF` action backed by GitHub Releases version
-  checks and explicit self-update to the concrete released image tag.
+  checks and explicit self-update to the concrete released image tag, including
+  a visible no-release state before the first GitHub Release is published.
 - Document the 0.5 deploy flow updates for external bind sources and Docker
   removal semantics.
 

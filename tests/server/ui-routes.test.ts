@@ -133,6 +133,7 @@ describe("UI routes", () => {
     expect(body).toContain("updateHiveForgeButton");
     expect(body).toContain("Update HF");
     expect(body).toContain('api("/hiveforge/update", { method: "POST" })');
+    expect(body).toContain("No published HiveForge release found");
     expect(body).toContain("HiveForge update started");
   });
 

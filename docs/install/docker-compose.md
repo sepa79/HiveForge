@@ -241,6 +241,9 @@ API token is set. The button calls GitHub Releases, compares the running
 HiveForge version with the latest release tag, and starts an update only when a
 newer release exists.
 
+When no GitHub Release exists yet, HiveForge reports that no published release
+was found and does not run Docker update commands.
+
 The update target is the concrete release image tag such as
 `ghcr.io/sepa79/hiveforge:v0.5.1`; it does not update to floating `latest`.
 

@@ -417,7 +417,9 @@ async function updateHiveForge() {
   render();
   try {
     const result = await api("/hiveforge/update", { method: "POST" });
-    if (result.status === "up_to_date") {
+    if (result.status === "no_release") {
+      state.message = "No published HiveForge release found on GitHub.";
+    } else if (result.status === "up_to_date") {
       state.message = \`HiveForge is up to date: v\${result.currentVersion}.\`;
     } else {
       state.message = \`HiveForge update started: v\${result.currentVersion} -> \${result.latestTag}. Refresh after the container restarts.\`;

@@ -579,10 +579,12 @@ components:
     SelfUpdateCheckResult:
       type: object
       additionalProperties: false
-      required: [currentVersion, latestVersion, latestTag, releaseUrl, updateAvailable]
+      required: [currentVersion, releasePublished, updateAvailable]
       properties:
         currentVersion:
           type: string
+        releasePublished:
+          type: boolean
         latestVersion:
           type: string
         latestTag:
@@ -600,7 +602,7 @@ components:
           properties:
             status:
               type: string
-              enum: [up_to_date, started]
+              enum: [no_release, up_to_date, started]
             mode:
               $ref: "#/components/schemas/SelfUpdateMode"
             targetImage:

@@ -22,6 +22,7 @@ describe("self update service", () => {
 
     await expect(service.checkLatest()).resolves.toEqual({
       currentVersion: "0.5.0",
+      releasePublished: true,
       latestVersion: "0.5.1",
       latestTag: "v0.5.1",
       releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
@@ -158,7 +159,30 @@ describe("self update service", () => {
 
     await expect(service.startUpdate()).resolves.toMatchObject({
       status: "up_to_date",
+      releasePublished: true,
       updateAvailable: false
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("reports no published release when GitHub latest release returns 404", async () => {
+    const calls: unknown[] = [];
+    const service = new SelfUpdateService({
+      appInfo: { name: "hiveforge", version: "0.5.0" },
+      commandRunner: commandRunner(calls),
+      fetchImpl: async () => new Response(JSON.stringify({ message: "Not Found" }), { status: 404 })
+    });
+
+    await expect(service.checkLatest()).resolves.toEqual({
+      currentVersion: "0.5.0",
+      releasePublished: false,
+      updateAvailable: false
+    });
+    await expect(service.startUpdate()).resolves.toEqual({
+      currentVersion: "0.5.0",
+      releasePublished: false,
+      updateAvailable: false,
+      status: "no_release"
     });
     expect(calls).toEqual([]);
   });

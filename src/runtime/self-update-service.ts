@@ -4,14 +4,15 @@ import type { CommandRunner } from "../workspace/command-runner.js";
 
 export interface SelfUpdateCheckResult {
   currentVersion: string;
-  latestVersion: string;
-  latestTag: string;
-  releaseUrl: string;
+  releasePublished: boolean;
+  latestVersion?: string;
+  latestTag?: string;
+  releaseUrl?: string;
   updateAvailable: boolean;
 }
 
 export interface SelfUpdateStartResult extends SelfUpdateCheckResult {
-  status: "up_to_date" | "started";
+  status: "no_release" | "up_to_date" | "started";
   mode?: SelfUpdateMode;
   targetImage?: string;
   helperContainerId?: string;
@@ -81,9 +82,17 @@ export class SelfUpdateService {
   async checkLatest(): Promise<SelfUpdateCheckResult> {
     const latest = await this.fetchLatestRelease();
     const currentVersion = normalizeVersion(this.options.appInfo.version);
+    if (!latest) {
+      return {
+        currentVersion,
+        releasePublished: false,
+        updateAvailable: false
+      };
+    }
     const latestVersion = normalizeVersion(latest.tag_name);
     return {
       currentVersion,
+      releasePublished: true,
       latestVersion,
       latestTag: latest.tag_name,
       releaseUrl: latest.html_url,
@@ -93,6 +102,12 @@ export class SelfUpdateService {
 
   async startUpdate(): Promise<SelfUpdateStartResult> {
     const check = await this.checkLatest();
+    if (!check.releasePublished) {
+      return {
+        ...check,
+        status: "no_release"
+      };
+    }
     if (!check.updateAvailable) {
       return {
         ...check,
@@ -101,6 +116,9 @@ export class SelfUpdateService {
     }
 
     const target = await this.resolveTarget();
+    if (!check.latestTag) {
+      throw new Error("HiveForge self-update requires a published latest release tag.");
+    }
     const targetImage = `${this.imageRepository}:${check.latestTag}`;
     const helperContainerId = await this.startHelper(target, targetImage);
     return {
@@ -112,13 +130,16 @@ export class SelfUpdateService {
     };
   }
 
-  private async fetchLatestRelease(): Promise<GitHubReleaseResponse> {
+  private async fetchLatestRelease(): Promise<GitHubReleaseResponse | null> {
     const response = await this.fetchImpl(this.latestReleaseUrl, {
       headers: {
         accept: "application/vnd.github+json",
         "user-agent": "HiveForge self-update"
       }
     });
+    if (response.status === 404) {
+      return null;
+    }
     if (!response.ok) {
       throw new Error(`GitHub latest release request failed: ${response.status}`);
     }

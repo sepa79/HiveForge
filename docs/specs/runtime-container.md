@@ -128,12 +128,15 @@ writable directories are deployment configuration errors.
 HiveForge can check GitHub Releases for the latest published HiveForge release
 through `GET /hiveforge/update`. The check compares the running package version
 with the latest release tag and does not inspect Docker image tags or run
-`docker pull`.
+`docker pull`. When GitHub has no published latest release yet, HiveForge
+returns `releasePublished: false` instead of treating GitHub's `404` response as
+an update failure.
 
 `POST /hiveforge/update` starts a self-update only when a newer release exists.
 The target image is the concrete release tag, for example
 `ghcr.io/sepa79/hiveforge:v0.5.1`; HiveForge does not update itself to a
-floating `latest` tag.
+floating `latest` tag. If no release is published yet, the response status is
+`no_release` and no Docker command is run.
 
 Self-update is supported only when the running container has deterministic
 Docker install labels:

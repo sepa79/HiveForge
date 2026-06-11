@@ -59,6 +59,7 @@ describe("REST API", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       currentVersion: "0.5.0",
+      releasePublished: true,
       latestVersion: "0.5.1",
       latestTag: "v0.5.1",
       releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
@@ -76,6 +77,7 @@ describe("REST API", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       currentVersion: "0.5.0",
+      releasePublished: true,
       latestVersion: "0.5.1",
       latestTag: "v0.5.1",
       releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
@@ -1163,6 +1165,7 @@ async function startServer(
 function selfUpdateCheck() {
   return {
     currentVersion: "0.5.0",
+    releasePublished: true,
     latestVersion: "0.5.1",
     latestTag: "v0.5.1",
     releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
