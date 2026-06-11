@@ -3,7 +3,8 @@ import type { CommandRunner } from "../workspace/command-runner.js";
 import type { DeploymentStateRecord, DeploymentStateStore } from "./deployment-state-store.js";
 
 export const HIVEFORGE_DOCKER_LABELS = {
-  deployment: "hiveforge.deployment"
+  deployment: "hiveforge.deployment",
+  runtimeIgnore: "hiveforge.runtime.ignore"
 } as const;
 
 export interface DeploymentRuntimeStatusRequest {
@@ -73,10 +74,10 @@ export class DeploymentRuntimeStatusService {
     }
 
     const requiredLabels = requiredLabelMap(deployment);
+    const isSwarm = this.environment.capabilities.runtime.includes("docker-swarm");
     const containers = await this.listContainers(requiredLabels);
-    const services = this.environment.capabilities.runtime.includes("docker-swarm")
-      ? await this.listServices(requiredLabels)
-      : [];
+    const services = isSwarm ? await this.listServices(requiredLabels) : [];
+    const visibleContainers = isSwarm ? swarmVisibleContainers(containers) : containers;
 
     return {
       deploymentId: deployment.deploymentId,
@@ -85,7 +86,7 @@ export class DeploymentRuntimeStatusService {
       ...(deployment.profile ? { profile: deployment.profile } : {}),
       summary: summarize(containers, services),
       requiredLabels,
-      containers,
+      containers: visibleContainers,
       services,
       ...(containers.length === 0 && services.length === 0
         ? {
@@ -139,7 +140,14 @@ export class DeploymentRuntimeStatusService {
       "--format",
       "{{json .}}"
     ]);
-    return parseJsonLines<Record<string, unknown>>(list.stdout).map(serviceStatus);
+    const rows = parseJsonLines<Record<string, unknown>>(list.stdout);
+    const ids = rows.map((row) => stringField(row, "ID")).filter(Boolean);
+    if (ids.length === 0) {
+      return [];
+    }
+    const inspect = await this.commandRunner.run("docker", ["service", "inspect", ...ids]);
+    const inspected = parseJsonArray<Record<string, unknown>>(inspect.stdout);
+    return rows.map((row) => serviceStatus(row, findInspectedService(inspected, stringField(row, "ID"))));
   }
 }
 
@@ -187,31 +195,72 @@ function containerStatus(container: Record<string, unknown>): RuntimeContainerSt
   };
 }
 
-function serviceStatus(service: Record<string, unknown>): RuntimeServiceStatus {
+function serviceStatus(service: Record<string, unknown>, inspected?: Record<string, unknown>): RuntimeServiceStatus {
   return {
     id: stringField(service, "ID"),
     name: stringField(service, "Name"),
     image: stringField(service, "Image"),
     ...(optionalStringField(service, "Mode") ? { mode: optionalStringField(service, "Mode") } : {}),
     ...(optionalStringField(service, "Replicas") ? { replicas: optionalStringField(service, "Replicas") } : {}),
-    labels: parseLabels(optionalStringField(service, "Labels") ?? "")
+    labels: inspected ? recordOfStrings(objectField(objectField(inspected, "Spec"), "Labels")) : parseLabels(optionalStringField(service, "Labels") ?? "")
   };
+}
+
+function findInspectedService(
+  inspected: Array<Record<string, unknown>>,
+  serviceId: string
+): Record<string, unknown> | undefined {
+  return inspected.find((service) => stringField(service, "ID") === serviceId || stringField(service, "ID").startsWith(serviceId));
 }
 
 function summarize(containers: RuntimeContainerStatus[], services: RuntimeServiceStatus[]): DeploymentRuntimeStatusResult["summary"] {
   if (containers.length === 0 && services.length === 0) {
     return "missing";
   }
-  if (containers.some((container) => container.health === "unhealthy")) {
+  const monitoredServices = services.filter((service) => service.labels[HIVEFORGE_DOCKER_LABELS.runtimeIgnore] !== "true");
+  const monitoredContainers = containers.filter((container) => container.labels[HIVEFORGE_DOCKER_LABELS.runtimeIgnore] !== "true");
+  if (services.length > 0) {
+    if (monitoredServices.some((service) => !serviceReplicasSatisfied(service.replicas))) {
+      return "unhealthy";
+    }
+    if (monitoredContainers.some((container) => container.state === "running" && container.health === "unhealthy")) {
+      return "unhealthy";
+    }
+    if (monitoredServices.length > 0) {
+      return "running";
+    }
+  }
+  if (monitoredContainers.some((container) => container.health === "unhealthy")) {
     return "unhealthy";
   }
-  if (containers.some((container) => ["exited", "dead"].includes(container.state))) {
+  if (monitoredContainers.some((container) => ["exited", "dead"].includes(container.state))) {
     return "exited";
   }
-  if (containers.some((container) => container.state === "running") || services.length > 0) {
+  if (monitoredContainers.some((container) => container.state === "running") || monitoredServices.length > 0) {
     return "running";
   }
   return "unknown";
+}
+
+function swarmVisibleContainers(containers: RuntimeContainerStatus[]): RuntimeContainerStatus[] {
+  return containers.filter(
+    (container) =>
+      container.labels[HIVEFORGE_DOCKER_LABELS.runtimeIgnore] !== "true" &&
+      (container.labels["com.docker.swarm.service.id"] ? container.state === "running" : true)
+  );
+}
+
+function serviceReplicasSatisfied(replicas: string | undefined): boolean {
+  if (!replicas) {
+    return true;
+  }
+  const match = replicas.match(/^(\d+)\/(\d+)$/);
+  if (!match) {
+    return true;
+  }
+  const running = Number.parseInt(match[1], 10);
+  const desired = Number.parseInt(match[2], 10);
+  return desired === 0 || running === desired;
 }
 
 function parseJsonLines<T>(stdout: string): T[] {

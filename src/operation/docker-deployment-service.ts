@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import YAML from "yaml";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { CommandRunner, CommandResult } from "../workspace/command-runner.js";
@@ -42,13 +43,14 @@ export class DockerDeploymentService {
     await validateComposeBindSources(request.composeFile, request.bindSourceDir);
     await injectDeploymentLabel(request.composeFile, request.deploymentId);
     const runtime = this.environment.capabilities.runtime.includes("docker-swarm") ? "docker-swarm" : "docker-single";
+    const dockerProjectName = await dockerProjectNameFor(request.composeFile, request.deploymentId, runtime);
     const result =
       runtime === "docker-swarm"
-        ? await this.commandRunner.run("docker", ["stack", "deploy", "-c", request.composeFile, request.deploymentId])
+        ? await this.commandRunner.run("docker", ["stack", "deploy", "-c", request.composeFile, dockerProjectName])
         : await this.commandRunner.run("docker", [
             "compose",
             "-p",
-            request.deploymentId,
+            dockerProjectName,
             "-f",
             request.composeFile,
             "up",
@@ -64,6 +66,9 @@ export class DockerDeploymentService {
 }
 
 const ALLOWED_BIND_SOURCES = new Set(["/var/run/docker.sock"]);
+const DOCKER_SWARM_SERVICE_NAME_LIMIT = 63;
+const DOCKER_PROJECT_NAME_PREFIX = "hf-";
+const DOCKER_PROJECT_NAME_HASH_LENGTH = 10;
 
 async function validateComposeBindSources(composeFile: string, bindSourceDir: string | undefined): Promise<void> {
   const result = await inspectComposeBindSources(composeFile, bindSourceDir);
@@ -141,6 +146,39 @@ async function injectDeploymentLabel(composeFile: string, deploymentId: string):
   }
 
   await writeFile(composeFile, YAML.stringify(compose), "utf8");
+}
+
+async function dockerProjectNameFor(
+  composeFile: string,
+  deploymentId: string,
+  runtime: "docker-single" | "docker-swarm"
+): Promise<string> {
+  const compose = YAML.parse(await readFile(composeFile, "utf8")) as unknown;
+  if (!isRecord(compose)) {
+    throw new Error("Rendered compose must be a YAML object.");
+  }
+  const services = compose.services;
+  if (!isRecord(services) || Object.keys(services).length === 0) {
+    throw new Error("Rendered compose must define at least one service.");
+  }
+
+  const projectName = `${DOCKER_PROJECT_NAME_PREFIX}${createHash("sha256")
+    .update(deploymentId)
+    .digest("hex")
+    .slice(0, DOCKER_PROJECT_NAME_HASH_LENGTH)}`;
+  if (runtime !== "docker-swarm") {
+    return projectName;
+  }
+  const maxServiceNameLength = DOCKER_SWARM_SERVICE_NAME_LIMIT - projectName.length - 1;
+  for (const serviceName of Object.keys(services)) {
+    if (serviceName.length > maxServiceNameLength) {
+      throw new Error(
+        `Rendered compose service name is too long for Docker Swarm with HiveForge project name ${projectName}: ${serviceName}. ` +
+          `Maximum service name length is ${maxServiceNameLength} characters.`
+      );
+    }
+  }
+  return projectName;
 }
 
 function bindSources(value: unknown, serviceName: string): string[] {

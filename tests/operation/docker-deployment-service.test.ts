@@ -33,7 +33,7 @@ describe("docker deployment service", () => {
     expect(calls).toEqual([
       {
         command: "docker",
-        args: ["compose", "-p", "deployment-1", "-f", composeFile, "up", "-d"]
+        args: ["compose", "-p", "hf-6d187e3ec9", "-f", composeFile, "up", "-d"]
       }
     ]);
     const rendered = YAML.parse(await readFile(composeFile, "utf8"));
@@ -62,9 +62,18 @@ describe("docker deployment service", () => {
     expect(calls).toEqual([
       {
         command: "docker",
-        args: ["stack", "deploy", "-c", composeFile, "deployment-1"]
+        args: ["stack", "deploy", "-c", composeFile, "hf-6d187e3ec9"]
       }
     ]);
+  });
+
+  it("rejects service names that would exceed the Docker Swarm service name limit", async () => {
+    const composeFile = await writeCompose("services:\n  service-name-that-is-too-long-for-hiveforge-swarm-stack-prefix:\n    image: hivewatch:test\n");
+    const service = new DockerDeploymentService(commandRunner([]), environment(["docker-swarm"]));
+
+    await expect(service.deploy({ deploymentId: "deployment-1", composeFile })).rejects.toThrow(
+      "Rendered compose service name is too long for Docker Swarm"
+    );
   });
 
   it("rejects bind sources outside the HiveForge bind source directory", async () => {

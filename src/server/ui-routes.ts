@@ -588,7 +588,6 @@ function renderOverview() {
     </div>
     <section class="card"><div class="cardHeader"><h2 class="h2">Node inventory</h2><button class="button" id="refreshEnvironmentButton" type="button" \${state.environmentRefreshing || !state.token ? "disabled" : ""}>\${state.environmentRefreshing ? "Refreshing..." : "Refresh nodes"}</button></div><div class="cardBody">\${renderEnvironmentNodes()}</div></section>
     <section class="card"><div class="cardHeader"><h2 class="h2">Projects and policy</h2></div><div class="cardBody">\${renderProjects()}</div></section>
-    <section class="card"><div class="cardHeader"><h2 class="h2">Recent operations</h2><span class="muted2">process-local</span></div><div class="cardBody">\${renderOperationHistory()}</div></section>
   </div>\`;
 }
 

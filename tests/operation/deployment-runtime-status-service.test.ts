@@ -94,6 +94,97 @@ describe("deployment runtime status service", () => {
     });
   });
 
+  it("summarizes swarm deployments from current service replicas instead of historical exited tasks", async () => {
+    const service = new DeploymentRuntimeStatusService(
+      scriptedDocker([
+        {
+          args: ["ps", "-a", "--filter", "label=hiveforge.deployment=deployment-1", "--format", "{{json .}}"],
+          stdout: `${JSON.stringify({ ID: "old123" })}\n${JSON.stringify({ ID: "new123" })}\n`
+        },
+        {
+          args: ["inspect", "old123", "new123"],
+          stdout: JSON.stringify([
+            {
+              Id: "old123",
+              Name: "/stack-api.1.old",
+              State: { Status: "exited", Health: { Status: "unhealthy" } },
+              Config: {
+                Image: "hivewatch:test",
+                Labels: {
+                  "hiveforge.deployment": "deployment-1",
+                  "com.docker.swarm.service.id": "svc1"
+                }
+              },
+              Mounts: []
+            },
+            {
+              Id: "new123",
+              Name: "/stack-api.1.new",
+              State: { Status: "running", Health: { Status: "healthy" } },
+              Config: {
+                Image: "hivewatch:test",
+                Labels: {
+                  "hiveforge.deployment": "deployment-1",
+                  "com.docker.swarm.service.id": "svc1"
+                }
+              },
+              Mounts: []
+            }
+          ])
+        },
+        {
+          args: ["service", "ls", "--filter", "label=hiveforge.deployment=deployment-1", "--format", "{{json .}}"],
+          stdout: `${JSON.stringify({
+            ID: "svc1",
+            Name: "stack_api",
+            Image: "hivewatch:test",
+            Mode: "replicated",
+            Replicas: "1/1",
+            Labels: "hiveforge.deployment=deployment-1"
+          })}\n${JSON.stringify({
+            ID: "svc2",
+            Name: "stack_init",
+            Image: "hivewatch:test",
+            Mode: "replicated",
+            Replicas: "0/1",
+            Labels: "hiveforge.deployment=deployment-1,hiveforge.runtime.ignore=true"
+          })}\n`
+        },
+        {
+          args: ["service", "inspect", "svc1", "svc2"],
+          stdout: JSON.stringify([
+            {
+              ID: "svc1",
+              Spec: {
+                Labels: {
+                  "hiveforge.deployment": "deployment-1"
+                }
+              }
+            },
+            {
+              ID: "svc2",
+              Spec: {
+                Labels: {
+                  "hiveforge.deployment": "deployment-1",
+                  "hiveforge.runtime.ignore": "true"
+                }
+              }
+            }
+          ])
+        }
+      ]),
+      swarmEnvironment(),
+      stateStore([deployment()])
+    );
+
+    const result = await service.check({ deploymentId: "deployment-1" });
+
+    expect(result.summary).toBe("running");
+    expect(result.services).toHaveLength(2);
+    expect(result.containers).toHaveLength(1);
+    expect(result.containers[0]?.id).toBe("new123");
+  });
+
   it("does not call Docker when no deployment state matches the request", async () => {
     const service = new DeploymentRuntimeStatusService(scriptedDocker([]), dockerEnvironment(), stateStore([]));
 
@@ -182,6 +273,19 @@ function dockerEnvironment(): EnvironmentDefinition {
     },
     policy: {
       projects: []
+    }
+  };
+}
+
+function swarmEnvironment(): EnvironmentDefinition {
+  return {
+    ...dockerEnvironment(),
+    kind: "swarm",
+    capabilities: {
+      runtime: ["docker-swarm"],
+      managedRoot: {
+        shared: true
+      }
     }
   };
 }
