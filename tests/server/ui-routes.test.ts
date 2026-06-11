@@ -123,6 +123,19 @@ describe("UI routes", () => {
     expect(body).toContain('api("/environments/refresh", { method: "POST" })');
   });
 
+  it("exposes a topbar button for HiveForge self-update", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain("updateHiveForgeButton");
+    expect(body).toContain("Update HF");
+    expect(body).toContain('api("/hiveforge/update", { method: "POST" })');
+    expect(body).toContain("HiveForge update started");
+  });
+
   it("uses inspected component action subsets for the lifecycle action selector", async () => {
     const baseUrl = await startServer();
 

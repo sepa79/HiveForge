@@ -123,6 +123,35 @@ declared lifecycle action commands inherit the container environment.
 Runtime paths must be configured through exactly one supported mode. Missing
 writable directories are deployment configuration errors.
 
+## Self-Update
+
+HiveForge can check GitHub Releases for the latest published HiveForge release
+through `GET /hiveforge/update`. The check compares the running package version
+with the latest release tag and does not inspect Docker image tags or run
+`docker pull`.
+
+`POST /hiveforge/update` starts a self-update only when a newer release exists.
+The target image is the concrete release tag, for example
+`ghcr.io/sepa79/hiveforge:v0.5.1`; HiveForge does not update itself to a
+floating `latest` tag.
+
+Self-update is supported only when the running container has deterministic
+Docker install labels:
+
+- Docker Compose installs must expose `com.docker.compose.project` and mount the
+  runtime root at `/hf`. HiveForge starts a short-lived helper container from
+  the currently running HiveForge image; the helper runs
+  `docker compose -p <project> -f /hf/docker-compose.hiveforge.yml up -d` with
+  `HIVEFORGE_IMAGE` set to the target release image.
+- Portainer/Swarm installs must expose `com.docker.swarm.service.name`.
+  HiveForge starts the same helper pattern and runs
+  `docker service update --image <target-image> <service>`, preserving the
+  existing Swarm service configuration.
+
+If the container labels or `/hf` host mount are missing, self-update fails
+explicitly. It must not guess stack names, project names, compose paths, or
+runtime roots.
+
 For the current POC, HiveForge manages only files under its own data root. With
 the normal runtime-root install, the project managed tree is:
 

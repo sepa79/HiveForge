@@ -42,6 +42,39 @@ paths:
                 properties:
                   hiveforge:
                     $ref: "#/components/schemas/HiveForgeInfo"
+  /hiveforge/update:
+    get:
+      summary: Check whether a newer HiveForge release is available
+      operationId: checkHiveForgeUpdate
+      responses:
+        "200":
+          description: HiveForge update check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelfUpdateCheckResult"
+        "400":
+          description: HiveForge update check failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: Start HiveForge self-update to the latest released image
+      operationId: startHiveForgeUpdate
+      responses:
+        "200":
+          description: HiveForge self-update accepted or already current
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelfUpdateStartResult"
+        "400":
+          description: HiveForge self-update failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /projects:
     get:
       summary: List registered projects
@@ -533,6 +566,47 @@ components:
           type: string
         version:
           type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+    SelfUpdateMode:
+      type: string
+      enum: [docker-compose, swarm-service]
+    SelfUpdateCheckResult:
+      type: object
+      additionalProperties: false
+      required: [currentVersion, latestVersion, latestTag, releaseUrl, updateAvailable]
+      properties:
+        currentVersion:
+          type: string
+        latestVersion:
+          type: string
+        latestTag:
+          type: string
+        releaseUrl:
+          type: string
+        updateAvailable:
+          type: boolean
+    SelfUpdateStartResult:
+      allOf:
+        - $ref: "#/components/schemas/SelfUpdateCheckResult"
+        - type: object
+          additionalProperties: false
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [up_to_date, started]
+            mode:
+              $ref: "#/components/schemas/SelfUpdateMode"
+            targetImage:
+              type: string
+            helperContainerId:
+              type: string
     Identifier:
       type: string
       pattern: "^[a-z][a-z0-9-]*$"

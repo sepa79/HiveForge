@@ -50,6 +50,53 @@ describe("REST API", () => {
     });
   });
 
+  it("checks for HiveForge updates", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/hiveforge/update`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      currentVersion: "0.5.0",
+      latestVersion: "0.5.1",
+      latestTag: "v0.5.1",
+      releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
+      updateAvailable: true
+    });
+    expect(calls).toContainEqual({ checkSelfUpdate: true });
+  });
+
+  it("starts HiveForge self-update", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/hiveforge/update`, { method: "POST" });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      currentVersion: "0.5.0",
+      latestVersion: "0.5.1",
+      latestTag: "v0.5.1",
+      releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
+      updateAvailable: true,
+      status: "started",
+      mode: "swarm-service",
+      targetImage: "ghcr.io/sepa79/hiveforge:v0.5.1",
+      helperContainerId: "helper-container"
+    });
+    expect(calls).toContainEqual({ startSelfUpdate: true });
+  });
+
+  it("returns 400 when HiveForge self-update fails", async () => {
+    const baseUrl = await startServer({ selfUpdateError: "GitHub latest release request failed: 403" });
+
+    const response = await fetch(`${baseUrl}/hiveforge/update`);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "GitHub latest release request failed: 403" });
+  });
+
   it("lists registered projects", async () => {
     const baseUrl = await startServer();
 
@@ -867,6 +914,7 @@ async function startServer(
     refreshedEnvironment?: EnvironmentDefinition;
     validationError?: string;
     repositoryInspectionResult?: unknown;
+    selfUpdateError?: string;
   } = {}
 ): Promise<string> {
   const currentEnvironment = options.currentEnvironment ?? defaultEnvironment();
@@ -1075,6 +1123,28 @@ async function startServer(
           };
         }
       },
+      selfUpdate: {
+        async checkLatest() {
+          options.calls?.push({ checkSelfUpdate: true });
+          if (options.selfUpdateError) {
+            throw new Error(options.selfUpdateError);
+          }
+          return selfUpdateCheck();
+        },
+        async startUpdate() {
+          options.calls?.push({ startSelfUpdate: true });
+          if (options.selfUpdateError) {
+            throw new Error(options.selfUpdateError);
+          }
+          return {
+            ...selfUpdateCheck(),
+            status: "started",
+            mode: "swarm-service",
+            targetImage: "ghcr.io/sepa79/hiveforge:v0.5.1",
+            helperContainerId: "helper-container"
+          };
+        }
+      } as never,
       environments: {
         current: currentEnvironment,
         known: [currentEnvironment]
@@ -1088,6 +1158,16 @@ async function startServer(
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+function selfUpdateCheck() {
+  return {
+    currentVersion: "0.5.0",
+    latestVersion: "0.5.1",
+    latestTag: "v0.5.1",
+    releaseUrl: "https://github.com/sepa79/HiveForge/releases/tag/v0.5.1",
+    updateAvailable: true
+  };
 }
 
 function defaultEnvironment(): EnvironmentDefinition {

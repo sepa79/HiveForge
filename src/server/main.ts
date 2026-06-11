@@ -28,6 +28,7 @@ import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { resolveAuthToken } from "../runtime/auth-token.js";
 import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
 import { HIVEFORGE_CONTAINER_RUNTIME_ROOT, resolveRuntimePaths } from "../runtime/runtime-paths.js";
+import { SelfUpdateService } from "../runtime/self-update-service.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
@@ -147,6 +148,7 @@ const deploymentCompose = new DeploymentComposeService(journal);
 const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
 const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
+const selfUpdate = new SelfUpdateService({ appInfo, commandRunner });
 const deploymentDiagnostics = new DeploymentDiagnosticsService(
   deploymentState,
   deploymentRuntimeStatus,
@@ -181,6 +183,7 @@ createHttpServer(
       projectRegistration,
       environmentPolicyEditor,
       environmentRefresh,
+      selfUpdate,
       environments: {
         current: currentEnvironment,
         known: environmentConfig.environments

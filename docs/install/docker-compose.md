@@ -233,3 +233,19 @@ HIVEFORGE_HTTP_PORT=13000 docker compose -f docker-compose.hiveforge.yml up -d
 
 For Portainer or `docker stack deploy`, set `HIVEFORGE_HTTP_PORT` before deploy
 or edit the published port in the Compose file.
+
+## Self-Update From The UI
+
+After HiveForge is running, the operator UI top bar exposes `Update HF` when an
+API token is set. The button calls GitHub Releases, compares the running
+HiveForge version with the latest release tag, and starts an update only when a
+newer release exists.
+
+The update target is the concrete release image tag such as
+`ghcr.io/sepa79/hiveforge:v0.5.1`; it does not update to floating `latest`.
+
+For Docker Compose installs, HiveForge uses the running container's Compose
+labels and `/hf` mount to start a helper container that runs the same Compose
+file with the new image. For Portainer/Swarm installs, HiveForge uses the
+running service label and performs a Docker service image update so existing
+stack environment, mounts, ports, and placement are preserved.

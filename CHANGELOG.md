@@ -14,6 +14,8 @@
 - Consolidate HiveForge installation templates to one Compose file that works
   with `docker compose up` and Portainer/Swarm stacks while preserving manager
   placement constraints.
+- Add an operator UI `Update HF` action backed by GitHub Releases version
+  checks and explicit self-update to the concrete released image tag.
 - Document the 0.5 deploy flow updates for external bind sources and Docker
   removal semantics.
 

@@ -28,6 +28,7 @@ import type { ReleaseImageTemplate } from "../release/release-deploy-contract.js
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import type { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
+import type { SelfUpdateService } from "../runtime/self-update-service.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
@@ -66,6 +67,7 @@ export interface RestApiServices {
   environmentRefresh?: {
     refreshCurrent(): Promise<EnvironmentRefreshResult>;
   };
+  selfUpdate?: SelfUpdateService;
   environments?: {
     current: unknown;
     known: unknown[];
@@ -91,6 +93,34 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
         return {
           hiveforge: services.appInfo
         };
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/hiveforge\/update$/,
+      async handle() {
+        if (!services.selfUpdate) {
+          throw new HttpError(501, "HiveForge self-update is not configured");
+        }
+        try {
+          return await services.selfUpdate.checkLatest();
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "HiveForge update check failed");
+        }
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/hiveforge\/update$/,
+      async handle() {
+        if (!services.selfUpdate) {
+          throw new HttpError(501, "HiveForge self-update is not configured");
+        }
+        try {
+          return await services.selfUpdate.startUpdate();
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "HiveForge update failed");
+        }
       }
     },
     {

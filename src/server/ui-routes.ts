@@ -282,6 +282,7 @@ const state = {
   view: "home",
   busy: false,
   environmentRefreshing: false,
+  hiveforgeUpdating: false,
   operation: null,
   operationPoll: null,
   message: null,
@@ -400,6 +401,31 @@ async function refreshEnvironmentInventory() {
     state.error = error instanceof Error ? error.message : "Environment refresh failed";
   } finally {
     state.environmentRefreshing = false;
+    render();
+  }
+}
+
+async function updateHiveForge() {
+  if (!state.token) {
+    state.error = "API token is required to update HiveForge.";
+    render();
+    return;
+  }
+  state.hiveforgeUpdating = true;
+  state.error = null;
+  state.message = null;
+  render();
+  try {
+    const result = await api("/hiveforge/update", { method: "POST" });
+    if (result.status === "up_to_date") {
+      state.message = \`HiveForge is up to date: v\${result.currentVersion}.\`;
+    } else {
+      state.message = \`HiveForge update started: v\${result.currentVersion} -> \${result.latestTag}. Refresh after the container restarts.\`;
+    }
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : "HiveForge update failed";
+  } finally {
+    state.hiveforgeUpdating = false;
     render();
   }
 }
@@ -689,6 +715,7 @@ function render() {
       <div class="topBarRight">
         <span class="muted mono">v\${escapeHtml(HIVEFORGE_INFO.version)}</span>
         \${state.token ? pill("API token set", "ok") : pill("API token missing", "alert")}
+        <button class="button" id="updateHiveForgeButton" type="button" \${state.hiveforgeUpdating || !state.token ? "disabled" : ""}>\${state.hiveforgeUpdating ? "Updating HF..." : "Update HF"}</button>
         <button class="button" id="refreshButton" type="button">Refresh</button>
       </div>
     </div></header>
@@ -721,6 +748,7 @@ function render() {
 
   document.getElementById("refreshButton")?.addEventListener("click", refreshAll);
   document.getElementById("refreshEnvironmentButton")?.addEventListener("click", refreshEnvironmentInventory);
+  document.getElementById("updateHiveForgeButton")?.addEventListener("click", updateHiveForge);
   document.querySelectorAll("[data-view]").forEach((element) => {
     element.addEventListener("click", (event) => {
       state.view = event.currentTarget.getAttribute("data-view") || "overview";
