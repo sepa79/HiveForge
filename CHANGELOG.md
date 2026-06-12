@@ -12,6 +12,12 @@
 - Add CI and publish-workflow artifacts for the MCP client tarball.
 - Include `curl`, `jq`, `ping`, `mc`, and `nano` in the HiveForge runtime
   image for operator/debug use.
+- Detect the actual host bind source for `/hf` from Docker inspect when a new
+  `environments.yaml` is generated without
+  `HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT`, covering self-updates from older
+  HiveForge services that do not yet carry the new environment variable.
+- Create or update the GitHub Release for tag builds and upload the MCP client
+  tarball as a release asset.
 
 ## 0.5.0 - 2026-06-11
 

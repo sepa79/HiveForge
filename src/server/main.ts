@@ -26,6 +26,7 @@ import { ProjectValidationService } from "../operation/project-validation-servic
 import { SqliteDeploymentStateStore } from "../operation/sqlite-deployment-state-store.js";
 import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { resolveAuthToken } from "../runtime/auth-token.js";
+import { detectContainerBindSource } from "../runtime/container-bind-source.js";
 import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
 import { HIVEFORGE_CONTAINER_RUNTIME_ROOT, resolveRuntimePaths } from "../runtime/runtime-paths.js";
 import { SelfUpdateService } from "../runtime/self-update-service.js";
@@ -55,6 +56,9 @@ const explicitRuntimePaths = {
   dataRoot: serverOptions.dataRoot ?? process.env.HIVEFORGE_DATA_ROOT
 };
 const usesExplicitRuntimePaths = Object.values(explicitRuntimePaths).some((value) => value !== undefined);
+const managedRootBindSourceRoot =
+  nonEmptyEnv("HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT") ??
+  (usesExplicitRuntimePaths ? undefined : await detectRuntimeRootBindSource(commandRunner));
 const runtimePaths = await resolveRuntimePaths({
   runtimeRoot: usesExplicitRuntimePaths ? undefined : HIVEFORGE_CONTAINER_RUNTIME_ROOT,
   ...explicitRuntimePaths,
@@ -64,7 +68,7 @@ const runtimePaths = await resolveRuntimePaths({
     name: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_NAME"),
     description: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_DESCRIPTION"),
     managedRoot: {
-      bindSourceRoot: nonEmptyEnv("HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT")
+      bindSourceRoot: managedRootBindSourceRoot
     }
   }
 });
@@ -115,8 +119,8 @@ const currentEnvironment = environmentConfig.environments.find((environment) => 
 if (!currentEnvironment) {
   throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
 }
-const managedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
-const managedFiles = new ManagedFilesService(dataRoot, managedRootBindSourceRoot);
+const configuredManagedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
+const managedFiles = new ManagedFilesService(dataRoot, configuredManagedRootBindSourceRoot);
 const dockerDeployment = new DockerDeploymentService(commandRunner, currentEnvironment);
 const deploy = new DeployOrchestrator(
   inspection,
@@ -237,6 +241,30 @@ function required(value: string | undefined, label: string): string {
     throw new Error(`Missing required option: ${label}`);
   }
   return value;
+}
+
+async function detectRuntimeRootBindSource(commandRunner: NodeCommandRunner): Promise<string | undefined> {
+  const containerId = process.env.HOSTNAME;
+  if (!containerId) {
+    return undefined;
+  }
+  return detectContainerBindSource({
+    commandRunner,
+    containerId,
+    destination: HIVEFORGE_CONTAINER_RUNTIME_ROOT
+  }).catch((error: unknown) => {
+    process.stdout.write(
+      `Warning: could not detect host bind source for ${HIVEFORGE_CONTAINER_RUNTIME_ROOT}: ${errorMessage(error)}\n`
+    );
+    return undefined;
+  });
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 
 function nonEmptyEnv(name: string): string | undefined {

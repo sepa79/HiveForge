@@ -138,6 +138,9 @@ The Compose file can seed the human-facing environment label and description
 for that generated file. It also seeds the managed-root bind source from
 `HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT`; the install template defaults this to
 `/opt/hiveforge` and uses the same value as the host bind mounted to `/hf`.
+When that variable is not present, HiveForge tries to read the actual host bind
+source for `/hf` from Docker inspect of its own running container before
+creating a new `environments.yaml`.
 
 ```bash
 cat >> .env <<'EOF'
@@ -155,6 +158,11 @@ After `environments.yaml` exists, edit `name`, `description`, and
 `capabilities.managedRoot.bindSourceRoot` there. HiveForge does not overwrite
 existing environment metadata or managed-root configuration on restart,
 redeploy, or node inventory refresh.
+
+For an existing install that already has `environments.yaml` without
+`capabilities.managedRoot.bindSourceRoot`, add the field manually under the
+current environment's `capabilities.managedRoot` block. The value must be the
+host-side path mounted into the HiveForge container as `/hf`.
 
 ## Corporate Proxy
 
