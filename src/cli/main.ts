@@ -96,7 +96,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       environment: {
         ...runtimeEnv,
         ...managedFilesEnvironment(managedFiles)
-      }
+      },
+      managedFiles
     });
     writeJson(result);
     return;
@@ -206,8 +207,17 @@ async function buildContext(options: CliOptions) {
     ids,
     clock
   );
-  const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
-  const managedFiles = new ManagedFilesService(dataRoot, currentEnvironment?.capabilities.managedRoot.bindSourceRoot);
+  const action = new ProjectActionService(
+    new AnsibleRunner(commandRunner, { runnerImage: process.env.HIVEFORGE_ACTION_RUNNER_IMAGE }),
+    journal,
+    ids,
+    clock
+  );
+  const managedFiles = new ManagedFilesService(
+    dataRoot,
+    currentEnvironment?.capabilities.managedRoot.bindSourceRoot,
+    runtimePaths.runtimeRoot
+  );
   const dockerDeployment = currentEnvironment ? new DockerDeploymentService(commandRunner, currentEnvironment) : undefined;
 
   return {

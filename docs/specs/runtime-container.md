@@ -99,6 +99,9 @@ Explicit runtime path mode remains supported for advanced installs:
 - `HIVEFORGE_JOURNAL_DIR` for operation journal data.
 - `HIVEFORGE_DATA_ROOT` for HiveForge-managed deployment files, non-secret
   runtime env config, and `hiveforge.sqlite` current-state DB.
+- `HIVEFORGE_ACTION_RUNNER_IMAGE` to override the helper image used for
+  isolated Ansible action execution. Normal Docker/Swarm installs set this to
+  the same concrete HiveForge image as the control-plane service.
 
 Explicit path mode is for maintainers and unusual packaging only. Normal Docker
 and Swarm installs should use the fixed `/hf` container root and configure the
@@ -121,6 +124,12 @@ may be configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`,
 uses those values for server-side outbound HTTP requests such as GitHub
 Releases checks, and child processes such as `git clone` and declared lifecycle
 action commands inherit the container environment.
+
+Project Ansible actions run in a helper container. The helper mounts only the
+current project managed root at `/hf` and the current checkout read-only at
+`/workspace`. Inside the action, `/hf/stacks/compose.yml` is the rendered
+Compose/Stack file. `HIVEFORGE_BIND_SOURCE_DIR` remains the host/node-visible
+project root used only in rendered Docker bind source values.
 
 Runtime paths must be configured through exactly one supported mode. Missing
 writable directories are deployment configuration errors.

@@ -94,9 +94,10 @@ export class RuntimeDiagnosticsService {
           : "No Docker bind-source managedRoot.bindSourceRoot is configured; Docker bind-source visibility on runtime nodes is unknown."
       },
       actionContractPaths: {
-        exposedToProjectActions: ["HIVEFORGE_RENDERED_COMPOSE_FILE", "HIVEFORGE_BIND_SOURCE_DIR"],
+        exposedToProjectActions: ["/hf", "/hf/stacks/compose.yml", "HIVEFORGE_BIND_SOURCE_DIR"],
         hiddenFromProjectActions: [
           "HIVEFORGE_DATA_ROOT",
+          "HIVEFORGE_RENDERED_COMPOSE_FILE",
           "HIVEFORGE_PROJECT_DIR",
           "HIVEFORGE_STACK_DIR",
           "HIVEFORGE_ARTIFACTS_DIR",

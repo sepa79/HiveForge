@@ -534,7 +534,7 @@ Input:
     ]
   },
   "requiredFiles": [
-    "artifacts/pockethive-runtime/compose/docker-compose.yml"
+    "artifacts/runtime/compose/docker-compose.yml"
   ]
 }
 ```
@@ -550,7 +550,7 @@ callers must provide explicit `project` metadata for pure plan preparation.
 Output: resolved release deployment plan, including merged vars and rendered
 image refs. When `artifact.env` is supplied, output also includes rendered env
 values such as `DOCKER_REGISTRY` and `POCKETHIVE_VERSION`. Checkout-backed
-output also includes action contract path values and `HIVEFORGE_RELEASE_VARS_FILE`.
+output also includes managed project root metadata and `HIVEFORGE_RELEASE_VARS_FILE`.
 
 ### `read_journal`
 

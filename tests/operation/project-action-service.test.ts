@@ -27,13 +27,13 @@ class FixedClock implements Clock {
 
 class FakeActionRunner implements ActionRunner {
   public readonly actions: ResolvedAction[] = [];
-  public readonly environments: NodeJS.ProcessEnv[] = [];
+  public readonly contexts: unknown[] = [];
 
   constructor(private readonly failure?: Error) {}
 
-  async run(action: ResolvedAction, environment: NodeJS.ProcessEnv = {}) {
+  async run(action: ResolvedAction, context = {}) {
     this.actions.push(action);
-    this.environments.push(environment);
+    this.contexts.push(context);
     if (this.failure) {
       throw this.failure;
     }
@@ -55,7 +55,9 @@ describe("project action service", () => {
         component: "api",
         action: "deploy",
         adapter: "ansible",
+        workspacePath: "/workspace",
         componentDir: "/workspace/components/api",
+        componentRelativeDir: "components/api",
         playbook: "ansible/deploy.yml"
       }
     ]);
@@ -132,7 +134,7 @@ describe("project action service", () => {
     ]);
   });
 
-  it("passes managed file environment to the action runner", async () => {
+  it("passes bind-source environment and managed action mounts to the action runner", async () => {
     const journalDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-journal-"));
     const runner = new FakeActionRunner();
     const service = serviceWith(journalDir, runner);
@@ -141,16 +143,19 @@ describe("project action service", () => {
       ...request("api", "deploy"),
       profile: "test",
       environment: {
-        HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
         HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch"
-      }
+      },
+      managedFiles: managedFiles("/data/deployed/hivewatch", "/srv/hiveforge/data/deployed/hivewatch")
     });
 
-    expect(runner.environments).toEqual([
+    expect(runner.contexts).toEqual([
       {
-        HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
-        HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch",
-        HIVEFORGE_PROFILE: "test"
+        environment: {
+          HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch",
+          HIVEFORGE_PROFILE: "test"
+        },
+        actionRootSource: "/srv/hiveforge/data/deployed/hivewatch",
+        workspaceSource: "/srv/hiveforge/workspace/hivewatch"
       }
     ]);
   });
@@ -163,9 +168,7 @@ describe("project action service", () => {
 
     const result = await service.run({
       ...request("api", "deploy"),
-      environment: {
-        HIVEFORGE_RENDERED_COMPOSE_FILE: "/tmp/compose.yml"
-      },
+      environment: {},
       async afterRun(context) {
         calls.push(context);
         return { deploymentId: "deployment-1" };
@@ -176,9 +179,7 @@ describe("project action service", () => {
     expect(calls).toEqual([
       {
         operationId: "op-1",
-        environment: {
-          HIVEFORGE_RENDERED_COMPOSE_FILE: "/tmp/compose.yml"
-        },
+        environment: {},
         endedAt: "2026-05-17T10:00:00.000Z"
       }
     ]);
@@ -195,9 +196,7 @@ describe("project action service", () => {
 
     await service.run({
       ...request("api", "deploy"),
-      environment: {
-        HIVEFORGE_RENDERED_COMPOSE_FILE: renderedComposeFile
-      }
+      managedFiles: managedFiles(path.dirname(stackDir), undefined, renderedComposeFile)
     });
 
     const events = await new JsonlJournal(journalDir).readAll();
@@ -233,9 +232,7 @@ describe("project action service", () => {
     await expect(
       service.run({
         ...request("api", "deploy"),
-        environment: {
-          HIVEFORGE_RENDERED_COMPOSE_FILE: renderedComposeFile
-        }
+        managedFiles: managedFiles(path.dirname(stackDir), undefined, renderedComposeFile)
       })
     ).rejects.toThrow("bind source path does not exist");
 
@@ -269,6 +266,21 @@ function request(component: string, action: string) {
     registry: registry(),
     component,
     action
+  };
+}
+
+function managedFiles(projectDir: string, bindSourceDir?: string, renderedComposeFile = path.join(projectDir, "stacks", "compose.yml")) {
+  return {
+    projectDir,
+    stackDir: path.join(projectDir, "stacks"),
+    artifactsDir: path.join(projectDir, "artifacts"),
+    renderedComposeFile,
+    actionRoot: "/hf",
+    actionRenderedComposeFile: "/hf/stacks/compose.yml",
+    actionRootSource: bindSourceDir ?? projectDir,
+    workspaceSource: bindSourceDir ? "/srv/hiveforge/workspace/hivewatch" : "/workspace",
+    ...(bindSourceDir ? { bindSourceDir } : {}),
+    prepared: []
   };
 }
 

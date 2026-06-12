@@ -68,15 +68,15 @@ artifacts:
   managedPaths:
     - name: runtime-compose
       source: deploy/hiveforge/runtime/compose
-      target: artifacts/pockethive-runtime/compose
+      target: artifacts/runtime/compose
       mode: replace
     - name: runtime-config
       source: deploy/hiveforge/runtime/config
-      target: artifacts/pockethive-runtime/config
+      target: artifacts/runtime/config
       mode: replace
     - name: runtime-scenarios
       source: scenarios
-      target: artifacts/pockethive-runtime/scenarios
+      target: artifacts/runtime/scenarios
       mode: replace
 ```
 
@@ -93,20 +93,19 @@ project action.
 ## Environment Contract For Release Deploy
 
 When HiveForge later calls a release deploy action, it must pass explicit
-managed root environment variables. The existing managed files service already
-returns:
+project managed root as `/hf`:
 
 ```text
-HIVEFORGE_PROJECT_DIR
-HIVEFORGE_STACK_DIR
-HIVEFORGE_ARTIFACTS_DIR
+/hf
+/hf/artifacts
+/hf/stacks/compose.yml
 ```
 
 For release/test deploy, also pass release vars in a documented form. Prefer a
 single JSON file over dotted shell variables:
 
 ```text
-HIVEFORGE_RELEASE_VARS_FILE=<HIVEFORGE_ARTIFACTS_DIR>/release-vars.json
+HIVEFORGE_RELEASE_VARS_FILE=/hf/artifacts/release-vars.json
 ```
 
 The JSON file should contain the resolved deployment vars used by
@@ -125,11 +124,11 @@ Do not rely on unstructured ambient shell variables for dotted variable names.
 
 ## Expected Managed Files Output
 
-Managed paths are copied under `HIVEFORGE_PROJECT_DIR`, usually below
-`HIVEFORGE_ARTIFACTS_DIR`, for example:
+Managed paths are copied under `/hf`, usually below `/hf/artifacts`, for
+example:
 
 ```text
-HIVEFORGE_ARTIFACTS_DIR/pockethive-runtime/
+/hf/artifacts/runtime/
   compose/
     docker-compose.yml
     compose.swarm.yml

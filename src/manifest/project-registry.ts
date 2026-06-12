@@ -13,7 +13,6 @@ const LEGACY_ACTION_CONTRACT_TOKENS = [
   "HIVEFORGE_STACK_HOST_DIR",
   "HIVEFORGE_ARTIFACTS_HOST_DIR"
 ] as const;
-const INTERNAL_ROOT_PATTERN = /(^|[^A-Za-z0-9_])\/hf(\/|$)/;
 
 export async function loadProjectRegistry(workspacePath: string): Promise<ProjectRegistry> {
   const rootPath = path.join(workspacePath, ROOT_MANIFEST_FILE);
@@ -207,14 +206,8 @@ async function assertFileDoesNotUseRemovedActionContract(workspacePath: string, 
   for (const token of LEGACY_ACTION_CONTRACT_TOKENS) {
     if (content.includes(token)) {
       throw new Error(
-        `Removed HiveForge action contract variable ${token} used in ${relativePath}; use version 0.5 runner variables HIVEFORGE_RENDERED_COMPOSE_FILE or HIVEFORGE_BIND_SOURCE_DIR`
+        `Removed HiveForge action contract variable ${token} used in ${relativePath}; use version 0.5.2 action root paths under /hf and HIVEFORGE_BIND_SOURCE_DIR for Docker bind sources`
       );
     }
-  }
-
-  if (INTERNAL_ROOT_PATTERN.test(content)) {
-    throw new Error(
-      `HiveForge internal path /hf is used in ${relativePath}; version 0.5 deploy artifacts must use HIVEFORGE_BIND_SOURCE_DIR for Docker bind sources`
-    );
   }
 }

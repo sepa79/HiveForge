@@ -138,6 +138,7 @@ export class DeployOrchestrator {
       environmentId: request.environmentId,
       profile: request.profile,
       environment: actionEnvironment(resolvedRuntimeEnv, managedFiles, request.profile),
+      ...(managedFiles ? { managedFiles } : {}),
       afterRun: async ({ operationId, endedAt }) =>
         this.afterActionRendered({
           request,
@@ -259,7 +260,7 @@ export class DeployOrchestrator {
       return recordFailureAndThrow(
         this.deploymentState,
         stateInput,
-        new Error("HiveForge-owned Docker deployment requires HIVEFORGE_RENDERED_COMPOSE_FILE.")
+        new Error("HiveForge-owned Docker deployment requires rendered managed compose file.")
       );
     }
 

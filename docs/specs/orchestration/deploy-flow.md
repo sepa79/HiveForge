@@ -22,12 +22,14 @@ The 0.5 deploy flow is:
 5. resolve non-secret runtime env for the selected project/profile,
 6. validate selected profile eligibility for the current environment and
    declared runtime requirements,
-7. for active deploy actions, run the declared component lifecycle action as the
+7. prepare managed project files under HiveForge data and expose that project
+   root to the action helper as `/hf`,
+8. for active deploy actions, run the declared component lifecycle action as the
    render/preparation phase,
-8. for active deploy actions, inject HiveForge deployment metadata into the
+9. for active deploy actions, inject HiveForge deployment metadata into the
    rendered Compose/Stack file,
-9. validate rendered bind sources,
-10. run the Docker deployment through HiveForge.
+10. validate rendered bind sources,
+11. run the Docker deployment through HiveForge.
 
 Each step is explicit. A failed step stops the flow; later steps do not run.
 The action journal records the lifecycle operation outcome. The SQLite state DB

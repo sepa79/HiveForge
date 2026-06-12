@@ -213,9 +213,8 @@ This slice is implemented in HiveForge.
 Deliverables:
 
 - Checkout and inspect the requested PocketHive ref.
-- Prepare declared `artifacts.managedPaths` into `HIVEFORGE_PROJECT_DIR`.
-- Write explicit release vars in a documented file under
-  `HIVEFORGE_ARTIFACTS_DIR`.
+- Prepare declared `artifacts.managedPaths` into the project action root `/hf`.
+- Write explicit release vars in a documented file under `/hf/artifacts`.
 - Validate required runtime files before stack deployment.
 - Journal/progress managed file preparation separately from deploy in the later
   action execution slice.

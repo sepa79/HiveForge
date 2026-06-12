@@ -74,7 +74,7 @@ Use MCP tools in this order:
 `prepare_release_deploy` currently prepares and validates a release plan only.
 It does not build images, push images, or execute deployment actions. With
 `gitRef`, it also checks out the project, prepares declared
-`artifacts.managedPaths`, writes `HIVEFORGE_ARTIFACTS_DIR/release-vars.json`,
+`artifacts.managedPaths`, writes `/hf/artifacts/release-vars.json`,
 and validates explicit
 `requiredFiles`.
 
@@ -101,8 +101,8 @@ Before starting an action, confirm:
   `prepare_release_deploy`,
 - release image templates or a release artifact template when using
   `prepare_release_deploy`,
-- required runtime files under `HIVEFORGE_BIND_SOURCE_DIR` when the release
-  deploy depends on managed bind-source files,
+- required runtime files under `/hf/artifacts` when the release deploy depends
+  on managed runtime files,
 - expected health/evidence check.
 
 Missing inputs are blockers. Do not guess project ids, refs, components,

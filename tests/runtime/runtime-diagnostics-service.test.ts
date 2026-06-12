@@ -29,11 +29,13 @@ describe("runtime diagnostics service", () => {
       reason: "No Docker bind-source managedRoot.bindSourceRoot is configured; Docker bind-source visibility on runtime nodes is unknown."
     });
     expect(report.actionContractPaths.exposedToProjectActions).toEqual([
-      "HIVEFORGE_RENDERED_COMPOSE_FILE",
+      "/hf",
+      "/hf/stacks/compose.yml",
       "HIVEFORGE_BIND_SOURCE_DIR"
     ]);
     expect(report.actionContractPaths.hiddenFromProjectActions).toEqual([
       "HIVEFORGE_DATA_ROOT",
+      "HIVEFORGE_RENDERED_COMPOSE_FILE",
       "HIVEFORGE_PROJECT_DIR",
       "HIVEFORGE_STACK_DIR",
       "HIVEFORGE_ARTIFACTS_DIR",

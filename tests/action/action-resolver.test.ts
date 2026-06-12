@@ -8,7 +8,9 @@ describe("action resolver", () => {
       component: "api",
       action: "deploy",
       adapter: "ansible",
+      workspacePath: "/workspace",
       componentDir: "/workspace/components/api",
+      componentRelativeDir: "components/api",
       playbook: "ansible/deploy.yml"
     });
   });

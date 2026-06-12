@@ -209,7 +209,6 @@ describe("deploy orchestrator", () => {
           IMAGE_TAG: "latest",
           PUBLIC_URL: "http://local",
           HIVEFORGE_PROFILE: "test",
-          HIVEFORGE_RENDERED_COMPOSE_FILE: "/data/deployed/hivewatch/stacks/compose.yml",
           HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch"
         })
       })
@@ -217,6 +216,13 @@ describe("deploy orchestrator", () => {
     const runCall = calls.find((call): call is { run: { environment: Record<string, string> } } =>
       typeof call === "object" && call !== null && "run" in call
     );
+    expect(runCall?.run).toMatchObject({
+      managedFiles: expect.objectContaining({
+        actionRoot: "/hf",
+        actionRootSource: "/srv/hiveforge/data/deployed/hivewatch"
+      })
+    });
+    expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_RENDERED_COMPOSE_FILE");
     expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_PROJECT_DIR");
     expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_STACK_DIR");
     expect(runCall?.run.environment).not.toHaveProperty("HIVEFORGE_ARTIFACTS_DIR");
@@ -542,6 +548,10 @@ function managedFilesService(calls: string[]): ManagedFilesService {
         stackDir: "/data/deployed/hivewatch/stacks",
         artifactsDir: "/data/deployed/hivewatch/artifacts",
         renderedComposeFile: "/data/deployed/hivewatch/stacks/compose.yml",
+        actionRoot: "/hf",
+        actionRenderedComposeFile: "/hf/stacks/compose.yml",
+        actionRootSource: "/srv/hiveforge/data/deployed/hivewatch",
+        workspaceSource: "/srv/hiveforge/workspace/hivewatch",
         bindSourceDir: "/srv/hiveforge/data/deployed/hivewatch",
         prepared: []
       };

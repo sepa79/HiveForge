@@ -105,8 +105,8 @@ describe("release deploy service", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "hiveforge-release-"));
     const projectDir = path.join(root, "deployed", "pockethive");
     const artifactsDir = path.join(projectDir, "artifacts");
-    await mkdir(path.join(projectDir, "artifacts", "pockethive-runtime", "compose"), { recursive: true });
-    await writeFile(path.join(projectDir, "artifacts", "pockethive-runtime", "compose", "docker-compose.yml"), "services: {}\n");
+    await mkdir(path.join(projectDir, "artifacts", "runtime", "compose"), { recursive: true });
+    await writeFile(path.join(projectDir, "artifacts", "runtime", "compose", "docker-compose.yml"), "services: {}\n");
 
     const calls: string[] = [];
     const service = new ReleaseDeployService({
@@ -119,7 +119,7 @@ describe("release deploy service", () => {
     const result = await service.prepare({
       ...request({ project: undefined }),
       gitRef: "v1.2.3",
-      requiredFiles: ["artifacts/pockethive-runtime/compose/docker-compose.yml"]
+      requiredFiles: ["artifacts/runtime/compose/docker-compose.yml"]
     });
 
     expect(calls).toEqual(["inspect", "managed_files"]);
@@ -127,9 +127,9 @@ describe("release deploy service", () => {
     expect(result.managedFiles?.projectDir).toBe(projectDir);
     expect(result.releaseVarsFile).toBe(path.join(artifactsDir, "release-vars.json"));
     expect(result.plan.env).toMatchObject({
-      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(projectDir, "stacks", "compose.yml"),
       HIVEFORGE_RELEASE_VARS_FILE: path.join(artifactsDir, "release-vars.json")
     });
+    expect(result.plan.env).not.toHaveProperty("HIVEFORGE_RENDERED_COMPOSE_FILE");
     expect(result.plan.env).not.toHaveProperty("HIVEFORGE_PROJECT_DIR");
     expect(result.plan.env).not.toHaveProperty("HIVEFORGE_STACK_DIR");
     expect(result.plan.env).not.toHaveProperty("HIVEFORGE_ARTIFACTS_DIR");
@@ -155,9 +155,9 @@ describe("release deploy service", () => {
       service.prepare({
         ...request({ project: undefined }),
         gitRef: "v1.2.3",
-        requiredFiles: ["artifacts/pockethive-runtime/compose/docker-compose.yml"]
+        requiredFiles: ["artifacts/runtime/compose/docker-compose.yml"]
       })
-    ).rejects.toThrow("Required runtime file missing: artifacts/pockethive-runtime/compose/docker-compose.yml");
+    ).rejects.toThrow("Required runtime file missing: artifacts/runtime/compose/docker-compose.yml");
   });
 });
 
@@ -234,7 +234,7 @@ function inspectionService(calls: string[]): ProjectInspectionService {
               {
                 name: "runtime-compose",
                 source: "deploy/hiveforge/runtime/compose",
-                target: "artifacts/pockethive-runtime/compose",
+                target: "artifacts/runtime/compose",
                 mode: "replace"
               }
             ]
@@ -258,11 +258,15 @@ function managedFilesService(
         stackDir: path.join(dirs.projectDir, "stacks"),
         artifactsDir: dirs.artifactsDir,
         renderedComposeFile: path.join(dirs.projectDir, "stacks", "compose.yml"),
+        actionRoot: "/hf",
+        actionRenderedComposeFile: "/hf/stacks/compose.yml",
+        actionRootSource: dirs.projectDir,
+        workspaceSource: "/workspace/pockethive",
         prepared: [
           {
             name: "runtime-compose",
             source: "/workspace/pockethive/deploy/hiveforge/runtime/compose",
-            target: path.join(dirs.projectDir, "artifacts", "pockethive-runtime", "compose")
+            target: path.join(dirs.projectDir, "artifacts", "runtime", "compose")
           }
         ]
       };

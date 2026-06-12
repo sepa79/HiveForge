@@ -5,7 +5,9 @@ export interface ResolvedAction {
   component: string;
   action: string;
   adapter: "ansible";
+  workspacePath: string;
   componentDir: string;
+  componentRelativeDir: string;
   playbook: string;
 }
 
@@ -25,11 +27,24 @@ export function resolveDeclaredAction(
     throw new Error(`Action is not declared for ${componentName}: ${actionName}`);
   }
 
+  const componentDir = path.dirname(path.join(workspacePath, component.manifestPath));
+
   return {
     component: componentName,
     action: actionName,
     adapter: component.manifest.deployment.adapter,
-    componentDir: path.dirname(path.join(workspacePath, component.manifestPath)),
+    workspacePath,
+    componentDir,
+    componentRelativeDir: relativeChildPath(workspacePath, componentDir, "component manifest directory"),
     playbook: action.playbook
   };
+}
+
+function relativeChildPath(root: string, child: string, label: string): string {
+  const resolvedRoot = path.resolve(root);
+  const resolvedChild = path.resolve(child);
+  if (resolvedChild !== resolvedRoot && !resolvedChild.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error(`Resolved ${label} is outside workspace: ${child}`);
+  }
+  return path.relative(resolvedRoot, resolvedChild);
 }

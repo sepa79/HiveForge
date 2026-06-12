@@ -69,7 +69,7 @@ ref <ref>, component <component>, action <action>, profile <profile>.
 Use release.imageTag=<tag> and imageRepository.project=<registry/namespace>.
 Use a release artifact template when available instead of manually inventing image lists.
 Use gitRef=<ref> when runtime files must be prepared from the checked-out repository.
-Provide requiredFiles for runtime files that must exist under HIVEFORGE_PROJECT_DIR after managedPaths.
+Provide requiredFiles for runtime files that must exist under the project action root `/hf` after managedPaths.
 Validate the resolved app image refs and report blockers.
 Do not build images, push images, execute deployment actions, infer tags, or use REST.
 ```

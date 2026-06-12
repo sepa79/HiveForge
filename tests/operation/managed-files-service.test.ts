@@ -24,8 +24,12 @@ describe("managed files service", () => {
       "mode: poc\n"
     );
     await expect(readFile(path.join(dataRoot, "deployed/hivewatch/artifacts/config/old.yml"), "utf8")).rejects.toThrow();
-    expect(managedFilesEnvironment(result)).toEqual({
-      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(dataRoot, "deployed/hivewatch/stacks/compose.yml")
+    expect(managedFilesEnvironment(result)).toEqual({});
+    expect(result).toMatchObject({
+      actionRoot: "/hf",
+      actionRenderedComposeFile: "/hf/stacks/compose.yml",
+      actionRootSource: path.join(dataRoot, "deployed/hivewatch"),
+      workspaceSource: workspace
     });
   });
 
@@ -65,9 +69,28 @@ describe("managed files service", () => {
     });
 
     expect(managedFilesEnvironment(result)).toEqual({
-      HIVEFORGE_RENDERED_COMPOSE_FILE: path.join(dataRoot, "deployed/hivewatch/stacks/compose.yml"),
       HIVEFORGE_BIND_SOURCE_DIR: "/srv/hiveforge/data/deployed/hivewatch"
     });
+    expect(result).toMatchObject({
+      actionRootSource: "/srv/hiveforge/data/deployed/hivewatch"
+    });
+  });
+
+  it("derives helper container source paths from the runtime root bind source", async () => {
+    const runtimeRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
+    const workspace = path.join(runtimeRoot, "workspace", "hivewatch");
+    const dataRoot = path.join(runtimeRoot, "data");
+    await mkdir(path.join(workspace, "deploy/config"), { recursive: true });
+    await writeFile(path.join(workspace, "deploy/config/app.yml"), "mode: poc\n");
+
+    const result = await new ManagedFilesService(dataRoot, "/opt/hiveforge", runtimeRoot).prepare({
+      projectId: "hivewatch",
+      workspacePath: workspace,
+      registry: registry([{ name: "api-config", source: "deploy/config", target: "artifacts/config", mode: "replace" }])
+    });
+
+    expect(result.actionRootSource).toBe("/opt/hiveforge/data/deployed/hivewatch");
+    expect(result.workspaceSource).toBe("/opt/hiveforge/workspace/hivewatch");
   });
 
   it("rejects missing managed path sources", async () => {

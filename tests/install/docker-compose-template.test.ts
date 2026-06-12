@@ -17,6 +17,9 @@ describe("Docker Compose install template", () => {
     expect(hiveforge?.environment?.HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT).toBe(
       "${HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT:-/opt/hiveforge}"
     );
+    expect(hiveforge?.environment?.HIVEFORGE_ACTION_RUNNER_IMAGE).toBe(
+      "${HIVEFORGE_IMAGE:-ghcr.io/sepa79/hiveforge:latest}"
+    );
     expect(hiveforge?.volumes).toContainEqual({
       type: "bind",
       source: "${HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT:-/opt/hiveforge}",

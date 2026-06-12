@@ -8,6 +8,7 @@ import type { ProjectRegistry } from "../manifest/manifest-types.js";
 import { isCommandExecutionError } from "../workspace/command-runner.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
+import type { ManagedFilesResult } from "./managed-files-service.js";
 
 export interface ProjectActionAfterRunContext {
   operationId: string;
@@ -30,6 +31,7 @@ export interface ProjectActionRequest {
   environmentId?: string;
   profile?: string;
   environment?: NodeJS.ProcessEnv;
+  managedFiles?: ManagedFilesResult;
   afterRun?: (context: ProjectActionAfterRunContext) => Promise<ProjectActionAfterRunResult | void>;
 }
 
@@ -78,10 +80,14 @@ export class ProjectActionService {
 
     const runEnvironment = actionEnvironment(request);
     try {
-      const result = await this.runner.run(action, runEnvironment);
+      const result = await this.runner.run(action, {
+        environment: runEnvironment,
+        ...(request.managedFiles?.actionRootSource ? { actionRootSource: request.managedFiles.actionRootSource } : {}),
+        ...(request.managedFiles?.workspaceSource ? { workspaceSource: request.managedFiles.workspaceSource } : {})
+      });
       const endedAt = this.clock.now().toISOString();
       const afterRun = await request.afterRun?.({ operationId, environment: runEnvironment, endedAt });
-      const artifacts = await collectActionArtifacts(runEnvironment, endedAt);
+      const artifacts = await collectActionArtifacts(request.managedFiles?.renderedComposeFile, endedAt);
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,
@@ -108,7 +114,7 @@ export class ProjectActionService {
       };
     } catch (error) {
       const endedAt = this.clock.now().toISOString();
-      const artifacts = await collectActionArtifacts(runEnvironment, endedAt);
+      const artifacts = await collectActionArtifacts(request.managedFiles?.renderedComposeFile, endedAt);
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,
@@ -152,8 +158,7 @@ function actionEnvironment(request: ProjectActionRequest): NodeJS.ProcessEnv {
   };
 }
 
-async function collectActionArtifacts(environment: NodeJS.ProcessEnv | undefined, recordedAt: string): Promise<JournalArtifact[]> {
-  const composePath = environment?.HIVEFORGE_RENDERED_COMPOSE_FILE;
+async function collectActionArtifacts(composePath: string | undefined, recordedAt: string): Promise<JournalArtifact[]> {
   if (!composePath) {
     return [];
   }

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.2 - 2026-06-12
+
+- Run declared Ansible actions in an isolated helper container where `/hf` is
+  the current project's managed root and the checkout is mounted read-only at
+  `/workspace`.
+- Replace the project-facing rendered-compose env contract with the fixed
+  action path `/hf/stacks/compose.yml`; `HIVEFORGE_BIND_SOURCE_DIR` remains only
+  the host/node-visible root for rendered Docker bind source values.
+- Derive helper-container mount sources from the configured runtime-root bind
+  source so standard `/opt/hiveforge:/hf` Docker/Swarm installs mount
+  `/opt/hiveforge/data/deployed/<project>` as the action `/hf`.
+- Add `HIVEFORGE_ACTION_RUNNER_IMAGE` to the install template and fall back to
+  Docker inspect of the current HiveForge container image when the override is
+  absent.
+- Update docs, diagnostics, fixtures, and tests for the `/hf` project-root
+  action contract and the simplified `artifacts/runtime/...` managed artifact
+  layout.
+
 ## 0.5.1 - 2026-06-12
 
 - Seed generated `environments.yaml` with

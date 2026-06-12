@@ -1,5 +1,6 @@
 import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
+import { ACTION_ROOT_PATH } from "../action/ansible-runner.js";
 import type { ManagedPathDeclaration, ProjectRegistry } from "../manifest/manifest-types.js";
 
 export interface ManagedFilesResult {
@@ -7,6 +8,10 @@ export interface ManagedFilesResult {
   stackDir: string;
   artifactsDir: string;
   renderedComposeFile: string;
+  actionRoot: string;
+  actionRenderedComposeFile: string;
+  actionRootSource: string;
+  workspaceSource: string;
   bindSourceDir?: string;
   projectHostDir?: string;
   stackHostDir?: string;
@@ -21,7 +26,8 @@ export interface ManagedFilesResult {
 export class ManagedFilesService {
   constructor(
     private readonly dataRoot: string,
-    private readonly bindSourceRoot?: string
+    private readonly bindSourceRoot?: string,
+    private readonly runtimeRoot?: string
   ) {}
 
   async prepare(request: { projectId: string; workspacePath: string; registry: ProjectRegistry }): Promise<ManagedFilesResult> {
@@ -35,6 +41,10 @@ export class ManagedFilesService {
       : undefined;
     const stackHostDir = projectHostDir ? path.join(projectHostDir, "stacks") : undefined;
     const artifactsHostDir = projectHostDir ? path.join(projectHostDir, "artifacts") : undefined;
+    const actionRoot = ACTION_ROOT_PATH;
+    const actionRenderedComposeFile = path.posix.join(actionRoot, "stacks", "compose.yml");
+    const actionRootSource = projectHostDir ?? projectDir;
+    const workspaceSource = hostSourceFor(request.workspacePath, this.runtimeRoot, this.bindSourceRoot) ?? request.workspacePath;
     const managedPaths = request.registry.artifacts?.managedPaths ?? [];
     assertManagedPathTargets(managedPaths);
 
@@ -61,6 +71,10 @@ export class ManagedFilesService {
       stackDir,
       artifactsDir,
       renderedComposeFile,
+      actionRoot,
+      actionRenderedComposeFile,
+      actionRootSource,
+      workspaceSource,
       ...(projectHostDir ? { bindSourceDir: projectHostDir } : {}),
       ...(projectHostDir ? { projectHostDir } : {}),
       ...(stackHostDir ? { stackHostDir } : {}),
@@ -96,9 +110,20 @@ async function replaceDirectoryContents(source: string, target: string): Promise
 
 export function managedFilesEnvironment(result: ManagedFilesResult): NodeJS.ProcessEnv {
   return {
-    HIVEFORGE_RENDERED_COMPOSE_FILE: result.renderedComposeFile,
     ...(result.bindSourceDir ? { HIVEFORGE_BIND_SOURCE_DIR: result.bindSourceDir } : {})
   };
+}
+
+function hostSourceFor(containerPath: string, runtimeRoot: string | undefined, bindSourceRoot: string | undefined): string | undefined {
+  if (!runtimeRoot || !bindSourceRoot) {
+    return undefined;
+  }
+  const resolvedRoot = path.resolve(runtimeRoot);
+  const resolvedPath = path.resolve(containerPath);
+  if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    return undefined;
+  }
+  return path.join(bindSourceRoot, path.relative(resolvedRoot, resolvedPath));
 }
 
 function assertManagedPathTargets(managedPaths: ManagedPathDeclaration[]): void {

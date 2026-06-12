@@ -9,6 +9,11 @@ accepted tool shapes into `docs/specs/mcp/tools.md`, REST transport changes into
 `docs/specs/api/openapi.yaml`, and any workspace retention behavior into the
 relevant runtime/workspace spec.
 
+The action path notes in this planning file predate the 0.5.2 isolated action
+root contract. Current project actions use `/hf` as the project managed root,
+write rendered Compose to `/hf/stacks/compose.yml`, and use
+`HIVEFORGE_BIND_SOURCE_DIR` only for Docker bind source values.
+
 ## Release Split
 
 ### 0.5.0 MVP

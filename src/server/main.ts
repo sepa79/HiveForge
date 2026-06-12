@@ -116,7 +116,12 @@ const validation = new ProjectValidationService(
   ids,
   clock
 );
-const action = new ProjectActionService(new AnsibleRunner(commandRunner), journal, ids, clock);
+const action = new ProjectActionService(
+  new AnsibleRunner(commandRunner, { runnerImage: nonEmptyEnv("HIVEFORGE_ACTION_RUNNER_IMAGE") }),
+  journal,
+  ids,
+  clock
+);
 const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner);
 const projectRegistration = new ProjectRegistrationService(projectRegistryPath, projectRegistry, repositoryInspection);
 const currentEnvironment = environmentConfig.environments.find((environment) => environment.id === environmentConfig.current);
@@ -124,7 +129,7 @@ if (!currentEnvironment) {
   throw new Error(`Current environment is not defined: ${environmentConfig.current}`);
 }
 const configuredManagedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
-const managedFiles = new ManagedFilesService(dataRoot, configuredManagedRootBindSourceRoot);
+const managedFiles = new ManagedFilesService(dataRoot, configuredManagedRootBindSourceRoot, runtimePaths.runtimeRoot);
 const dockerDeployment = new DockerDeploymentService(commandRunner, currentEnvironment);
 const deploy = new DeployOrchestrator(
   inspection,

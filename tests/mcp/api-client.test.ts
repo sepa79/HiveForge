@@ -498,7 +498,7 @@ describe("HiveForge MCP API client", () => {
       profile: "swarm-reduced",
       releaseVars: { "release.imageTag": "dev-1" },
       vars: { "imageRepository.project": "registry.lan:5000/pockethive" },
-      requiredFiles: ["artifacts/pockethive-runtime/compose/docker-compose.yml"],
+      requiredFiles: ["artifacts/runtime/compose/docker-compose.yml"],
       artifact: {
         images: [
           {
@@ -525,7 +525,7 @@ describe("HiveForge MCP API client", () => {
             }
           ]
         },
-        requiredFiles: ["artifacts/pockethive-runtime/compose/docker-compose.yml"]
+        requiredFiles: ["artifacts/runtime/compose/docker-compose.yml"]
       })
     );
   });

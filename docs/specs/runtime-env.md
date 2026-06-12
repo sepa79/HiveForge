@@ -69,8 +69,8 @@ Runtime env keys must match:
 ```
 
 `HIVEFORGE_*` is reserved for HiveForge-managed values such as
-`HIVEFORGE_PROFILE`, `HIVEFORGE_RENDERED_COMPOSE_FILE`, and
-`HIVEFORGE_BIND_SOURCE_DIR`.
+`HIVEFORGE_PROFILE`, `HIVEFORGE_BIND_SOURCE_DIR`, and
+`HIVEFORGE_ACTION_RUNNER_IMAGE`.
 
 Values are strings. Empty strings are allowed when a project explicitly needs an
 empty runtime value.

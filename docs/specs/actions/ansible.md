@@ -62,14 +62,21 @@ Do not rely on tools that happen to exist in the HiveForge control-plane image.
 
 ## Command
 
-The runner executes:
+The runner executes the declared playbook in an isolated helper container:
 
 ```bash
 ansible-playbook <declared playbook>
 ```
 
-The working directory is the component manifest directory. The playbook path is
+The helper mounts the prepared project managed root at `/hf` and mounts the
+checked-out project repository read-only at `/workspace`. The working directory
+is the component manifest directory under `/workspace`. The playbook path is
 the exact relative path declared by the component manifest.
+
+HiveForge uses `HIVEFORGE_ACTION_RUNNER_IMAGE` as the helper image when it is
+set. If it is not set, HiveForge resolves the currently running HiveForge image
+from Docker inspect. If neither source is available, isolated action execution
+fails explicitly.
 
 When `ansible-playbook` exits non-zero, HiveForge surfaces the command, exit
 status, working directory, and redacted stdout/stderr tails through operation
@@ -91,29 +98,31 @@ Removed variables:
 - `HIVEFORGE_STACK_HOST_DIR`
 - `HIVEFORGE_ARTIFACTS_HOST_DIR`
 
-The target isolated runner contract exposes task-oriented paths only:
+The isolated runner contract exposes one fixed project root and one Docker bind
+source variable:
 
-- `HIVEFORGE_RENDERED_COMPOSE_FILE` - the Compose/Stack artifact the action
-  writes or uses for Docker deployment,
+- `/hf` - the prepared managed root for the current project only,
+- `/hf/artifacts` - managed release/runtime artifacts copied from the project,
+- `/hf/stacks/compose.yml` - the Compose/Stack artifact the action writes for
+  HiveForge-owned Docker deployment,
 - `HIVEFORGE_BIND_SOURCE_DIR` - the only project-owned directory that rendered
   Compose/Stack files may use as Docker bind source paths, except for explicit
   typed allowlist paths such as `/var/run/docker.sock`.
 
-Until the isolated runner implementation lands, deploy execution on this branch
-should be treated as incomplete. The contract guard exists first so HiveForge can
-quick-fail repositories that still target the removed POC variable surface.
+`HIVEFORGE_BIND_SOURCE_DIR` is a host/node-visible path such as
+`/opt/hiveforge/data/deployed/<project>`. It is for rendered Docker bind source
+values only. Project Ansible must not use it to read or write local files.
 
-HiveForge prepares the parent directories for both paths before the action
-runs. Project Ansible writes the rendered Compose/Stack file to
-`HIVEFORGE_RENDERED_COMPOSE_FILE` and may write project-owned bind-source
-content under `HIVEFORGE_BIND_SOURCE_DIR` when the connected environment
-declares `managedRoot.bindSourceRoot`. Project Ansible must not deploy the
-Compose/Stack file itself.
+HiveForge prepares `/hf/stacks` and `/hf/artifacts` before the action runs.
+Project Ansible writes the rendered Compose/Stack file to
+`/hf/stacks/compose.yml` and may create project-owned runtime state under `/hf`
+when that state is later referenced by rendered Docker bind sources. Project
+Ansible must not deploy the Compose/Stack file itself.
 
 After a successful render action, HiveForge injects its deployment metadata into
-`HIVEFORGE_RENDERED_COMPOSE_FILE`, then runs the Docker deployment itself. The
-compose inspection API/MCP tool returns the recorded artifact only; it does not
-re-render from the checkout or guess a path later.
+the managed compose file, then runs the Docker deployment itself. The compose
+inspection API/MCP tool returns the recorded artifact only; it does not re-render
+from the checkout or guess a path later.
 
 When a profile is selected, HiveForge passes `HIVEFORGE_PROFILE`. Operator
 runtime env must not define `HIVEFORGE_*` keys.
