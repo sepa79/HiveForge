@@ -54,7 +54,7 @@ HiveForge checkout, run it from the published image:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<swarm-manager-host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token-from-/opt/hiveforge/auth-token> \
-  ghcr.io/sepa79/hiveforge:v0.5.1 \
+  ghcr.io/sepa79/hiveforge:v0.5.2 \
   npm run hiveforge-mcp
 ```
 

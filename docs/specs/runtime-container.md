@@ -145,7 +145,7 @@ an update failure.
 
 `POST /hiveforge/update` starts a self-update only when a newer release exists.
 The target image is the concrete release tag, for example
-`ghcr.io/sepa79/hiveforge:v0.5.1`; HiveForge does not update itself to a
+`ghcr.io/sepa79/hiveforge:v0.5.2`; HiveForge does not update itself to a
 floating `latest` tag. If no release is published yet, the response status is
 `no_release` and no Docker command is run.
 

@@ -19,7 +19,7 @@ Before changing the user's editor or agent configuration, collect:
   Amazon Q CLI,
 - HiveForge base URL, for example `http://swarm-manager.example:3000`,
 - HiveForge auth token,
-- HiveForge image tag, for example `ghcr.io/sepa79/hiveforge:v0.5.1`,
+- HiveForge image tag, for example `ghcr.io/sepa79/hiveforge:v0.5.2`,
 - desired scope: user/global configuration or workspace/local configuration.
 
 Prefer user/global scope for a non-technical workstation setup. Use workspace
@@ -39,7 +39,7 @@ configuration format:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.1 \
+  ghcr.io/sepa79/hiveforge:v0.5.2 \
   npm run hiveforge-mcp
 ```
 
@@ -86,7 +86,7 @@ Example VS Code `mcp.json`:
         "HIVEFORGE_BASE_URL=http://<host>:3000",
         "-e",
         "HIVEFORGE_AUTH_TOKEN=${input:hiveforge-token}",
-        "ghcr.io/sepa79/hiveforge:v0.5.1",
+        "ghcr.io/sepa79/hiveforge:v0.5.2",
         "npm",
         "run",
         "hiveforge-mcp"

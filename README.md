@@ -65,7 +65,7 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    docker run --rm -i \
      -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
      -e HIVEFORGE_AUTH_TOKEN=<token> \
-     ghcr.io/sepa79/hiveforge:v0.5.1 \
+     ghcr.io/sepa79/hiveforge:v0.5.2 \
      npm run hiveforge-mcp
    ```
 
