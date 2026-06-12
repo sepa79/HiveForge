@@ -65,9 +65,13 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    docker run --rm -i \
      -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
      -e HIVEFORGE_AUTH_TOKEN=<token> \
-     ghcr.io/sepa79/hiveforge:latest \
+     ghcr.io/sepa79/hiveforge:v0.5.1 \
      npm run hiveforge-mcp
    ```
+
+   MCP clients configure stdio servers differently. For VS Code Copilot,
+   Amazon Q Developer, and agent-facing setup notes, see
+   [Configure an MCP client for HiveForge](docs/install/mcp-clients.md).
 
 3. Ask your agent to use HiveForge MCP tools in this order:
 

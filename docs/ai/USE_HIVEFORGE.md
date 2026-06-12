@@ -14,6 +14,12 @@ There is no REST fallback for users.
 
 ## Connect
 
+When helping a user configure an MCP client, first identify the client and
+configuration surface. VS Code Copilot, Amazon Q IDE, Amazon Q CLI, and other
+clients do not share one universal config file. Use
+[MCP client setup](../install/mcp-clients.md) and translate the canonical
+HiveForge stdio command into the user's client.
+
 Use a known HiveForge target when available:
 
 ```bash
@@ -32,6 +38,7 @@ npm run hiveforge-mcp
 
 Use the installed host's `auth-token` file when HiveForge generated the token
 on first start. MCP connects to REST and does not read runtime files directly.
+Do not configure the HiveForge REST URL as a remote MCP HTTP endpoint.
 
 Do not invent endpoints or tokens.
 

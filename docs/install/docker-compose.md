@@ -98,12 +98,18 @@ the published image on your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:latest \
+  ghcr.io/sepa79/hiveforge:v0.5.1 \
   npm run hiveforge-mcp
 ```
 
 MCP connects to the HiveForge REST endpoint. It does not read `projects.yaml`,
 `environments.yaml`, `workspace/`, `journal/`, or `data/` directly.
+Do not configure `http://<host>:3000` as a remote MCP HTTP server; it is the
+REST endpoint used by the local stdio MCP process.
+
+MCP clients configure stdio servers differently. Use
+[Configure an MCP client for HiveForge](mcp-clients.md) for VS Code Copilot,
+Amazon Q Developer, and agent-facing setup guidance.
 
 ## Operator-Provided Token
 
@@ -223,7 +229,7 @@ environment file. Run HiveForge on a manager node or provide an explicit
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.0 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.1 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
 For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or

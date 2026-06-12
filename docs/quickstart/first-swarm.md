@@ -54,12 +54,16 @@ HiveForge checkout, run it from the published image:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<swarm-manager-host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token-from-/opt/hiveforge/auth-token> \
-  ghcr.io/sepa79/hiveforge:latest \
+  ghcr.io/sepa79/hiveforge:v0.5.1 \
   npm run hiveforge-mcp
 ```
 
-Configure your MCP client to run that command. After connection, the agent
-should call:
+Configure your MCP client to run that command as a foreground stdio server.
+Different clients use different MCP configuration surfaces. For VS Code
+Copilot, Amazon Q Developer, and agent-facing setup guidance, see
+[Configure an MCP client for HiveForge](../install/mcp-clients.md).
+
+After connection, the agent should call:
 
 1. `check_health`,
 2. `get_hiveforge_info`,

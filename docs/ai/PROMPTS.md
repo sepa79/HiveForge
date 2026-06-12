@@ -13,6 +13,20 @@ Do not invent secrets, registry entries, profiles, or actions.
 Do not run the installation unless I explicitly ask you to.
 ```
 
+## Configure MCP Client
+
+```text
+Help me configure HiveForge MCP in my MCP client.
+First ask which client I use: VS Code Copilot, Amazon Q IDE, Amazon Q CLI, or another MCP client.
+Use docs/install/mcp-clients.md as the source of truth.
+Do not assume VS Code mcp.json works for Amazon Q or other clients.
+Configure HiveForge as a local stdio MCP server that runs docker in the foreground.
+Do not configure the HiveForge REST URL as a remote MCP HTTP server.
+Ask for the HiveForge base URL, auth token source, image tag, and user/global vs workspace/local scope.
+Do not ask me to paste a token into chat when the client supports a password prompt or local environment variable.
+Verify the connection with check_health, get_hiveforge_info, list_environments, and list_projects.
+```
+
 ## Inspect Candidate Repository
 
 ```text
