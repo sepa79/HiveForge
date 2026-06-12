@@ -187,6 +187,20 @@ describe("self update service", () => {
     expect(calls).toEqual([]);
   });
 
+  it("reports outbound network failures with proxy guidance", async () => {
+    const service = new SelfUpdateService({
+      appInfo: { name: "hiveforge", version: "0.5.0" },
+      commandRunner: commandRunner([]),
+      fetchImpl: async () => {
+        throw new Error("fetch failed");
+      }
+    });
+
+    await expect(service.checkLatest()).rejects.toThrow(
+      "GitHub latest release request failed before response: fetch failed. Check outbound HTTPS/proxy access from the HiveForge container to https://api.github.com/repos/sepa79/HiveForge/releases/latest."
+    );
+  });
+
   it("fails explicitly when the running container has no supported install labels", async () => {
     process.env.HOSTNAME = "container-1";
     const service = new SelfUpdateService({

@@ -27,6 +27,7 @@ import { SqliteDeploymentStateStore } from "../operation/sqlite-deployment-state
 import { ReleaseDeployService } from "../release/release-deploy-service.js";
 import { resolveAuthToken } from "../runtime/auth-token.js";
 import { detectContainerBindSource } from "../runtime/container-bind-source.js";
+import { configureHttpProxyFromEnv } from "../runtime/http-proxy.js";
 import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
 import { HIVEFORGE_CONTAINER_RUNTIME_ROOT, resolveRuntimePaths } from "../runtime/runtime-paths.js";
 import { SelfUpdateService } from "../runtime/self-update-service.js";
@@ -48,6 +49,9 @@ interface ServerOptions {
 
 const serverOptions = parseServerOptions(process.argv.slice(2));
 const commandRunner = new NodeCommandRunner();
+if (configureHttpProxyFromEnv()) {
+  process.stdout.write("HiveForge outbound HTTP proxy environment detected; Node HTTP proxy support enabled.\n");
+}
 const explicitRuntimePaths = {
   registry: serverOptions.registry ?? process.env.HIVEFORGE_PROJECT_REGISTRY_PATH,
   environments: serverOptions.environments ?? process.env.HIVEFORGE_ENVIRONMENTS_PATH,

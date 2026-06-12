@@ -131,12 +131,7 @@ export class SelfUpdateService {
   }
 
   private async fetchLatestRelease(): Promise<GitHubReleaseResponse | null> {
-    const response = await this.fetchImpl(this.latestReleaseUrl, {
-      headers: {
-        accept: "application/vnd.github+json",
-        "user-agent": "HiveForge self-update"
-      }
-    });
+    const response = await this.fetchLatestReleaseResponse();
     if (response.status === 404) {
       return null;
     }
@@ -151,6 +146,23 @@ export class SelfUpdateService {
       tag_name: body.tag_name,
       html_url: body.html_url
     };
+  }
+
+  private async fetchLatestReleaseResponse(): Promise<Response> {
+    try {
+      return await this.fetchImpl(this.latestReleaseUrl, {
+        headers: {
+          accept: "application/vnd.github+json",
+          "user-agent": "HiveForge self-update"
+        }
+      });
+    } catch (error) {
+      throw new Error(
+        `GitHub latest release request failed before response: ${networkErrorMessage(
+          error
+        )}. Check outbound HTTPS/proxy access from the HiveForge container to ${this.latestReleaseUrl}.`
+      );
+    }
   }
 
   private async resolveTarget(): Promise<SelfUpdateTarget> {
@@ -288,4 +300,12 @@ function numericVersionParts(version: string): [number, number, number] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function networkErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+  const cause = "cause" in error && error.cause instanceof Error ? `; cause: ${error.cause.message}` : "";
+  return `${error.message}${cause}`;
 }

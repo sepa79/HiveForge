@@ -118,8 +118,9 @@ service explicitly.
 If the target environment requires an outbound HTTP proxy, the runtime service
 may be configured with the standard `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`,
 `http_proxy`, `https_proxy`, and `no_proxy` environment variables. HiveForge
-does not interpret those values itself; child processes such as `git clone` and
-declared lifecycle action commands inherit the container environment.
+uses those values for server-side outbound HTTP requests such as GitHub
+Releases checks, and child processes such as `git clone` and declared lifecycle
+action commands inherit the container environment.
 
 Runtime paths must be configured through exactly one supported mode. Missing
 writable directories are deployment configuration errors.

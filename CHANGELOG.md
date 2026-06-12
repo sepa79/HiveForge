@@ -18,6 +18,10 @@
   HiveForge services that do not yet carry the new environment variable.
 - Create or update the GitHub Release for tag builds and upload the MCP client
   tarball as a release asset.
+- Make HiveForge server-side outbound HTTP requests, including the `Update HF`
+  GitHub Releases check, honor standard proxy environment variables inside the
+  container and return an explicit proxy/network diagnostic instead of a bare
+  `fetch failed`.
 
 ## 0.5.0 - 2026-06-11
 

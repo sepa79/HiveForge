@@ -168,7 +168,9 @@ host-side path mounted into the HiveForge container as `/hf`.
 
 HiveForge clones registered repositories from inside the HiveForge container.
 If that container needs a corporate HTTP proxy to reach GitHub or another Git
-host, configure the proxy on the HiveForge service itself.
+host, configure the proxy on the HiveForge service itself. The same container
+proxy settings are used by the `Update HF` button when it checks GitHub
+Releases.
 
 For `docker compose up`, put the standard proxy variables in `.env` next to the
 Compose file:
@@ -189,6 +191,26 @@ stack is deployed. The Compose file passes uppercase and lowercase proxy
 variable names through to the HiveForge container when those values are set.
 `git clone` and declared lifecycle action processes inherit that container
 environment.
+
+Verify outbound GitHub access from the running HiveForge container with:
+
+```bash
+docker exec <container-id> curl -fsS https://api.github.com/repos/sepa79/HiveForge/releases/latest
+```
+
+For Swarm, identify the task container first:
+
+```bash
+docker ps --filter label=com.docker.swarm.service.name=hiveforge_hiveforge
+```
+
+If this curl command fails, the `Update HF` button cannot check releases from
+that environment. Set the proxy variables on the stack/service and redeploy or
+restart HiveForge.
+
+Docker image pulling is a separate host Docker daemon concern. If the GitHub
+release check succeeds but the later service image update cannot pull from
+GHCR, configure the Docker daemon's registry/proxy access on the Swarm nodes.
 
 MCP proxy configuration on the workstation is separate. It only affects the MCP
 client process connecting to the HiveForge REST endpoint; it does not affect
