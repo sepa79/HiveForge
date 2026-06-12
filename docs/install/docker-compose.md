@@ -129,12 +129,15 @@ runtime-root token file is ignored without printing either token value.
 
 On first start, HiveForge creates `/hf/environments.yaml` when it is missing.
 The Compose file can seed the human-facing environment label and description
-for that generated file:
+for that generated file. It also seeds the managed-root bind source from
+`HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT`; the install template defaults this to
+`/opt/hiveforge` and uses the same value as the host bind mounted to `/hf`.
 
 ```bash
 cat >> .env <<'EOF'
 HIVEFORGE_ENVIRONMENT_NAME=Marax HomeLab Swarm
 HIVEFORGE_ENVIRONMENT_DESCRIPTION=Home lab Docker Swarm on 192.168.88.50 using /mnt/shared_nfs/hiveforge.
+HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT=/mnt/shared_nfs/hiveforge
 EOF
 docker compose -f docker-compose.hiveforge.yml up -d
 ```
@@ -142,9 +145,10 @@ docker compose -f docker-compose.hiveforge.yml up -d
 For Portainer or `docker stack deploy`, provide the same values as stack
 environment variables before deploying.
 
-After `environments.yaml` exists, edit `name` and `description` there. HiveForge
-does not overwrite existing environment metadata on restart, redeploy, or node
-inventory refresh.
+After `environments.yaml` exists, edit `name`, `description`, and
+`capabilities.managedRoot.bindSourceRoot` there. HiveForge does not overwrite
+existing environment metadata or managed-root configuration on restart,
+redeploy, or node inventory refresh.
 
 ## Corporate Proxy
 

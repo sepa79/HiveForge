@@ -35,3 +35,29 @@ jobs:
 
       - name: Build image
         run: docker build -t hiveforge:ci .
+
+  mcp-client-tarball:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package MCP client tarball
+        run: npm run package:mcp-client
+
+      - name: Upload MCP client tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: hiveforge-mcp-client-tarball
+          path: dist/packages/hiveforge-mcp-client-*.tgz
+          if-no-files-found: error

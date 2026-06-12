@@ -14,7 +14,8 @@ contains:
 - Ansible for declared `ansible` adapter actions,
 - Docker CLI for target Docker/Swarm requirement checks and HiveForge-owned
   deploy execution,
-- SSH client and CA certificates for repository access.
+- SSH client and CA certificates for repository access,
+- operator/debug utilities: `curl`, `jq`, `ping`, `mc`, and `nano`.
 
 The target host must provide Docker/Swarm control access required by HiveForge.
 Project action runners must not require Docker access.

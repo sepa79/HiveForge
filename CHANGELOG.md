@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.1 - 2026-06-12
+
+- Seed generated `environments.yaml` with
+  `capabilities.managedRoot.bindSourceRoot` from the standard Docker/Swarm
+  install template so fresh installs expose `HIVEFORGE_BIND_SOURCE_DIR` without
+  HomeLab-specific post-generation patching.
+- Add install-template and Swarm runtime-root tests that fail when the standard
+  install path no longer produces a host-visible managed root.
+- Fix npm audit findings by updating `hono` and `vitest` patch versions.
+- Add CI and publish-workflow artifacts for the MCP client tarball.
+- Include `curl`, `jq`, `ping`, `mc`, and `nano` in the HiveForge runtime
+  image for operator/debug use.
+
 ## 0.5.0 - 2026-06-11
 
 - Add environment-owned external Docker bind source allowlists through

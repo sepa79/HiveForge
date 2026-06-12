@@ -16,6 +16,9 @@ export interface RuntimePathOptions {
   defaultEnvironment?: {
     name?: string;
     description?: string;
+    managedRoot?: {
+      bindSourceRoot?: string;
+    };
   };
 }
 
@@ -125,7 +128,8 @@ async function initializeRuntimeRoot(
   await writeFileIfMissing(runtimePaths.environments, () =>
     createDefaultEnvironmentYaml({
       docker: defaultEnvironmentDocker,
-      environment: defaultEnvironment
+      environment: defaultEnvironment,
+      managedRoot: defaultEnvironment?.managedRoot
     })
   );
   await mkdir(runtimePaths.workspace, { recursive: true });

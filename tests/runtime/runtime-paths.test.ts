@@ -75,6 +75,35 @@ describe("runtime paths", () => {
     });
   });
 
+  it("seeds generated environment managed root bind source from runtime options", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
+
+    const paths = await resolveRuntimePaths({
+      runtimeRoot: baseDir,
+      requireEnvironments: true,
+      defaultEnvironment: {
+        managedRoot: {
+          bindSourceRoot: "/opt/hiveforge"
+        }
+      }
+    });
+
+    await expect(loadEnvironmentConfig(paths.environments ?? "")).resolves.toMatchObject({
+      current: "docker",
+      environments: [
+        {
+          id: "docker",
+          capabilities: {
+            managedRoot: {
+              shared: true,
+              bindSourceRoot: "/opt/hiveforge"
+            }
+          }
+        }
+      ]
+    });
+  });
+
   it("does not overwrite existing registry or environment config", async () => {
     const baseDir = await mkdtemp(path.join(os.tmpdir(), "hiveforge-runtime-"));
     await writeFile(path.join(baseDir, "projects.yaml"), "# keep projects\nprojects: []\n", "utf8");
@@ -115,6 +144,11 @@ describe("runtime paths", () => {
     const paths = await resolveRuntimePaths({
       runtimeRoot: baseDir,
       requireEnvironments: true,
+      defaultEnvironment: {
+        managedRoot: {
+          bindSourceRoot: "/mnt/shared_nfs/hiveforge"
+        }
+      },
       defaultEnvironmentDocker: scriptedCommandRunner([
         {
           args: ["info", "--format", "{{json .Swarm}}"],
@@ -158,7 +192,8 @@ describe("runtime paths", () => {
           capabilities: {
             runtime: ["docker-swarm"],
             managedRoot: {
-              shared: true
+              shared: true,
+              bindSourceRoot: "/mnt/shared_nfs/hiveforge"
             },
             placement: true
           },

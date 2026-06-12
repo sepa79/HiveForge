@@ -37,6 +37,7 @@ Guaranteed runner tools:
 - basic Unix file utilities required by the base image,
 - `curl`,
 - `jq`,
+- `ping`,
 - CA certificates for TLS validation.
 
 Conditional runner tools:

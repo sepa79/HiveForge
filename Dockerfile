@@ -16,7 +16,16 @@ FROM docker:29-cli AS docker-cli
 FROM node:22-bookworm-slim AS runtime
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ansible git openssh-client ca-certificates \
+  && apt-get install -y --no-install-recommends \
+    ansible \
+    ca-certificates \
+    curl \
+    git \
+    iputils-ping \
+    jq \
+    mc \
+    nano \
+    openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

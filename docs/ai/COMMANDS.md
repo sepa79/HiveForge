@@ -167,7 +167,7 @@ rg -n "HiveForge|hiveforge|TODO" .
 Prepare a package version bump without creating a git tag:
 
 ```bash
-VERSION=0.5.0
+VERSION=0.5.1
 npm version "$VERSION" --no-git-tag-version
 ```
 
@@ -178,8 +178,17 @@ npm run check
 docker build -t hiveforge:release-check .
 ```
 
-Publish is performed by GitHub Actions. CI runs `npm run check` and Docker
-image build through GitHub Actions. Tagged releases publish
+Build the MCP client tarball:
+
+```bash
+npm run package:mcp-client
+```
+
+This writes `dist/packages/hiveforge-mcp-client-<version>.tgz`. Publish is
+performed by GitHub Actions. CI runs `npm run check`, Docker image build, and
+uploads the MCP client tarball as the `hiveforge-mcp-client-tarball` workflow
+artifact. The Docker publish workflow uploads the same tarball artifact,
+including for tagged releases. Tagged releases publish
 `ghcr.io/<owner>/hiveforge:<tag>` and `latest`.
 
 ## Deployment

@@ -62,7 +62,10 @@ const runtimePaths = await resolveRuntimePaths({
   defaultEnvironmentDocker: commandRunner,
   defaultEnvironment: {
     name: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_NAME"),
-    description: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_DESCRIPTION")
+    description: nonEmptyEnv("HIVEFORGE_ENVIRONMENT_DESCRIPTION"),
+    managedRoot: {
+      bindSourceRoot: nonEmptyEnv("HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT")
+    }
   }
 });
 const auth = await resolveAuthToken({
