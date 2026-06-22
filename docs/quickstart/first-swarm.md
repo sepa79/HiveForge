@@ -124,7 +124,9 @@ set_project_runtime_env(
 ```
 
 Do not use runtime env for passwords, API tokens, private keys, or other secret
-values. Secrets are outside the current HiveForge contract.
+values. Secrets are outside the current HiveForge contract. Runtime env changes
+made after deployment affect only future validation/action calls; they do not
+update an already deployed service.
 
 ## Validate And Deploy
 

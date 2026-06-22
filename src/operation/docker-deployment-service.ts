@@ -33,15 +33,26 @@ export interface ComposeBindSourceValidationResult {
   composeFile: string;
   bindSourceDir?: string;
   allowedBindSources: string[];
-  services: Array<{
-    service: string;
-    bindSources: string[];
-  }>;
+  services: ComposeServiceEvidence[];
   issues: Array<{
     service: string;
     source: string;
     reason: string;
   }>;
+}
+
+export interface ComposeServiceEvidence {
+  service: string;
+  image?: string;
+  bindSources: string[];
+  bindMounts: ComposeBindMountEvidence[];
+  placementConstraints: string[];
+}
+
+export interface ComposeBindMountEvidence {
+  source: string;
+  target?: string;
+  type: "bind";
 }
 
 export class DockerDeploymentService {
@@ -218,10 +229,14 @@ export async function inspectComposeBindSources(
     if (!isRecord(serviceValue)) {
       throw new Error(`Rendered compose service must be an object: ${serviceName}`);
     }
-    const sources = bindSources(serviceValue.volumes, serviceName);
+    const mounts = bindMounts(serviceValue.volumes, serviceName);
+    const sources = mounts.map((mount) => mount.source);
     result.services.push({
       service: serviceName,
-      bindSources: sources
+      ...(typeof serviceValue.image === "string" ? { image: serviceValue.image } : {}),
+      bindSources: sources,
+      bindMounts: mounts,
+      placementConstraints: placementConstraints(serviceValue)
     });
     for (const source of sources) {
       const issue = bindSourceIssue(source, bindSourceDir, serviceName, allowedSources);
@@ -302,7 +317,7 @@ function assertDockerDeploymentName(value: string): void {
   }
 }
 
-function bindSources(value: unknown, serviceName: string): string[] {
+function bindMounts(value: unknown, serviceName: string): ComposeBindMountEvidence[] {
   if (value === undefined || value === null) {
     return [];
   }
@@ -310,12 +325,12 @@ function bindSources(value: unknown, serviceName: string): string[] {
     throw new Error(`Compose service volumes must be a list: ${serviceName}`);
   }
 
-  const sources: string[] = [];
+  const mounts: ComposeBindMountEvidence[] = [];
   for (const entry of value) {
     if (typeof entry === "string") {
-      const source = shortSyntaxBindSource(entry);
-      if (source) {
-        sources.push(source);
+      const mount = shortSyntaxBindMount(entry);
+      if (mount) {
+        mounts.push(mount);
       }
       continue;
     }
@@ -324,18 +339,27 @@ function bindSources(value: unknown, serviceName: string): string[] {
     }
     const type = typeof entry.type === "string" ? entry.type : undefined;
     const source = typeof entry.source === "string" ? entry.source : undefined;
+    const target = typeof entry.target === "string" ? entry.target : undefined;
     if (type === "bind" && source) {
-      sources.push(source);
+      mounts.push({
+        source,
+        ...(target ? { target } : {}),
+        type: "bind"
+      });
       continue;
     }
     if (!type && source && looksLikeHostPath(source)) {
-      sources.push(source);
+      mounts.push({
+        source,
+        ...(target ? { target } : {}),
+        type: "bind"
+      });
     }
   }
-  return sources;
+  return mounts;
 }
 
-function shortSyntaxBindSource(value: string): string | null {
+function shortSyntaxBindMount(value: string): ComposeBindMountEvidence | null {
   const parts = value.split(":");
   if (parts.length < 2) {
     return null;
@@ -344,7 +368,19 @@ function shortSyntaxBindSource(value: string): string | null {
   if (!source || !looksLikeHostPath(source)) {
     return null;
   }
-  return source;
+  return {
+    source,
+    ...(parts[1] ? { target: parts[1] } : {}),
+    type: "bind"
+  };
+}
+
+function placementConstraints(serviceValue: Record<string, unknown>): string[] {
+  const deploy = isRecord(serviceValue.deploy) ? serviceValue.deploy : {};
+  const placement = isRecord(deploy.placement) ? deploy.placement : {};
+  return Array.isArray(placement.constraints)
+    ? placement.constraints.filter((constraint): constraint is string => typeof constraint === "string")
+    : [];
 }
 
 function looksLikeHostPath(value: string): boolean {

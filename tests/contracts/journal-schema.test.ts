@@ -92,4 +92,38 @@ describe("journal event schema", () => {
 
     await expect(validateContract(schemaPaths.journalEvent, event)).resolves.toBeUndefined();
   });
+
+  it("accepts internal HTTP git repository events", async () => {
+    const event = {
+      eventId: "evt-1",
+      operationId: "op-1",
+      operationType: "inspect_project",
+      project: "pockethive-development",
+      repository: "http://192.168.88.54:8081/git/PocketHive.git",
+      gitRef: "pockethive-debug-mcp",
+      status: "succeeded",
+      startedAt: "2026-05-17T10:00:00.000Z",
+      endedAt: "2026-05-17T10:00:03.000Z",
+      reason: "Loaded 1 managed component"
+    };
+
+    await expect(validateContract(schemaPaths.journalEvent, event)).resolves.toBeUndefined();
+  });
+
+  it("rejects arbitrary HTTP repository events", async () => {
+    const event = {
+      eventId: "evt-1",
+      operationId: "op-1",
+      operationType: "inspect_project",
+      project: "pockethive-development",
+      repository: "http://example.com/PocketHive.git",
+      gitRef: "pockethive-debug-mcp",
+      status: "succeeded",
+      startedAt: "2026-05-17T10:00:00.000Z",
+      endedAt: "2026-05-17T10:00:03.000Z",
+      reason: "Loaded 1 managed component"
+    };
+
+    await expect(validateContract(schemaPaths.journalEvent, event)).rejects.toBeInstanceOf(ContractValidationError);
+  });
 });

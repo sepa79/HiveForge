@@ -58,6 +58,119 @@ describe("project registration service", () => {
       ]
     });
   });
+
+  it("registers explicit LAN HTTP Git repositories as http-git", async () => {
+    const fixture = await writeDeployableFixture();
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(registryPath, "projects: []\n");
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.register({
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        gitRef: "pushed-ref"
+      })
+    ).resolves.toEqual({
+      deployable: true,
+      project: {
+        id: "hivewatch",
+        name: "hivewatch",
+        source: "http-git",
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        approvedRefs: ["pushed-ref"]
+      }
+    });
+  });
+
+  it("keeps official registration on the manifest project id and rejects another official repository", async () => {
+    const fixture = await writeDeployableFixture();
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(
+      registryPath,
+      [
+        "projects:",
+        "  - id: hivewatch",
+        "    name: hivewatch",
+        "    source: github",
+        "    repository: https://github.com/sepa79/HiveWatch.git",
+        "    approvedRefs:",
+        "      - main",
+        ""
+      ].join("\n")
+    );
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.register({
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        gitRef: "pushed-ref",
+        registrationKind: "official"
+      })
+    ).rejects.toThrow("Registered project id already uses another repository: hivewatch");
+  });
+
+  it("registers development repositories as a separate project variant", async () => {
+    const fixture = await writeDeployableFixture();
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(
+      registryPath,
+      [
+        "projects:",
+        "  - id: hivewatch",
+        "    name: hivewatch",
+        "    source: github",
+        "    repository: https://github.com/sepa79/HiveWatch.git",
+        "    approvedRefs:",
+        "      - main",
+        ""
+      ].join("\n")
+    );
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.register({
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        gitRef: "pushed-ref",
+        registrationKind: "development"
+      })
+    ).resolves.toEqual({
+      deployable: true,
+      project: {
+        id: "hivewatch-development",
+        name: "hivewatch development",
+        source: "http-git",
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        approvedRefs: ["pushed-ref"]
+      }
+    });
+    await expect(loadProjectRegistryConfig(registryPath)).resolves.toEqual({
+      projects: [
+        {
+          id: "hivewatch",
+          name: "hivewatch",
+          source: "github",
+          repository: "https://github.com/sepa79/HiveWatch.git",
+          approvedRefs: ["main"]
+        },
+        {
+          id: "hivewatch-development",
+          name: "hivewatch development",
+          source: "http-git",
+          repository: "http://192.168.88.54:8081/git/PocketHive.git",
+          approvedRefs: ["pushed-ref"]
+        }
+      ]
+    });
+  });
 });
 
 async function writeDeployableFixture(): Promise<string> {

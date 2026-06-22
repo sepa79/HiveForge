@@ -89,6 +89,11 @@ Before `validate_requirements` and `start_action`, HiveForge resolves runtime
 env for the requested project/profile and passes it to requirement validation
 and the declared action process.
 
+Operators must set required runtime env before validation and deployment. A
+change made after an action has already run affects only future
+`validate_requirements` and `start_action` calls; it does not re-render recorded
+deployment artifacts, restart services, or update an already deployed service.
+
 The action process environment is assembled in this order:
 
 1. inherited HiveForge container process environment,

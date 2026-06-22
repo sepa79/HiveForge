@@ -76,6 +76,9 @@ Ansible playbooks stored in the consumer repository.
 - Secret values must never appear in logs, UI, MCP output, REST responses, or the
   journal.
 - Adapter behavior must be explicit; no fallback to alternate deployment modes.
+- Current known deployment/operator gaps are tracked in
+  [Known Problems](KNOWN_PROBLEMS.md). Check this before changing validation,
+  deploy prerequisites, UI visibility, or deployment diagnostics.
 
 ## Things AI agents must not guess
 

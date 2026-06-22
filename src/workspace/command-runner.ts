@@ -92,7 +92,7 @@ function tailOutput(output: string): string {
   return tailedLines.slice(tailedLines.length - MAX_OUTPUT_CHARS);
 }
 
-function redactSensitiveText(value: string): string {
+export function redactSensitiveText(value: string): string {
   return value
     .split("\n")
     .map((line) => {

@@ -2,39 +2,67 @@
 
 ## Status
 
-Planning note for the next breaking MCP/operator-readiness slice.
+Planning note for the remaining 0.5.x operator-readiness work.
 
 This is not an implementation contract. Before implementation, promote the
 accepted tool shapes into `docs/specs/mcp/tools.md`, REST transport changes into
 `docs/specs/api/openapi.yaml`, and any workspace retention behavior into the
 relevant runtime/workspace spec.
 
-The action path notes in this planning file predate the 0.5.2 isolated action
-root contract. Current project actions use `/hf` as the project managed root,
-write rendered Compose to `/hf/stacks/compose.yml`, and use
-`HIVEFORGE_BIND_SOURCE_DIR` only for Docker bind source values.
+Release numbers in the original split drifted. Published `0.5.1` and `0.5.2`
+were used for urgent install/runtime/action-root fixes, not the planned
+trust-mode and diagnostics slices. Changelog entries remain the historical
+source of truth for shipped releases; this file now tracks the next planned
+work from the current `0.5.2` baseline.
+
+Current project actions use `/hf` as the project managed root, write rendered
+Compose to `/hf/stacks/compose.yml`, and use `HIVEFORGE_BIND_SOURCE_DIR` only
+for Docker bind source values.
 
 ## Release Split
 
-### 0.5.0 MVP
+### Shipped Baseline
 
-- UI shows failed inspect/register/pre-deploy attempts as visible history instead
-  of losing them before a deployment row exists.
-- Minimal project/operator UI view shows projects, deployments, operation
-  history, runtime diagnostics, and compose/artifact links for deployments.
-- Docker runtime diagnostics cover service/container status, Swarm task state,
-  basic restart/error reason, and exact bind-source validation errors.
-- Workspace visibility covers checkout/workspace listing and manual cleanup for
-  stale checkouts.
-- Update-in-place verification proves HiveForge redeploy keeps `projects.yaml`,
-  `environments.yaml`, SQLite state, journal, and runtime env data.
-- Consumer compatibility gates fail fast and visibly when a repository misses
-  `version: "0.5"`.
-- HomeLab smoke covers HiveForge install/reset/wait diagnostics through Ansible
-  and one compatible consumer smoke, initially HiveWatch after a compatible ref
-  is published.
+- `0.5.0` shipped external bind-source allowlists, HiveForge-owned Docker
+  remove/purge, runtime task diagnostics, the consolidated install template,
+  and the operator UI self-update action.
+- `0.5.1` shipped install/runtime-root fixes: generated
+  `managedRoot.bindSourceRoot`, release artifacts for the MCP client tarball,
+  debug tools in the image, Docker inspect fallback for `/hf` bind-source
+  detection, and proxy-aware self-update checks.
+- `0.5.2` shipped the isolated helper-container action root contract:
+  project actions see `/hf` as the managed root, write Compose to
+  `/hf/stacks/compose.yml`, and use `HIVEFORGE_BIND_SOURCE_DIR` for Docker bind
+  source values.
 
-### 0.5.1
+### 0.5.3 Debug Ability
+
+Goal: make failed deploys explainable without SSHing into the host, reading raw
+journal JSON, or guessing from Docker names.
+
+- Expand Docker diagnostics with expected-vs-actual resources, Swarm task
+  placement mismatch, restart loops, last exit/log hints, and bind-source mount
+  errors tied back to the rendered service and source path.
+- Validate and display concrete placement label prerequisites before deploy.
+  `placement: true` is not enough evidence that a specific label such as
+  `pockethive.redis=true` exists on an eligible node.
+- Improve `diagnose_deployment` into a coherent one-page report for
+  project/component/profile/deployment filters, reusing the existing runtime
+  status, recorded Compose artifact, bind-source validation, and HiveForge path
+  diagnostics services.
+- Improve `diagnose_hiveforge_runtime` so managed-root accessibility states are
+  explicit: configured, verified, failed, unknown, and why. Do not claim
+  per-node mount visibility unless actively verified.
+- Add UI/API coverage for deploy prerequisites and recorded artifacts: missing
+  labels, runtime env, policy, managed-root constraints, rendered Compose
+  digest/content status, and unknown/degraded states.
+- Preserve the exact Docker/Swarm error text that is safe to expose, especially
+  `no suitable node`, rejected task messages, and bind-source path failures.
+- Add focused tests for missing placement labels, unknown diagnostics states,
+  redacted/missing artifact evidence, and Swarm task or bind mount failure
+  reporting.
+
+### 0.5.4 Access And Trust Contracts
 
 - Introduce explicit deployment trust modes:
   - `restricted`: project actions prepare/render files and HiveForge performs
@@ -44,10 +72,6 @@ write rendered Compose to `/hf/stacks/compose.yml`, and use
     deploy/update/remove/purge behavior. This preserves SkippyBot-style
     component-targeted Compose actions without pretending Docker access is
     sandboxed.
-- Execute restricted release deploy/upgrade after `prepare_release_deploy`; no
-  build fallback and no repo/ref action fallback.
-- Add explicit trusted-mode warnings in UI/API/MCP. Trusted mode is operator
-  code with Docker access, not a security boundary.
 - Introduce explicit access roles:
   - `admin`: may register projects/refs, edit environment policy, approve
     trusted mode, approve risky mounts such as `/var/run/docker.sock`, manage
@@ -55,32 +79,26 @@ write rendered Compose to `/hf/stacks/compose.yml`, and use
   - `operator`: may inspect, deploy/update/remove/upgrade/purge only already
     registered and policy-allowed projects/profiles/actions, and read operation
     diagnostics.
+- Add explicit trusted-mode and risky-mount warnings in UI/API/MCP. Trusted mode
+  is operator code with Docker access, not a security boundary.
 - Pass `HIVEFORGE_DEPLOYMENT_ID` to trusted actions and require/validate the
   simple `hiveforge.deployment=<deploymentId>` label when a project declares
   Docker effects. Store project/component/profile/action/trust metadata in
   HiveForge state, not as duplicated Docker labels.
-- Add UI for deploy prerequisites: manual prerequisites, missing labels,
-  secrets, mounts, release vars, image refs, trust mode, Docker socket exposure,
-  and operator approvals for risky mounts such as `/var/run/docker.sock`.
-- Improve compose/artifact UI with redaction, download/copy, and
-  operation-linked artifact history.
 
-### 0.5.2
-
-- Expand Docker diagnostics with expected-vs-actual resources, per-node mount
-  visibility, task placement mismatch, restart loops, and last exit/log hints.
-- Add a one-page deployment diagnostics report with project/component/profile
-  filters.
-
-### 0.5.3
+### 0.5.5 Restricted Release Execution
 
 - Harden restricted action runner execution with per-operation runner
   containers, narrow mounts, no Docker socket for restricted project Ansible,
   and explicit allowed tools.
 - Document trusted runner execution separately: trusted actions may receive
   Docker access by design, must be visibly approved, and are not a sandbox.
+- Execute restricted release deploy/upgrade after `prepare_release_deploy`; no
+  build fallback and no repo/ref action fallback.
+- Complete PocketHive release follow-through through explicit registry/tag vars,
+  managed runtime files, and HiveForge-owned Docker application.
 
-### 0.5.4
+### 0.5.6 E2E And Lab Bridge
 
 - Add HomeLab E2E suite with scripted MCP tests, a tiny YAML runner or Cucumber
   if needed, HiveWatch -> HiveMind -> PocketHive scenarios, and artifact/log
@@ -272,7 +290,8 @@ Behavior rules:
 Status: initial MCP/REST implementation exists as
 `check_deployment_runtime_status`, backed by explicit Docker label lookup.
 Follow-up work remains for task-level Swarm details, restart/exit diagnostics,
-expected-resource comparison, and UI presentation.
+expected-resource comparison, and UI presentation. These follow-ups are part of
+the next debug-ability slice.
 
 Current `check_health` and `/health` only report the HiveForge process health.
 They do not prove that project containers are running. `list_deployments` is
@@ -374,7 +393,8 @@ Status: initial compose-specific MCP/REST implementation exists as
 `get_deployment_compose`, backed by `run_action` journal artifacts recorded from
 `HIVEFORGE_RENDERED_COMPOSE_FILE`. Follow-up work remains for parsed bind-source
 metadata, additional artifact types, immutable artifact storage decisions, and
-UI presentation.
+UI presentation. The next debug-ability slice should keep artifact retrieval
+tied to operation evidence and make the evidence visible in the UI.
 
 Operators need to see the deployment artifact HiveForge actually used, especially
 the rendered Compose/Stack file for PocketHive-style release deployment.
@@ -456,6 +476,12 @@ Behavior rules:
 - No unredacted secret material in MCP, REST responses, UI, logs, or journal.
 
 ## 5. HiveForge Runtime Diagnostics
+
+Status: initial MCP/REST implementation exists as `diagnose_hiveforge_runtime`.
+It reports resolved paths and whether managed-root bind-source configuration is
+present, but it does not yet actively verify per-node runtime visibility. Active
+verification and clearer failed/unknown states belong to the next debug-ability
+slice.
 
 Operators need a direct answer to "where is HiveForge storing data?" and "can
 the target runtime nodes actually see the managed root that deploy actions will
@@ -621,9 +647,9 @@ Acceptance:
 
 ## 7. Admin And Operator Access Roles
 
-Status: planned direction after 0.5.0. Current HiveForge uses one bearer token
-for authenticated API/MCP calls. That is enough for the POC, but it does not
-separate administrative environment changes from normal deployment work.
+Status: planned after the debug-ability slice. Current HiveForge uses one bearer
+token for authenticated API/MCP calls. That is enough for the POC, but it does
+not separate administrative environment changes from normal deployment work.
 
 The target workflow is:
 
@@ -681,10 +707,10 @@ Acceptance:
 
 ## 8. Project Action Trust Modes And Restricted Runner
 
-Status: planned direction after 0.5.0. The earlier plan made HiveForge-owned
-Docker execution the only target. SkippyBot proves that would make HiveForge too
-primitive for trusted component-level deployments. 0.5.1 should instead add an
-explicit trust-mode split.
+Status: planned after the debug-ability slice. The earlier plan made
+HiveForge-owned Docker execution the only target. SkippyBot proves that would
+make HiveForge too primitive for trusted component-level deployments. The next
+contract slice should add an explicit trust-mode split.
 
 Current behavior runs project-declared Ansible actions in the HiveForge
 container. That makes project action code trusted with the HiveForge control

@@ -1,5 +1,6 @@
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
+import { redactSensitiveText } from "../workspace/command-runner.js";
 import type { DeploymentStateRecord, DeploymentStateStore } from "./deployment-state-store.js";
 
 export const HIVEFORGE_DOCKER_LABELS = {
@@ -34,6 +35,11 @@ export interface RuntimeContainerStatus {
   state: string;
   status: string;
   health?: string;
+  restartCount?: number;
+  exitCode?: number;
+  error?: string;
+  startedAt?: string;
+  finishedAt?: string;
   ports?: string;
   labels: Record<string, string>;
   mounts: Array<{ source?: string; destination?: string; mode?: string; type?: string }>;
@@ -212,6 +218,7 @@ function labelFilterArgs(labels: Record<string, string>): string[] {
 function containerStatus(container: Record<string, unknown>): RuntimeContainerStatus {
   const state = objectField(container, "State");
   const config = objectField(container, "Config");
+  const error = optionalStringField(state, "Error");
   return {
     id: stringField(container, "Id"),
     name: stringField(container, "Name").replace(/^\//, ""),
@@ -219,6 +226,13 @@ function containerStatus(container: Record<string, unknown>): RuntimeContainerSt
     state: stringField(state, "Status"),
     status: stringField(state, "Status"),
     ...(objectField(state, "Health") ? { health: stringField(objectField(state, "Health"), "Status") } : {}),
+    ...(optionalNumberField(container, "RestartCount") !== undefined
+      ? { restartCount: optionalNumberField(container, "RestartCount") }
+      : {}),
+    ...(optionalNumberField(state, "ExitCode") !== undefined ? { exitCode: optionalNumberField(state, "ExitCode") } : {}),
+    ...(error ? { error: redactSensitiveText(error) } : {}),
+    ...(optionalStringField(state, "StartedAt") ? { startedAt: optionalStringField(state, "StartedAt") } : {}),
+    ...(optionalStringField(state, "FinishedAt") ? { finishedAt: optionalStringField(state, "FinishedAt") } : {}),
     labels: recordOfStrings(objectField(config, "Labels")),
     mounts: arrayField(container, "Mounts").map((mount) => ({
       ...(optionalStringField(mount, "Source") ? { source: optionalStringField(mount, "Source") } : {}),
@@ -242,6 +256,7 @@ function serviceStatus(service: Record<string, unknown>, inspected?: Record<stri
 }
 
 function serviceTaskStatus(task: Record<string, unknown>): RuntimeServiceTaskStatus {
+  const error = optionalStringField(task, "Error");
   return {
     id: stringField(task, "ID"),
     name: stringField(task, "Name"),
@@ -249,7 +264,7 @@ function serviceTaskStatus(task: Record<string, unknown>): RuntimeServiceTaskSta
     ...(optionalStringField(task, "Node") ? { node: optionalStringField(task, "Node") } : {}),
     ...(optionalStringField(task, "DesiredState") ? { desiredState: optionalStringField(task, "DesiredState") } : {}),
     ...(optionalStringField(task, "CurrentState") ? { currentState: optionalStringField(task, "CurrentState") } : {}),
-    ...(optionalStringField(task, "Error") ? { error: optionalStringField(task, "Error") } : {}),
+    ...(error ? { error: redactSensitiveText(error) } : {}),
     ...(optionalStringField(task, "Ports") ? { ports: optionalStringField(task, "Ports") } : {})
   };
 }
@@ -346,6 +361,11 @@ function stringField(value: Record<string, unknown>, field: string): string {
 function optionalStringField(value: Record<string, unknown>, field: string): string | undefined {
   const fieldValue = value[field];
   return typeof fieldValue === "string" ? fieldValue : undefined;
+}
+
+function optionalNumberField(value: Record<string, unknown>, field: string): number | undefined {
+  const fieldValue = value[field];
+  return typeof fieldValue === "number" ? fieldValue : undefined;
 }
 
 function recordOfStrings(value: Record<string, unknown>): Record<string, string> {

@@ -166,7 +166,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RepositoryInspectionRequest"
+              $ref: "#/components/schemas/ProjectRegistrationRequest"
       responses:
         "200":
           description: Registered project
@@ -188,7 +188,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProjectRuntimeEnv"
     put:
-      summary: Set non-secret runtime env values for one project scope
+      summary: Set non-secret runtime env values for future validation/actions
+      description: >
+        Set non-secret runtime env values for one project/profile scope. Call
+        before validation/deployment when the selected project or profile needs
+        these values. Changes are not retroactive and do not update an already
+        deployed service. Do not use this for secrets.
       operationId: setProjectRuntimeEnv
       parameters:
         - $ref: "#/components/parameters/projectId"
@@ -298,9 +303,9 @@ paths:
       description: >
         Aggregates explicit HiveForge state, Docker runtime status selected by
         hiveforge.deployment label, the recorded compose artifact, compose
-        bind-source validation, and HiveForge runtime diagnostics. This endpoint
-        does not infer ownership from Docker object names and does not re-render
-        compose from source.
+        bind-source validation, HiveForge runtime diagnostics, and a correlated
+        expected-vs-actual analysis. This endpoint does not infer ownership from
+        Docker object names and does not re-render compose from source.
       operationId: diagnoseDeployment
       requestBody:
         required: true
@@ -625,8 +630,8 @@ components:
           type: string
         source:
           type: string
-          description: local-git is development and smoke-test tooling, not the managed-service release contract.
-          enum: [github, local-git]
+          description: local-git and http-git are development/internal Git tooling, not the managed-service release contract.
+          enum: [github, local-git, http-git]
         repository:
           type: string
         approvedRefs:
@@ -1198,6 +1203,16 @@ components:
           type: string
         health:
           type: string
+        restartCount:
+          type: integer
+        exitCode:
+          type: integer
+        error:
+          type: string
+        startedAt:
+          type: string
+        finishedAt:
+          type: string
         ports:
           type: string
         labels:
@@ -1265,7 +1280,7 @@ components:
     DeploymentDiagnosticsResult:
       type: object
       additionalProperties: false
-      required: [selector, state, runtime, composeValidation, hiveforge]
+      required: [selector, state, runtime, composeValidation, hiveforge, analysis]
       properties:
         selector:
           $ref: "#/components/schemas/DeploymentRuntimeStatusRequest"
@@ -1315,6 +1330,129 @@ components:
                   type: string
         hiveforge:
           $ref: "#/components/schemas/RuntimeDiagnosticsReport"
+        analysis:
+          $ref: "#/components/schemas/DeploymentDiagnosticsAnalysis"
+    DeploymentDiagnosticsAnalysis:
+      type: object
+      additionalProperties: false
+      required: [summary, expected, actual, findings]
+      properties:
+        summary:
+          type: string
+          enum: [ok, degraded, missing, unknown]
+        expected:
+          type: object
+          additionalProperties: false
+          required: [requiredLabels, services]
+          properties:
+            requiredLabels:
+              type: object
+              additionalProperties:
+                type: string
+            services:
+              type: array
+              items:
+                $ref: "#/components/schemas/ComposeServiceEvidence"
+        actual:
+          type: object
+          additionalProperties: false
+          required: [containers, services]
+          properties:
+            containers:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [name, image, state]
+                properties:
+                  name:
+                    type: string
+                  composeService:
+                    type: string
+                  image:
+                    type: string
+                  state:
+                    type: string
+                  health:
+                    type: string
+                  restartCount:
+                    type: integer
+                  exitCode:
+                    type: integer
+                  error:
+                    type: string
+            services:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [name, image, tasks]
+                properties:
+                  name:
+                    type: string
+                  composeService:
+                    type: string
+                  image:
+                    type: string
+                  replicas:
+                    type: string
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [name]
+                      properties:
+                        name:
+                          type: string
+                        node:
+                          type: string
+                        desiredState:
+                          type: string
+                        currentState:
+                          type: string
+                        error:
+                          type: string
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeploymentDiagnosticFinding"
+    DeploymentDiagnosticFinding:
+      type: object
+      additionalProperties: false
+      required: [severity, type, message]
+      properties:
+        severity:
+          type: string
+          enum: [info, warning, error]
+        type:
+          type: string
+          enum:
+            - missing_state
+            - missing_resource
+            - unhealthy_resource
+            - placement_mismatch
+            - bind_mount_error
+            - restart_loop
+            - repeated_task_failures
+            - last_exit_hint
+            - unknown_ownership
+        message:
+          type: string
+        service:
+          type: string
+        runtimeResource:
+          type: string
+        node:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        evidence:
+          type: array
+          items:
+            type: string
     ComposeBindSourceValidationResult:
       type: object
       additionalProperties: false
@@ -1333,16 +1471,7 @@ components:
         services:
           type: array
           items:
-            type: object
-            additionalProperties: false
-            required: [service, bindSources]
-            properties:
-              service:
-                type: string
-              bindSources:
-                type: array
-                items:
-                  type: string
+            $ref: "#/components/schemas/ComposeServiceEvidence"
         issues:
           type: array
           items:
@@ -1356,6 +1485,37 @@ components:
                 type: string
               reason:
                 type: string
+    ComposeServiceEvidence:
+      type: object
+      additionalProperties: false
+      required: [service, bindSources, bindMounts, placementConstraints]
+      properties:
+        service:
+          type: string
+        image:
+          type: string
+        bindSources:
+          type: array
+          items:
+            type: string
+        bindMounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [source, type]
+            properties:
+              source:
+                type: string
+              target:
+                type: string
+              type:
+                type: string
+                enum: [bind]
+        placementConstraints:
+          type: array
+          items:
+            type: string
     DeploymentComposeResult:
       type: object
       additionalProperties: false
@@ -1416,6 +1576,21 @@ components:
         gitRef:
           type: string
           minLength: 1
+    ProjectRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required: [repository, gitRef]
+      properties:
+        repository:
+          type: string
+          minLength: 1
+        gitRef:
+          type: string
+          minLength: 1
+        registrationKind:
+          type: string
+          description: official registers the manifest project name as-is; development registers a separate <project>-development variant.
+          enum: [official, development]
     RepositoryInspectionResult:
       type: object
       required: [operationId, repository, gitRef, deployable, components]

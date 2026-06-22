@@ -408,7 +408,21 @@ describe("REST API", () => {
       selector: { deploymentId: "deployment-1" },
       state: { status: "present" },
       runtime: { summary: "running" },
-      composeValidation: { status: "checked" }
+      composeValidation: { status: "checked" },
+      analysis: {
+        summary: "ok",
+        expected: {
+          requiredLabels: {
+            "hiveforge.deployment": "deployment-1"
+          },
+          services: []
+        },
+        actual: {
+          containers: [],
+          services: []
+        },
+        findings: []
+      }
     });
     expect(calls).toContainEqual({ deploymentDiagnostics: { deploymentId: "deployment-1" } });
   });
@@ -753,7 +767,11 @@ describe("REST API", () => {
 
     const response = await fetch(`${baseUrl}/projects/register`, {
       method: "POST",
-      body: JSON.stringify({ repository: "https://github.com/sepa79/HiveWatch.git", gitRef: "main" })
+      body: JSON.stringify({
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main",
+        registrationKind: "development"
+      })
     });
 
     expect(response.status).toBe(200);
@@ -771,9 +789,26 @@ describe("REST API", () => {
     expect(calls).toContainEqual({
       register: {
         repository: "https://github.com/sepa79/HiveWatch.git",
-        gitRef: "main"
+        gitRef: "main",
+        registrationKind: "development"
       }
     });
+  });
+
+  it("returns 400 for unsupported project registration kind", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/projects/register`, {
+      method: "POST",
+      body: JSON.stringify({
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main",
+        registrationKind: "canary"
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid field: registrationKind" });
   });
 
   it("returns 400 for unsupported lifecycle actions", async () => {
@@ -1039,7 +1074,21 @@ async function startServer(
             selector: request,
             state: { status: "present" },
             runtime: { summary: "running" },
-            composeValidation: { status: "checked" }
+            composeValidation: { status: "checked" },
+            analysis: {
+              summary: "ok",
+              expected: {
+                requiredLabels: {
+                  "hiveforge.deployment": "deployment-1"
+                },
+                services: []
+              },
+              actual: {
+                containers: [],
+                services: []
+              },
+              findings: []
+            }
           };
         }
       } as never,
@@ -1088,7 +1137,7 @@ async function startServer(
         }
       },
       projectRegistration: {
-        async register(request: { repository: string; gitRef: string }) {
+        async register(request: { repository: string; gitRef: string; registrationKind?: "official" | "development" }) {
           options.calls?.push({ register: request });
           return {
             deployable: true,

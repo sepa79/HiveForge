@@ -376,10 +376,16 @@ describe("docker deployment service", () => {
       services: [
         {
           service: "api",
+          image: "hivewatch:test",
           bindSources: [
             "/hf/data/deployed/hivewatch",
             "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config"
-          ]
+          ],
+          bindMounts: [
+            { source: "/hf/data/deployed/hivewatch", target: "/bad", type: "bind" },
+            { source: "/mnt/shared_nfs/hiveforge/data/deployed/hivewatch/config", target: "/config", type: "bind" }
+          ],
+          placementConstraints: []
         }
       ],
       issues: [

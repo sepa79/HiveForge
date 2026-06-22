@@ -59,7 +59,7 @@ export interface RestApiServices {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
   projectRegistration?: {
-    register(request: { repository: string; gitRef: string }): Promise<unknown>;
+    register(request: { repository: string; gitRef: string; registrationKind?: "official" | "development" }): Promise<unknown>;
   };
   environmentPolicyEditor?: {
     setProjectPolicy(request: SetEnvironmentProjectPolicyRequest): Promise<SetEnvironmentProjectPolicyResult>;
@@ -268,7 +268,7 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
         if (!services.operations) {
           throw new HttpError(501, "Operation logs are not configured");
         }
-        const body = await readRepositoryInspectionRequest(request);
+        const body = await readProjectRegistrationRequest(request);
         try {
           const { operation, result } = await services.operations.runPreDeployAttempt(
             {
@@ -619,6 +619,29 @@ async function readRepositoryInspectionRequest(
   request: Parameters<typeof readJsonBody>[0]
 ): Promise<{ repository: string; gitRef: string }> {
   const body = await readJsonBody(request);
+  return readRepositoryRef(body);
+}
+
+async function readProjectRegistrationRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<{ repository: string; gitRef: string; registrationKind?: "official" | "development" }> {
+  const body = await readJsonBody(request);
+  const repositoryRef = readRepositoryRef(body);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Missing required field: repository");
+  }
+  if ("registrationKind" in body && body.registrationKind !== "official" && body.registrationKind !== "development") {
+    throw new HttpError(400, "Invalid field: registrationKind");
+  }
+  const registrationKind =
+    body.registrationKind === "official" || body.registrationKind === "development" ? body.registrationKind : undefined;
+  return {
+    ...repositoryRef,
+    ...(registrationKind ? { registrationKind } : {})
+  };
+}
+
+function readRepositoryRef(body: unknown): { repository: string; gitRef: string } {
   if (!isObject(body) || typeof body.repository !== "string" || body.repository.length === 0) {
     throw new HttpError(400, "Missing required field: repository");
   }

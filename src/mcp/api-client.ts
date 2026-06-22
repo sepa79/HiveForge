@@ -150,7 +150,7 @@ export class HiveForgeApiClient {
     return this.request({ method: "POST", path: "/repositories/inspect", body: input });
   }
 
-  registerProject(input: { repository: string; gitRef: string }): Promise<unknown> {
+  registerProject(input: { repository: string; gitRef: string; registrationKind?: "official" | "development" }): Promise<unknown> {
     return this.request({ method: "POST", path: "/projects/register", body: input });
   }
 

@@ -57,6 +57,38 @@ describe("repository inspection service", () => {
     });
   });
 
+  it("accepts explicit LAN HTTP Git repositories", async () => {
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+
+    await expect(
+      service.inspect({
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        gitRef: "pushed-ref"
+      })
+    ).resolves.toMatchObject({
+      repository: "http://192.168.88.54:8081/git/PocketHive.git",
+      gitRef: "pushed-ref",
+      deployable: true
+    });
+  });
+
+  it("keeps file repositories inspectable", async () => {
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+
+    await expect(
+      service.inspect({
+        repository: "file:///home/sepa/HiveForge/tmp/hivewatch-fixture.git",
+        gitRef: "main"
+      })
+    ).resolves.toMatchObject({
+      repository: "file:///home/sepa/HiveForge/tmp/hivewatch-fixture.git",
+      gitRef: "main",
+      deployable: true
+    });
+  });
+
   it("rejects unsupported repository URLs before git runs", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
     const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
@@ -67,6 +99,25 @@ describe("repository inspection service", () => {
         gitRef: "main"
       })
     ).rejects.toThrow("Repository is not inspectable by HiveForge: ssh://git@example.test/repo.git");
+  });
+
+  it("rejects malformed and non-git arbitrary HTTP URLs before git runs", async () => {
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+
+    await expect(
+      service.inspect({
+        repository: "http://192.168.88.54:8081/git/PocketHive",
+        gitRef: "main"
+      })
+    ).rejects.toThrow("Repository is not inspectable by HiveForge: http://192.168.88.54:8081/git/PocketHive");
+
+    await expect(
+      service.inspect({
+        repository: "http://example.com/PocketHive.git",
+        gitRef: "main"
+      })
+    ).rejects.toThrow("Repository is not inspectable by HiveForge: http://example.com/PocketHive.git");
   });
 });
 

@@ -24,7 +24,8 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     getOperation: (input: { operationId: string }) => call(() => apiClient.getOperation(input.operationId)),
     readJournal: () => call(() => apiClient.readJournal()),
     inspectRepository: (input: { repository: string; gitRef: string }) => call(() => apiClient.inspectRepository(input)),
-    registerProject: (input: { repository: string; gitRef: string }) => call(() => apiClient.registerProject(input)),
+    registerProject: (input: { repository: string; gitRef: string; registrationKind?: "official" | "development" }) =>
+      call(() => apiClient.registerProject(input)),
     setEnvironmentProjectPolicy: (input: {
       environmentId: string;
       projectId: string;

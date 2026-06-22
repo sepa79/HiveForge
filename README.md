@@ -97,7 +97,10 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    is a separate explicit operator decision that allows that registered project
    to run selected actions/profiles on the target environment.
    `set_project_runtime_env` is only for non-secret runtime values that must
-   stay outside git; secrets are outside the current HiveForge contract.
+   stay outside git. Set required runtime env before validation/deployment;
+   changes made afterward affect only future validation/action calls and do not
+   update an already deployed service. Secrets are outside the current
+   HiveForge contract.
 
 4. Deploy only projects that carry HiveForge manifests.
 

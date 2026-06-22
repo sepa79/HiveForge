@@ -13,6 +13,10 @@ HiveForge clones the requested repository/ref to an isolated temporary
 workspace, loads `hiveforge.yaml`, validates listed component manifests, and
 checks that declared action files exist.
 
+Supported repository sources are explicit GitHub HTTPS URLs, explicit
+`file:///` Git URLs, and explicit LAN/internal `http://` Git URLs whose path ends
+in `.git`. Inspection does not discover alternate repository URLs.
+
 ## Output
 
 The result reports whether the repository is deployable by HiveForge:

@@ -48,4 +48,36 @@ describe("project registry schema", () => {
 
     await expect(validateContract(schemaPaths.projectRegistry, registry)).resolves.toBeUndefined();
   });
+
+  it("accepts explicit LAN HTTP Git repositories", async () => {
+    const registry = {
+      projects: [
+        {
+          id: "pockethive",
+          name: "PocketHive",
+          source: "http-git",
+          repository: "http://192.168.88.54:8081/git/PocketHive.git",
+          approvedRefs: ["pushed-ref"]
+        }
+      ]
+    };
+
+    await expect(validateContract(schemaPaths.projectRegistry, registry)).resolves.toBeUndefined();
+  });
+
+  it("rejects arbitrary non-git HTTP repository URLs", async () => {
+    const registry = {
+      projects: [
+        {
+          id: "pockethive",
+          name: "PocketHive",
+          source: "http-git",
+          repository: "http://example.com/PocketHive",
+          approvedRefs: ["main"]
+        }
+      ]
+    };
+
+    await expect(validateContract(schemaPaths.projectRegistry, registry)).rejects.toBeInstanceOf(ContractValidationError);
+  });
 });

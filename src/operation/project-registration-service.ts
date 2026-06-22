@@ -3,17 +3,21 @@ import {
   upsertRegisteredProject
 } from "../config/project-registry-loader.js";
 import type { ProjectRegistryConfig, RegisteredProject } from "../config/project-registry-types.js";
+import { sourceForRepository } from "../config/repository-source.js";
 import type { RepositoryInspectionService } from "./repository-inspection-service.js";
 
 export interface ProjectRegistrationRequest {
   repository: string;
   gitRef: string;
+  registrationKind?: ProjectRegistrationKind;
 }
 
 export interface ProjectRegistrationResult {
   project: RegisteredProject;
   deployable: true;
 }
+
+export type ProjectRegistrationKind = "official" | "development";
 
 export class ProjectRegistrationService {
   constructor(
@@ -28,9 +32,10 @@ export class ProjectRegistrationService {
       throw new Error(inspection.reason ?? "Repository is not deployable by HiveForge");
     }
 
+    const registrationKind = request.registrationKind ?? "official";
     const project: RegisteredProject = {
-      id: inspection.project.name,
-      name: inspection.project.name,
+      id: registeredProjectId(inspection.project.name, registrationKind),
+      name: registeredProjectName(inspection.project.name, registrationKind),
       source: sourceForRepository(request.repository),
       repository: request.repository,
       approvedRefs: [request.gitRef]
@@ -46,12 +51,16 @@ export class ProjectRegistrationService {
   }
 }
 
-function sourceForRepository(repository: string): RegisteredProject["source"] {
-  if (repository.startsWith("file:///")) {
-    return "local-git";
+function registeredProjectId(projectName: string, registrationKind: ProjectRegistrationKind): string {
+  if (registrationKind === "official") {
+    return projectName;
   }
-  if (/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git$/.test(repository)) {
-    return "github";
+  return `${projectName}-development`;
+}
+
+function registeredProjectName(projectName: string, registrationKind: ProjectRegistrationKind): string {
+  if (registrationKind === "official") {
+    return projectName;
   }
-  throw new Error(`Repository source is not supported for registration: ${repository}`);
+  return `${projectName} development`;
 }

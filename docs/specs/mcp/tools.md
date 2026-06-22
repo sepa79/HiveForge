@@ -209,7 +209,10 @@ deployment label:
 The result includes the deployment id, project/component/profile resolved from
 state DB, required label map, matching containers, matching Swarm services when
 the connected environment has Docker Swarm capability, and a summary of
-`running`, `unhealthy`, `exited`, `missing`, or `unknown`.
+`running`, `unhealthy`, `exited`, `missing`, or `unknown`. Container entries may
+include Docker inspect hints such as restart count, exit code, Docker state
+error, and start/finish timestamps. Swarm task entries include node, current
+state, desired state, and Docker task error when available.
 
 Behavior: read-only. This tool does not infer ownership from container names,
 service names, stack names, or compose file names. If no labelled Docker objects
@@ -236,10 +239,24 @@ Output: one read-only deployment debug view containing:
 - live Docker runtime status selected only by `hiveforge.deployment=<deploymentId>`,
 - recorded rendered Compose/Stack artifact for the deployment's last operation,
 - bind-source validation for that recorded Compose artifact,
-- HiveForge runtime path and managed-root diagnostics.
+- HiveForge runtime path and managed-root diagnostics,
+- an `analysis` section that correlates expected rendered Compose services,
+  images, bind mounts, and placement constraints with actual Docker
+  containers/services/tasks.
+
+The `analysis.findings` list reports actionable issues such as:
+
+- missing labelled Docker resources,
+- service replica mismatch,
+- Swarm placement mismatch such as `no suitable node`,
+- bind mount errors tied to the rendered service, source path, target path, and
+  node when Docker exposes that evidence,
+- container restart loops from Docker inspect,
+- repeated failed Swarm tasks and last-exit hints from Swarm task state.
 
 Behavior: read-only. This tool does not re-render Compose, does not infer
-ownership from Docker object names, and does not run project actions.
+ownership from Docker object names, does not run project actions, and does not
+fetch full container logs.
 
 ### `get_deployment_compose`
 
@@ -294,7 +311,9 @@ Input:
 
 Behavior: read-only checkout of the requested repository/ref, manifest loading,
 and declared action-file checks. This does not authorize deployment and does not
-run project actions.
+run project actions. Supported repository inputs are explicit GitHub HTTPS URLs,
+explicit `file:///` Git URLs, and explicit LAN/internal `http://` Git URLs whose
+path ends in `.git`.
 
 Output: deployability result, project metadata, component names, lifecycle
 actions, and an explicit reason when not deployable.
@@ -306,12 +325,17 @@ Input:
 ```json
 {
   "repository": "https://github.com/sepa79/HiveWatch.git",
-  "gitRef": "main"
+  "gitRef": "main",
+  "registrationKind": "official"
 }
 ```
 
 Behavior: run read-only repository inspection. If the repository/ref is
 deployable, register the project and approve the inspected ref.
+`registrationKind` is optional and defaults to `official`, which uses the
+project id from the manifest. `development` registers the same manifest as a
+separate `<project>-development` project id so an internal development
+repository can coexist with the official repository explicitly.
 
 Output: registered project metadata and `deployable: true`.
 
@@ -369,6 +393,11 @@ Input:
 Behavior: set or update non-secret runtime env values for the exact
 project/profile scope. `profile` is optional. Keys must be uppercase env names
 and must not start with `HIVEFORGE_`.
+
+Call this before `validate_requirements` and `start_action` when a project or
+profile needs non-secret runtime values. The values are used by future
+validation/action calls only. Changes are not retroactive, do not re-render
+recorded deployment artifacts, and do not update an already deployed service.
 
 Output: updated entry values and changed key names.
 

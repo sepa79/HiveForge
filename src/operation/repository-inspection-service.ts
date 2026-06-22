@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp } from "node:fs/promises";
 import path from "node:path";
+import { isInspectableRepository } from "../config/repository-source.js";
 import type { ProjectProfile } from "../manifest/manifest-types.js";
 import { loadProjectRegistry } from "../manifest/project-registry.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
@@ -71,10 +72,7 @@ export class RepositoryInspectionService {
 }
 
 function assertInspectableRepository(repository: string): void {
-  if (
-    !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git$/.test(repository) &&
-    !/^file:\/\/\/.+/.test(repository)
-  ) {
+  if (!isInspectableRepository(repository)) {
     throw new Error(`Repository is not inspectable by HiveForge: ${repository}`);
   }
 }

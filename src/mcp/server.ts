@@ -195,7 +195,8 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
       description: "Inspect a repository/ref and register it when it is deployable by HiveForge.",
       inputSchema: {
         repository: z.string().min(1),
-        gitRef: z.string().min(1)
+        gitRef: z.string().min(1),
+        registrationKind: z.enum(["official", "development"]).optional()
       }
     },
     runtime.registerProject
@@ -233,7 +234,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     {
       title: "Set project runtime env",
       description:
-        "Set or update non-secret runtime env values for one project/profile scope. Do not use this for secrets.",
+        "Set non-secret runtime env values used by future validate_requirements and start_action calls for one project/profile scope. Call before validation/deployment; changes are not retroactive and do not update an already deployed service. Do not use this for secrets.",
       inputSchema: {
         projectId: z.string().min(1),
         profile: z.string().min(1).optional(),
