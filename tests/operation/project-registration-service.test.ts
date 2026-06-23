@@ -171,6 +171,87 @@ describe("project registration service", () => {
       ]
     });
   });
+
+  it("unregisters one existing project ref without deleting the project", async () => {
+    const fixture = await writeDeployableFixture();
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(
+      registryPath,
+      [
+        "projects:",
+        "  - id: hivewatch-development",
+        "    name: hivewatch development",
+        "    source: http-git",
+        "    repository: http://192.168.88.54:8081/git/PocketHive.git",
+        "    approvedRefs:",
+        "      - pockethive-debug-mcp",
+        "      - mcp-bundle-validation-evidence-fix",
+        ""
+      ].join("\n")
+    );
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.unregisterRef({
+        projectId: "hivewatch-development",
+        gitRef: "pockethive-debug-mcp"
+      })
+    ).resolves.toEqual({
+      unregisteredRef: "pockethive-debug-mcp",
+      project: {
+        id: "hivewatch-development",
+        name: "hivewatch development",
+        source: "http-git",
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        approvedRefs: ["mcp-bundle-validation-evidence-fix"]
+      }
+    });
+    await expect(loadProjectRegistryConfig(registryPath)).resolves.toEqual({
+      projects: [
+        {
+          id: "hivewatch-development",
+          name: "hivewatch development",
+          source: "http-git",
+          repository: "http://192.168.88.54:8081/git/PocketHive.git",
+          approvedRefs: ["mcp-bundle-validation-evidence-fix"]
+        }
+      ]
+    });
+  });
+
+  it("rejects unregistering the last project ref", async () => {
+    const fixture = await writeDeployableFixture();
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(
+      registryPath,
+      [
+        "projects:",
+        "  - id: hivewatch-development",
+        "    name: hivewatch development",
+        "    source: http-git",
+        "    repository: http://192.168.88.54:8081/git/PocketHive.git",
+        "    approvedRefs:",
+        "      - mcp-bundle-validation-evidence-fix",
+        ""
+      ].join("\n")
+    );
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.unregisterRef({
+        projectId: "hivewatch-development",
+        gitRef: "mcp-bundle-validation-evidence-fix"
+      })
+    ).rejects.toThrow(
+      "Cannot unregister the last ref for hivewatch-development; unregistering a project is a separate explicit operation."
+    );
+  });
 });
 
 async function writeDeployableFixture(): Promise<string> {

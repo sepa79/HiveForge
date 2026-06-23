@@ -60,6 +60,7 @@ export interface RestApiServices {
   };
   projectRegistration?: {
     register(request: { repository: string; gitRef: string; registrationKind?: "official" | "development" }): Promise<unknown>;
+    unregisterRef(request: { projectId: string; gitRef: string }): Promise<unknown>;
   };
   environmentPolicyEditor?: {
     setProjectPolicy(request: SetEnvironmentProjectPolicyRequest): Promise<SetEnvironmentProjectPolicyResult>;
@@ -281,6 +282,33 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           return withOperationId(result, operation.operationId);
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Project registration failed");
+        }
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/refs\/unregister$/,
+      async handle({ params, request }) {
+        const projectRegistration = services.projectRegistration;
+        if (!projectRegistration) {
+          throw new HttpError(501, "Project registration is not configured");
+        }
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
+        const body = await readRefRequest(request);
+        try {
+          const { operation, result } = await services.operations.runPreDeployAttempt(
+            {
+              kind: "project_ref_unregistration",
+              projectId: params.projectId,
+              gitRef: body.gitRef
+            },
+            () => projectRegistration.unregisterRef({ projectId: params.projectId, gitRef: body.gitRef })
+          );
+          return withOperationId(result, operation.operationId);
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Project ref unregistration failed");
         }
       }
     },

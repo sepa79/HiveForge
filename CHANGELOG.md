@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add explicit project ref unregistration through REST and MCP so operators can
+  remove old registered refs from development project registrations without
+  deleting the project or changing environment policy.
+- Document that project ref unregistration fails explicitly when the ref is the
+  project's last registered ref; full project unregister remains a separate
+  operation outside the current contract.
+
 ## 0.5.2 - 2026-06-12
 
 - Run declared Ansible actions in an isolated helper container where `/hf` is

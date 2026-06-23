@@ -174,6 +174,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRegistrationResult"
+  /projects/{projectId}/refs/unregister:
+    post:
+      summary: Remove one registered git ref from a project registration
+      description: >
+        Removes one registered git ref from an existing project registration. This
+        does not delete the project and fails if the requested ref is the
+        project's last registered ref. Project deletion is a separate explicit
+        operation outside this contract.
+      operationId: unregisterProjectRef
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefRequest"
+      responses:
+        "200":
+          description: Updated registered project after removing the ref
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRefUnregistrationResult"
   /projects/{projectId}/runtime-env:
     get:
       summary: List non-secret runtime env entries for one project
@@ -636,6 +660,7 @@ components:
           type: string
         approvedRefs:
           type: array
+          minItems: 1
           items:
             type: string
     RefRequest:
@@ -1622,6 +1647,17 @@ components:
         deployable:
           type: boolean
           const: true
+    ProjectRefUnregistrationResult:
+      type: object
+      required: [operationId, project, unregisteredRef]
+      properties:
+        operationId:
+          type: string
+        project:
+          $ref: "#/components/schemas/Project"
+        unregisteredRef:
+          type: string
+          minLength: 1
     InspectionResult:
       type: object
       required: [operationId, inspectionOperationId, projectId, repository, gitRef, components]

@@ -12,7 +12,12 @@ export interface OperationLogEntry {
   message: string;
 }
 
-export type OperationKind = "lifecycle_action" | "repository_inspection" | "project_registration" | "project_inspection";
+export type OperationKind =
+  | "lifecycle_action"
+  | "repository_inspection"
+  | "project_registration"
+  | "project_ref_unregistration"
+  | "project_inspection";
 
 export interface OperationRecord {
   operationId: string;

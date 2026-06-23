@@ -154,6 +154,14 @@ export class HiveForgeApiClient {
     return this.request({ method: "POST", path: "/projects/register", body: input });
   }
 
+  unregisterProjectRef(input: { projectId: string; gitRef: string }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: `/projects/${encodeURIComponent(input.projectId)}/refs/unregister`,
+      body: { gitRef: input.gitRef }
+    });
+  }
+
   setEnvironmentProjectPolicy(input: {
     environmentId: string;
     projectId: string;

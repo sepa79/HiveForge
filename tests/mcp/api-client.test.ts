@@ -276,6 +276,31 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("unregisters project refs through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000/",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { unregisteredRef: "pockethive-debug-mcp" });
+      }
+    });
+
+    await client.unregisterProjectRef({
+      projectId: "hivewatch-development",
+      gitRef: "pockethive-debug-mcp"
+    });
+
+    expect(calls[0]).toMatchObject({
+      url: "http://127.0.0.1:3000/projects/hivewatch-development/refs/unregister",
+      init: {
+        method: "POST",
+        body: JSON.stringify({ gitRef: "pockethive-debug-mcp" })
+      }
+    });
+  });
+
   it("manages project runtime env through REST transport", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({

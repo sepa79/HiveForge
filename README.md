@@ -83,6 +83,7 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    list_environment_nodes
    inspect_repository
    register_project
+   unregister_project_ref
    set_environment_project_policy
    set_project_runtime_env
    inspect_project

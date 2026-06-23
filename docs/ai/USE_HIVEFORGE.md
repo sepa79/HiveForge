@@ -56,20 +56,22 @@ Use MCP tools in this order:
 7. `list_deployments`
 8. `inspect_repository` only for a candidate repository/ref not yet registered
 9. `register_project` only after inspection succeeds and the operator approves
-10. `set_environment_project_policy` only after the operator approves the
+10. `unregister_project_ref` only when the operator explicitly wants to remove an
+   old ref from an existing project registration
+11. `set_environment_project_policy` only after the operator approves the
    environment, actions, and profiles for that project
-11. `set_project_runtime_env` for non-secret values that must stay outside git
-12. `inspect_project`
-13. `explain_deploy_prerequisites`
-14. `validate_requirements`
-15. `prepare_release_deploy` for release/image-tag prepare checks, or
+12. `set_project_runtime_env` for non-secret values that must stay outside git
+13. `inspect_project`
+14. `explain_deploy_prerequisites`
+15. `validate_requirements`
+16. `prepare_release_deploy` for release/image-tag prepare checks, or
    `start_action` for the current repo/ref POC lifecycle path
-16. `get_operation`
-17. `get_deployment_compose` when the action recorded a rendered Compose/Stack
+17. `get_operation`
+18. `get_deployment_compose` when the action recorded a rendered Compose/Stack
    artifact
-18. `check_deployment_runtime_status` after deployment execution, using the
+19. `check_deployment_runtime_status` after deployment execution, using the
    `deploymentId` from `list_deployments`
-19. `read_journal`
+20. `read_journal`
 
 `prepare_release_deploy` currently prepares and validates a release plan only.
 It does not build images, push images, or execute deployment actions. With

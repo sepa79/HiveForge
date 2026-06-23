@@ -22,6 +22,7 @@ describe("HiveForge MCP runtime", () => {
       "get_deployment_compose",
       "inspect_repository",
       "register_project",
+      "unregister_project_ref",
       "set_environment_project_policy",
       "list_project_runtime_env",
       "set_project_runtime_env",
@@ -329,6 +330,26 @@ describe("HiveForge MCP runtime", () => {
         projectId: "hivewatch",
         profile: "test",
         values: { IMAGE_TAG: "latest" }
+      }
+    });
+  });
+
+  it("unregisters a project ref through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async unregisterProjectRef(input: unknown) {
+        return { unregistered: input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.unregisterProjectRef({
+      projectId: "hivewatch-development",
+      gitRef: "pockethive-debug-mcp"
+    });
+
+    expect(result.structuredContent).toEqual({
+      unregistered: {
+        projectId: "hivewatch-development",
+        gitRef: "pockethive-debug-mcp"
       }
     });
   });

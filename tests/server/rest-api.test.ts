@@ -795,6 +795,63 @@ describe("REST API", () => {
     });
   });
 
+  it("unregisters project refs through the configured registrar", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch-development/refs/unregister`, {
+      method: "POST",
+      body: JSON.stringify({
+        gitRef: "pockethive-debug-mcp"
+      })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
+      unregisteredRef: "pockethive-debug-mcp",
+      project: {
+        id: "hivewatch-development",
+        name: "hivewatch development",
+        source: "http-git",
+        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        approvedRefs: ["mcp-bundle-validation-evidence-fix"]
+      }
+    });
+    expect(calls).toContainEqual({
+      unregisterRef: {
+        projectId: "hivewatch-development",
+        gitRef: "pockethive-debug-mcp"
+      }
+    });
+    const operations = await fetch(`${baseUrl}/operations`);
+    await expect(operations.json()).resolves.toMatchObject({
+      operations: [
+        {
+          operationId: "uiop-1",
+          status: "succeeded",
+          kind: "project_ref_unregistration",
+          projectId: "hivewatch-development",
+          gitRef: "pockethive-debug-mcp"
+        }
+      ]
+    });
+  });
+
+  it("returns 400 when project ref unregistration fails", async () => {
+    const baseUrl = await startServer({ projectRefUnregistrationError: "Git ref is not registered for hivewatch: old-ref" });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch/refs/unregister`, {
+      method: "POST",
+      body: JSON.stringify({
+        gitRef: "old-ref"
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Git ref is not registered for hivewatch: old-ref" });
+  });
+
   it("returns 400 for unsupported project registration kind", async () => {
     const baseUrl = await startServer();
 
@@ -951,6 +1008,7 @@ async function startServer(
     refreshedEnvironment?: EnvironmentDefinition;
     validationError?: string;
     repositoryInspectionResult?: unknown;
+    projectRefUnregistrationError?: string;
     selfUpdateError?: string;
   } = {}
 ): Promise<string> {
@@ -1147,6 +1205,22 @@ async function startServer(
               source: "github",
               repository: request.repository,
               approvedRefs: [request.gitRef]
+            }
+          };
+        },
+        async unregisterRef(request: { projectId: string; gitRef: string }) {
+          options.calls?.push({ unregisterRef: request });
+          if (options.projectRefUnregistrationError) {
+            throw new Error(options.projectRefUnregistrationError);
+          }
+          return {
+            unregisteredRef: request.gitRef,
+            project: {
+              id: request.projectId,
+              name: "hivewatch development",
+              source: "http-git",
+              repository: "http://192.168.88.54:8081/git/PocketHive.git",
+              approvedRefs: ["mcp-bundle-validation-evidence-fix"]
             }
           };
         }

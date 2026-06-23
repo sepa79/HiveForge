@@ -203,6 +203,20 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "unregister_project_ref",
+    {
+      title: "Unregister project ref",
+      description:
+        "Remove one registered git ref from an existing project registration. This does not delete the project and fails explicitly if the ref is the project's last registered ref.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        gitRef: z.string().min(1)
+      }
+    },
+    runtime.unregisterProjectRef
+  );
+
+  server.registerTool(
     "set_environment_project_policy",
     {
       title: "Set environment project policy",

@@ -339,6 +339,25 @@ repository can coexist with the official repository explicitly.
 
 Output: registered project metadata and `deployable: true`.
 
+### `unregister_project_ref`
+
+Input:
+
+```json
+{
+  "projectId": "pockethive-development",
+  "gitRef": "pockethive-debug-mcp"
+}
+```
+
+Behavior: remove one registered git ref from an existing project registration. This
+does not inspect repositories, does not delete the project, and does not change
+environment policy. The tool fails explicitly if the project is not registered,
+the ref is not currently registered, or the ref is the project's last registered ref.
+Removing a project is a separate explicit operation outside this contract.
+
+Output: updated registered project metadata and the removed ref.
+
 ### `set_environment_project_policy`
 
 Input:
