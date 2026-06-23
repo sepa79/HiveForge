@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.3 - 2026-06-23
 
 - Add explicit project ref unregistration through REST and MCP so operators can
   remove old registered refs from development project registrations without
