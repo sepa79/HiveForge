@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.3 - 2026-06-23
+## 0.5.3 - 2026-06-25
 
 - Add explicit project ref unregistration through REST and MCP so operators can
   remove old registered refs from development project registrations without
@@ -8,6 +8,21 @@
 - Document that project ref unregistration fails explicitly when the ref is the
   project's last registered ref; full project unregister remains a separate
   operation outside the current contract.
+- Replace separate Operations and Journal operator views with a paginated
+  Activity master-detail screen that explicitly correlates process-local
+  operations with durable journal events.
+- Make Deployments runtime-first: active filtering and deployment detail now
+  prioritize Docker runtime evidence, diagnostics findings, and recorded compose
+  artifacts before HiveForge's recorded state metadata.
+- Fix Deployments layout and scroll behavior for large Swarm stacks with long
+  service names, image references, task names, and frequent async runtime
+  refreshes.
+- Add copyable operator-console view URLs under `/ui`, including
+  `/ui/deployments`, `/ui/actions`, and `/ui/activity`, while keeping REST API
+  paths such as `/deployments` authenticated API endpoints.
+- Replace free-text lifecycle Git ref and component inputs with registered-ref
+  and inspected-component selectors so operators run actions against explicit
+  project inventory.
 
 ## 0.5.2 - 2026-06-12
 

@@ -28,6 +28,20 @@ describe("UI routes", () => {
     await expect(response.text()).resolves.toContain("HiveForge");
   });
 
+  it("serves copyable UI view paths without making REST paths public", async () => {
+    const baseUrl = await startServer();
+
+    const deployments = await fetch(`${baseUrl}/ui/deployments`);
+    const activity = await fetch(`${baseUrl}/ui/activity`);
+    const restDeployments = await fetch(`${baseUrl}/deployments`);
+
+    expect(deployments.status).toBe(200);
+    expect(deployments.headers.get("content-type")).toContain("text/html");
+    expect(activity.status).toBe(200);
+    expect(activity.headers.get("content-type")).toContain("text/html");
+    expect(restDeployments.status).toBe(401);
+  });
+
   it("serves UI assets without bearer auth", async () => {
     const baseUrl = await startServer();
 
@@ -67,7 +81,7 @@ describe("UI routes", () => {
     await expect(styles.text()).resolves.toContain("z-index: 30");
   });
 
-  it("keeps lifecycle actions and journal views separate", async () => {
+  it("combines operations and journal events into one activity view", async () => {
     const baseUrl = await startServer();
 
     const script = await fetch(`${baseUrl}/ui/app.js`);
@@ -75,9 +89,19 @@ describe("UI routes", () => {
 
     expect(script.status).toBe(200);
     expect(body).toContain("current run");
-    expect(body).toContain("durable audit events");
-    expect(body).not.toContain("Operation history");
-    expect(body).not.toContain("Operation logs");
+    expect(body).toContain('navItem("activity", "T", "Activity")');
+    expect(body).toContain("function renderActivity()");
+    expect(body).toContain("operations + durable audit");
+    expect(body).toContain("function journalForOperation");
+    expect(body).toContain("operation.result?.actionOperationId");
+    expect(body).toContain("Debug metadata");
+    expect(body).toContain("ACTIVITY_PAGE_SIZE = 25");
+    expect(body).toContain("function renderActivityPagination");
+    expect(body).toContain('data-activity-page="next"');
+    expect(body).toContain("function selectActivityPage");
+    expect(body).not.toContain("slice(0, 80)");
+    expect(body).not.toContain('navItem("operations"');
+    expect(body).not.toContain('navItem("journal"');
   });
 
   it("uses a readable topbar brand and reserves the full logo for the home view", async () => {
@@ -111,6 +135,22 @@ describe("UI routes", () => {
     expect(body).not.toContain("pageMeta");
   });
 
+  it("keeps UI view state in copyable browser paths", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain('deployments: "/ui/deployments"');
+    expect(body).toContain("function initialViewFromPath");
+    expect(body).toContain("function updateBrowserPath");
+    expect(body).toContain('window.history.pushState');
+    expect(body).toContain('window.addEventListener("popstate"');
+    expect(body).toContain("else localStorage.removeItem(TOKEN_KEY);\n  refreshUi();");
+    expect(body).toContain("render();\nrefreshUi();");
+  });
+
   it("exposes an Overview button for refreshing environment node inventory", async () => {
     const baseUrl = await startServer();
 
@@ -137,6 +177,38 @@ describe("UI routes", () => {
     expect(body).toContain("HiveForge update started");
   });
 
+  it("uses runtime-first deployment status with active filtering and diagnostics drilldown", async () => {
+    const baseUrl = await startServer();
+
+    const [script, styles] = await Promise.all([
+      fetch(`${baseUrl}/ui/app.js`),
+      fetch(`${baseUrl}/ui/styles.css`)
+    ]);
+    const body = await script.text();
+    const css = await styles.text();
+
+    expect(script.status).toBe(200);
+    expect(styles.status).toBe(200);
+    expect(body).toContain('api("/deployments/runtime-status"');
+    expect(body).toContain('api("/deployments/diagnostics"');
+    expect(body).toContain("function deploymentPrimaryStatus");
+    expect(body).toContain('data-deployment-filter');
+    expect(body).toContain('deploymentFilter: "active"');
+    expect(body).toContain("Runtime deployments");
+    expect(body).toContain("Recorded state");
+    expect(body).toContain("Recorded compose");
+    expect(body).toContain("runtime status from Docker labels");
+    expect(body).toContain("No deployment matches the current filter.");
+    expect(body).toContain("all replicas");
+    expect(body).toContain('class="muted mono runtimeImage"');
+    expect(body).toContain("preserveScroll");
+    expect(body).toContain("window.scrollTo");
+    expect(body).not.toContain("|| state.deployments.find((deployment) => deployment.deploymentId === state.selectedDeploymentId)");
+    expect(css).toContain("grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr)");
+    expect(css).toContain(".runtimeImage { overflow-wrap: anywhere");
+    expect(css).toContain("@media (max-width: 1100px)");
+  });
+
   it("uses inspected component action subsets for the lifecycle action selector", async () => {
     const baseUrl = await startServer();
 
@@ -149,6 +221,28 @@ describe("UI routes", () => {
     expect(body).toContain("const inspectedComponent = state.inspectedComponents.find");
     expect(body).toContain("state.inspectedComponents = result.components");
     expect(body).toContain("state.selectedComponent = result.components[0]?.name");
+  });
+
+  it("uses registered refs and inspected components instead of free-text lifecycle inputs", async () => {
+    const baseUrl = await startServer();
+
+    const [script, styles] = await Promise.all([
+      fetch(`${baseUrl}/ui/app.js`),
+      fetch(`${baseUrl}/ui/styles.css`)
+    ]);
+    const body = await script.text();
+    const css = await styles.text();
+
+    expect(script.status).toBe(200);
+    expect(styles.status).toBe(200);
+    expect(body).toContain('id="refSelect"');
+    expect(body).toContain("selectedProjectRefs()");
+    expect(body).toContain('id="componentSelect"');
+    expect(body).toContain("components.map((component)");
+    expect(body).not.toContain('id="refInput"');
+    expect(body).not.toContain('id="componentInput"');
+    expect(css).toContain(".actionRow");
+    expect(css).toContain("repeat(auto-fit, minmax(180px, 1fr))");
   });
 });
 
