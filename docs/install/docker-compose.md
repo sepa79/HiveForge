@@ -249,11 +249,11 @@ After an environment refresh, the manual MCP tool
 the first deploy or after a node or mount change. It obtains the image of the
 currently running HiveForge container through Docker inspect and uses that same
 image for a short-lived read-only mount of `<bindSourceRoot>/data`. On Swarm it
-creates and removes one global probe service across active ready nodes. No
-additional probe-image configuration is required. The probe never runs
-automatically and does not block deployment. If the current container cannot
-be identified through Docker, the result is explicitly `inconclusive`. Ordinary
-runtime diagnostics stay read-only.
+creates and removes one global probe service across active ready nodes, allowing
+up to two minutes for a cold image pull. No additional probe-image configuration
+is required. The probe never runs automatically and does not block deployment.
+If the current container cannot be identified through Docker, the result is
+explicitly `inconclusive`. Ordinary runtime diagnostics stay read-only.
 
 ## Docker Access
 

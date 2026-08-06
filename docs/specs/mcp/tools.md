@@ -198,7 +198,8 @@ Behavior: this is an explicit mutating diagnostic operation. On a single Docker
 host, HiveForge runs one short-lived read-only bind-mount container. On Swarm,
 it creates a temporary global service using the running HiveForge image,
 observes one task on every stored node with `availability: active` and
-`status: ready`, then removes the service.
+`status: ready` for up to two minutes so a cold image pull can complete, then
+removes the service.
 
 This tool is intentionally manual. An agent should use it after
 `refresh_environment`, before a first host-bind-mount deployment and after a

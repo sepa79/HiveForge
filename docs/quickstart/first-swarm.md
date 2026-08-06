@@ -81,7 +81,8 @@ verify_managed_root_access()
 
 `verify_managed_root_access` is an available manual MCP diagnostic. It runs a
 short-lived probe on the selected Docker host or on every active ready Swarm
-node. HiveForge never runs it automatically and it does not block deployment.
+node. A Swarm probe allows up to two minutes for a cold image pull. HiveForge
+never runs it automatically and it does not block deployment.
 
 ## Register An External Example Project
 

@@ -210,7 +210,9 @@ run during normal `diagnose_hiveforge_runtime` requests. On Docker, the check
 starts one `--rm` container with a read-only bind mount of
 `<bindSourceRoot>/data`. On Swarm, it starts a temporary global service with
 the same read-only bind mount, waits for one terminal task per active ready node
-from the current inventory, and removes that service.
+from the current inventory for up to two minutes to accommodate a cold pull of
+the running HiveForge image, and removes that service. A task that remains
+non-terminal after that bounded wait is explicit `inconclusive` evidence.
 
 The temporary service name is intentionally within Docker Swarm's 63-character
 name limit when it includes its UUID probe identifier.

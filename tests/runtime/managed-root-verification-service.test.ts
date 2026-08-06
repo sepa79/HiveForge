@@ -105,6 +105,59 @@ describe("managed root verification service", () => {
     });
   });
 
+  it("allows a cold Swarm image pull to remain preparing beyond the former ten-second window", async () => {
+    const probeId = "cold-pull-probe";
+    const serviceName = `hiveforge-root-probe-${probeId}`;
+    const coldPullPolls = 40;
+    const delays: number[] = [];
+    let taskPolls = 0;
+    const runner: CommandRunner = {
+      async run(command, args) {
+        expect(command).toBe("docker");
+        if (args[0] === "inspect") {
+          expect(args).toEqual(["inspect", "hiveforge-container", "--format", "{{.Config.Image}}"]);
+          return { stdout: "192.168.88.54:5000/hiveforge:uat\n", stderr: "" };
+        }
+        if (args[0] === "service" && args[1] === "create") {
+          return { stdout: "", stderr: "" };
+        }
+        if (args[0] === "service" && args[1] === "ps") {
+          taskPolls += 1;
+          return {
+            stdout: JSON.stringify({
+              Node: "docker-swarm-mgr-1",
+              CurrentState: taskPolls > coldPullPolls ? "Complete 1 second ago" : "Preparing 1 second ago"
+            }),
+            stderr: ""
+          };
+        }
+        if (args[0] === "service" && args[1] === "rm") {
+          return { stdout: "", stderr: "" };
+        }
+        throw new Error(`Unexpected Docker command: ${args.join(" ")}`);
+      }
+    };
+
+    const report = await new ManagedRootVerificationService(runner, {
+      ...swarmEnvironment(),
+      nodes: [swarmEnvironment().nodes![0]!]
+    }, {
+      currentContainerId: () => "hiveforge-container",
+      probeId: () => probeId,
+      sleep: async (milliseconds) => {
+        delays.push(milliseconds);
+      }
+    }).verify();
+
+    expect(report).toMatchObject({
+      status: "verified",
+      nodes: [{ hostname: "docker-swarm-mgr-1", status: "verified" }]
+    });
+    expect(taskPolls).toBe(coldPullPolls + 1);
+    expect(delays).toHaveLength(coldPullPolls);
+    expect(delays.every((milliseconds) => milliseconds === 250)).toBe(true);
+  });
+
   it("reports a rejected Swarm mount as failed evidence rather than configured visibility", async () => {
     const serviceName = "hiveforge-root-probe-probe-2";
     const runner = scriptedRunner([

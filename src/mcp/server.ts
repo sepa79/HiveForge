@@ -139,7 +139,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     {
       title: "Verify managed-root access",
       description:
-        "Manually verify the configured managed root with a short-lived Docker or Swarm bind-mount probe. Use after environment refresh before a first deploy or after node/mount changes; it never runs automatically or blocks deployment.",
+        "Manually verify the configured managed root with a short-lived Docker or Swarm bind-mount probe. On Swarm, it allows up to two minutes for a cold image pull. Use after environment refresh before a first deploy or after node/mount changes; it never runs automatically or blocks deployment.",
       inputSchema: {}
     },
     runtime.verifyManagedRootAccess

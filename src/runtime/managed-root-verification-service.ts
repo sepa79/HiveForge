@@ -30,8 +30,10 @@ export interface ManagedRootVerificationOptions {
   probeId?: () => string;
 }
 
-const DEFAULT_MAX_POLLS = 40;
 const DEFAULT_POLL_DELAY_MS = 250;
+const DEFAULT_SWARM_PROBE_WAIT_MS = 120_000;
+const DEFAULT_MAX_POLLS =
+  Math.floor(DEFAULT_SWARM_PROBE_WAIT_MS / DEFAULT_POLL_DELAY_MS) + 1;
 const PROBE_COMMAND = ["sh", "-ec", "test -d /probe && test -r /probe"];
 const SWARM_PROBE_SERVICE_PREFIX = "hiveforge-root-probe-";
 

@@ -60,6 +60,7 @@ describe("HiveForge MCP runtime", () => {
     const toolBlock = source.slice(source.indexOf('"verify_managed_root_access"'), source.indexOf('"check_deployment_runtime_status"'));
 
     expect(toolBlock).toContain("Manually verify");
+    expect(toolBlock).toContain("allows up to two minutes for a cold image pull");
     expect(toolBlock).toContain("never runs automatically or blocks deployment");
   });
 
