@@ -29,6 +29,7 @@ import { resolveAuthToken } from "../runtime/auth-token.js";
 import { detectContainerBindSource } from "../runtime/container-bind-source.js";
 import { configureHttpProxyFromEnv } from "../runtime/http-proxy.js";
 import { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
+import { ManagedRootVerificationService } from "../runtime/managed-root-verification-service.js";
 import { HIVEFORGE_CONTAINER_RUNTIME_ROOT, resolveRuntimePaths } from "../runtime/runtime-paths.js";
 import { SelfUpdateService } from "../runtime/self-update-service.js";
 import { DockerCliProbe } from "../validation/docker-cli-probe.js";
@@ -164,6 +165,9 @@ const deploymentCompose = new DeploymentComposeService(journal);
 const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
 const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
+const managedRootVerification = new ManagedRootVerificationService(commandRunner, currentEnvironment, {
+  probeImage: nonEmptyEnv("HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE")
+});
 const selfUpdate = new SelfUpdateService({ appInfo, commandRunner });
 const deploymentDiagnostics = new DeploymentDiagnosticsService(
   deploymentState,
@@ -195,6 +199,13 @@ createHttpServer(
       operations,
       runtimeEnv,
       runtimeDiagnostics,
+      managedRootVerification: {
+        async verify() {
+          const result = await managedRootVerification.verify();
+          await runtimeDiagnostics.recordManagedRootVerification(result);
+          return result;
+        }
+      },
       repositoryInspection,
       projectRegistration,
       environmentPolicyEditor,

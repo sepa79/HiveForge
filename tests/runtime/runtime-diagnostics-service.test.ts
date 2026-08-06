@@ -51,7 +51,8 @@ describe("runtime diagnostics service", () => {
     const report = await new RuntimeDiagnosticsService(
       paths,
       environment({
-        bindSourceRoot: "/mnt/shared_nfs/hiveforge"
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        nodes: [readyNode("docker-swarm-mgr-1")]
       })
     ).diagnose();
 
@@ -62,8 +63,85 @@ describe("runtime diagnostics service", () => {
       shared: true,
       visibilityStatus: "configured",
       reason:
-        "Docker bind-source root is configured in environment capabilities; active per-node access is not verified by this check."
+        "Docker bind-source root is configured in environment capabilities; run verify_managed_root_access for an active per-node check."
     });
+  });
+
+  it("reports the latest explicit managed-root verification instead of treating it as configuration", async () => {
+    const paths = await createRuntimePaths();
+    const diagnostics = new RuntimeDiagnosticsService(
+      paths,
+      environment({
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        nodes: [readyNode("docker-swarm-mgr-1")]
+      })
+    );
+    await diagnostics.recordManagedRootVerification({
+      status: "verified",
+      checkedAt: "2026-08-06T10:00:00.000Z",
+      runtime: "docker-swarm",
+      bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+      managedDataBindSourceRoot: "/mnt/shared_nfs/hiveforge/data",
+      nodes: [
+        {
+          hostname: "docker-swarm-mgr-1",
+          status: "verified",
+          reason: "Read-only Docker bind mount was accessible."
+        }
+      ],
+      reason: "Managed-root bind-source visibility is verified on every active ready Swarm node."
+    });
+
+    const report = await new RuntimeDiagnosticsService(
+      paths,
+      environment({
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        nodes: [readyNode("docker-swarm-mgr-1")]
+      })
+    ).diagnose();
+
+    expect(report.managedRoot).toMatchObject({
+      visibilityStatus: "verified",
+      reason: "Managed-root bind-source visibility is verified on every active ready Swarm node.",
+      verification: {
+        checkedAt: "2026-08-06T10:00:00.000Z",
+        status: "verified"
+      }
+    });
+  });
+
+  it("does not reuse verification evidence when the active ready Swarm nodes change", async () => {
+    const paths = await createRuntimePaths();
+    const diagnostics = new RuntimeDiagnosticsService(
+      paths,
+      environment({
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        nodes: [readyNode("docker-swarm-mgr-1")]
+      })
+    );
+    await diagnostics.recordManagedRootVerification({
+      status: "verified",
+      checkedAt: "2026-08-06T10:00:00.000Z",
+      runtime: "docker-swarm",
+      bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+      managedDataBindSourceRoot: "/mnt/shared_nfs/hiveforge/data",
+      nodes: [{ hostname: "docker-swarm-mgr-1", status: "verified", reason: "Read-only Docker bind mount was accessible." }],
+      reason: "Managed-root bind-source visibility is verified on every active ready Swarm node."
+    });
+
+    const report = await new RuntimeDiagnosticsService(
+      paths,
+      environment({
+        bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+        nodes: [readyNode("docker-swarm-mgr-1"), readyNode("docker-swarm-wrk-1")]
+      })
+    ).diagnose();
+
+    expect(report.managedRoot).toMatchObject({
+      visibilityStatus: "configured",
+      reason: "Stored managed-root verification does not cover the current runtime node scope; run verify_managed_root_access again."
+    });
+    expect(report.managedRoot.verification).toBeUndefined();
   });
 });
 
@@ -90,7 +168,8 @@ async function createRuntimePaths(): Promise<RuntimePaths> {
   };
 }
 
-function environment(managedRoot: { bindSourceRoot?: string } = {}): EnvironmentDefinition {
+function environment(options: { bindSourceRoot?: string; nodes?: EnvironmentDefinition["nodes"] } = {}): EnvironmentDefinition {
+  const { nodes, ...managedRoot } = options;
   return {
     id: "swarm",
     name: "Docker Swarm",
@@ -103,8 +182,20 @@ function environment(managedRoot: { bindSourceRoot?: string } = {}): Environment
       },
       placement: true
     },
+    ...(nodes ? { nodes } : {}),
     policy: {
       projects: []
     }
+  };
+}
+
+function readyNode(hostname: string): NonNullable<EnvironmentDefinition["nodes"]>[number] {
+  return {
+    id: hostname,
+    hostname,
+    role: "manager",
+    availability: "active",
+    status: "ready",
+    labels: {}
   };
 }

@@ -19,7 +19,8 @@ Before changing the user's editor or agent configuration, collect:
   Amazon Q CLI,
 - HiveForge base URL, for example `http://swarm-manager.example:3000`,
 - HiveForge auth token,
-- HiveForge image tag, for example `ghcr.io/sepa79/hiveforge:v0.5.2`,
+- HiveForge image tag matching the installed control-plane release, for example
+  `ghcr.io/sepa79/hiveforge:v0.5.3`,
 - desired scope: user/global configuration or workspace/local configuration.
 
 Prefer user/global scope for a non-technical workstation setup. Use workspace
@@ -39,7 +40,7 @@ configuration format:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.2 \
+  ghcr.io/sepa79/hiveforge:v0.5.3 \
   npm run hiveforge-mcp
 ```
 
@@ -86,7 +87,7 @@ Example VS Code `mcp.json`:
         "HIVEFORGE_BASE_URL=http://<host>:3000",
         "-e",
         "HIVEFORGE_AUTH_TOKEN=${input:hiveforge-token}",
-        "ghcr.io/sepa79/hiveforge:v0.5.2",
+        "ghcr.io/sepa79/hiveforge:v0.5.3",
         "npm",
         "run",
         "hiveforge-mcp"
@@ -98,6 +99,14 @@ Example VS Code `mcp.json`:
 
 After saving, run `MCP: List Servers`, start or restart `hiveforge`, confirm
 trust when prompted, and enable the HiveForge tools in chat.
+
+## Image Version Policy
+
+The MCP client image must use the same release tag as the installed HiveForge
+control plane. The examples in this guide use `v0.5.3`, the currently
+documented release. Update the control plane and client together; do not use
+`latest` or leave an older client pin in place without an explicit compatibility
+statement.
 
 Official VS Code references:
 

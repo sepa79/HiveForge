@@ -91,6 +91,10 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/diagnostics/runtime" });
   }
 
+  verifyManagedRootAccess(): Promise<unknown> {
+    return this.request({ method: "POST", path: "/diagnostics/managed-root/verify" });
+  }
+
   getDeploymentCompose(input: { operationId: string }): Promise<unknown> {
     return this.request({
       method: "GET",

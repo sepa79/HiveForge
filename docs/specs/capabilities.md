@@ -38,6 +38,24 @@ more than one runtime.
 | `bindSources.allowed` | Explicit operator allowlist for non-HiveForge Docker bind source paths that rendered Compose/Stack files may use. |
 | `placement` | The environment supports explicit runtime placement constraints. |
 
+`placement` is a broad capability. A profile that needs a concrete Swarm node
+label declares the label predicate separately under `requires.placement`; it
+does not treat the broad capability as proof that a matching node currently
+exists.
+
+```yaml
+requires:
+  placement:
+    nodeLabels:
+      pockethive.redis: "true"
+      pockethive.postgres: "true"
+```
+
+Every label in `nodeLabels` must match on one node. HiveForge considers only
+nodes whose refreshed inventory reports `availability: active` and `status:
+ready`. A missing inventory or no matching node is a hard eligibility failure;
+HiveForge does not pick a different label, node, profile, or runtime.
+
 ## Managed Root
 
 The current contract has exactly one HiveForge-managed root per environment.

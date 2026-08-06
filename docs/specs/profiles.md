@@ -30,6 +30,9 @@ profiles:
         shared: true
       capabilities:
         - placement
+      placement:
+        nodeLabels:
+          pockethive.redis: "true"
 ```
 
 Fields:
@@ -44,6 +47,9 @@ Fields:
 - `requires.managedRoot.node` - explicit runtime node for a non-shared root.
 - `requires.capabilities` - additional named capabilities from the capability
   vocabulary.
+- `requires.placement.nodeLabels` - exact Docker Swarm node labels required on
+  one active, ready node. Declaring this requirement also requires the
+  environment `placement` capability.
 
 Profiles must not include provider names, IPs, SSH details, concrete host paths,
 or environment-specific registry URLs.
@@ -63,6 +69,12 @@ silently select another profile, runtime, or environment.
 HiveForge must not silently choose placement for a non-shared root. If a profile
 requires `managedRoot.shared: false`, it must declare `managedRoot.node`, and
 the environment must report that node under `managedRoot.nodes`.
+
+Concrete `requires.placement.nodeLabels` requirements are checked against the
+stored node inventory. Operators must run `refresh_environment` after a label,
+node membership, availability, or readiness change. HiveForge reports an
+explicit missing-inventory or missing-label prerequisite; it never assumes that
+a broad `placement: true` capability proves a placement constraint is usable.
 
 Eligibility is separate from policy. Deployment is allowed only when the profile
 matches environment capabilities and the environment policy allows the selected

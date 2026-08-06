@@ -7,7 +7,9 @@ export type ProfileEligibilityIssueCode =
   | "managed-root-shared-missing"
   | "managed-root-placement-missing"
   | "managed-root-node-missing"
-  | "capability-missing";
+  | "capability-missing"
+  | "placement-node-inventory-missing"
+  | "placement-node-labels-missing";
 
 export interface ProfileEligibilityIssue {
   code: ProfileEligibilityIssueCode;
@@ -47,7 +49,7 @@ export function evaluateProfileEligibility(
 
   issues.push(...evaluateManagedRootRequirement(environment, profile));
 
-  for (const capability of profile.requires?.capabilities ?? []) {
+  for (const capability of requiredCapabilities(profile)) {
     if (!hasNamedCapability(environment, capability)) {
       issues.push({
         code: "capability-missing",
@@ -57,10 +59,59 @@ export function evaluateProfileEligibility(
     }
   }
 
+  if (hasNamedCapability(environment, "placement")) {
+    issues.push(...evaluatePlacementRequirement(environment, profile));
+  }
+
   return {
     eligible: issues.length === 0,
     issues
   };
+}
+
+function requiredCapabilities(profile: ProjectProfile): ProfileCapabilityName[] {
+  const capabilities = new Set(profile.requires?.capabilities ?? []);
+  if (profile.requires?.placement) {
+    capabilities.add("placement");
+  }
+  return [...capabilities];
+}
+
+function evaluatePlacementRequirement(
+  environment: EnvironmentDefinition,
+  profile: ProjectProfile
+): ProfileEligibilityIssue[] {
+  const nodeLabels = profile.requires?.placement?.nodeLabels;
+  if (!nodeLabels) {
+    return [];
+  }
+
+  const activeNodes = environment.nodes?.filter(
+    (node) => node.availability === "active" && node.status.toLowerCase() === "ready"
+  );
+  if (!activeNodes?.length) {
+    return [
+      {
+        code: "placement-node-inventory-missing",
+        message: `Environment ${environment.id} has no active ready node inventory for placement validation`,
+        requirement: "placement.nodeLabels"
+      }
+    ];
+  }
+
+  const requiredLabels = Object.entries(nodeLabels);
+  const matchingNode = activeNodes.find((node) => requiredLabels.every(([key, value]) => node.labels[key] === value));
+  if (matchingNode) {
+    return [];
+  }
+
+  return [
+    {
+      code: "placement-node-labels-missing",
+      message: `Environment ${environment.id} has no active ready node with required placement labels: ${formatNodeLabels(requiredLabels)}`,
+      requirement: "placement.nodeLabels"
+    }
+  ];
 }
 
 export function assertProfileEligible(environment: EnvironmentDefinition, profile: ProjectProfile): void {
@@ -155,6 +206,10 @@ function hasNamedCapability(environment: EnvironmentDefinition, capability: Prof
   }
   const exhaustive: never = capability;
   throw new Error(`Unsupported profile capability: ${exhaustive}`);
+}
+
+function formatNodeLabels(labels: Array<[string, string]>): string {
+  return labels.map(([key, value]) => `${key}=${value}`).join(", ");
 }
 
 function formatProfileEligibilityFailure(

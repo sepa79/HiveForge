@@ -98,7 +98,7 @@ the published image on your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.2 \
+  ghcr.io/sepa79/hiveforge:v0.5.3 \
   npm run hiveforge-mcp
 ```
 
@@ -227,7 +227,8 @@ HiveForge creates missing runtime files, but does not overwrite existing files:
 - `workspace/` stores checked-out repositories,
 - `journal/operations.jsonl` stores operation history,
 - `data/` stores HiveForge-managed deployment files and
-  `runtime-env.json` non-secret runtime env config,
+  `runtime-env.json` non-secret runtime env config, and the latest non-secret
+  `managed-root-verification.json` probe evidence,
 - `auth-token` is created only when no `HIVEFORGE_AUTH_TOKEN` is supplied.
 
 No project can be deployed until an operator explicitly registers or configures
@@ -242,6 +243,14 @@ internally as `/hf/data`. When project deployments need Docker bind sources, set
 by the target Docker node, for example `/opt/hiveforge` or
 `/mnt/shared_nfs/hiveforge`. HiveForge reports this mapping through runtime
 diagnostics; it does not infer or repair host mount points.
+
+Set `HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE` to a concrete image available on every
+target Docker/Swarm node before requesting active visibility proof. The image
+must provide `sh`; without it, verification returns `unknown`. After an
+environment refresh, MCP `verify_managed_root_access` mounts
+`<bindSourceRoot>/data` read-only in a short-lived probe. On Swarm it creates
+and removes one global probe service across active ready nodes. Ordinary runtime
+diagnostics stay read-only.
 
 ## Docker Access
 
@@ -259,7 +268,7 @@ environment file. Run HiveForge on a manager node or provide an explicit
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.2 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.3 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
 For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or
@@ -285,7 +294,7 @@ When no GitHub Release exists yet, HiveForge reports that no published release
 was found and does not run Docker update commands.
 
 The update target is the concrete release image tag such as
-`ghcr.io/sepa79/hiveforge:v0.5.2`; it does not update to floating `latest`.
+`ghcr.io/sepa79/hiveforge:v0.5.3`; it does not update to floating `latest`.
 
 For Docker Compose installs, HiveForge uses the running container's Compose
 labels and `/hf` mount to start a helper container that runs the same Compose

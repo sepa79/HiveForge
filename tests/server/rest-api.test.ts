@@ -446,6 +446,19 @@ describe("REST API", () => {
     });
   });
 
+  it("runs explicit managed-root verification through the configured service", async () => {
+    const baseUrl = await startServer();
+
+    const response = await fetch(`${baseUrl}/diagnostics/managed-root/verify`, { method: "POST" });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "verified",
+      runtime: "docker-swarm",
+      nodes: [{ hostname: "docker-swarm-mgr-1", status: "verified" }]
+    });
+  });
+
   it("starts async lifecycle operations and exposes operation logs", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -1180,6 +1193,25 @@ async function startServer(
               bindSourceRoot: "/mnt/shared_nfs/hiveforge",
               visibilityStatus: "configured"
             }
+          };
+        }
+      } as never,
+      managedRootVerification: {
+        async verify() {
+          return {
+            status: "verified",
+            checkedAt: "2026-08-06T10:00:00.000Z",
+            runtime: "docker-swarm",
+            bindSourceRoot: "/mnt/shared_nfs/hiveforge",
+            managedDataBindSourceRoot: "/mnt/shared_nfs/hiveforge/data",
+            nodes: [
+              {
+                hostname: "docker-swarm-mgr-1",
+                status: "verified",
+                reason: "Read-only Docker bind mount was accessible."
+              }
+            ],
+            reason: "Managed-root bind-source visibility is verified on every active ready Swarm node."
           };
         }
       } as never,

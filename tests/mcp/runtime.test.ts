@@ -17,6 +17,7 @@ describe("HiveForge MCP runtime", () => {
       "list_environment_nodes",
       "list_deployments",
       "diagnose_hiveforge_runtime",
+      "verify_managed_root_access",
       "check_deployment_runtime_status",
       "diagnose_deployment",
       "get_deployment_compose",
@@ -127,6 +128,21 @@ describe("HiveForge MCP runtime", () => {
         bindSourceRoot: "/mnt/shared_nfs/hiveforge",
         visibilityStatus: "configured"
       }
+    });
+  });
+
+  it("runs managed-root verification through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async verifyManagedRootAccess() {
+        return { status: "verified", nodes: [{ hostname: "docker-swarm-mgr-1" }] };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.verifyManagedRootAccess();
+
+    expect(result.structuredContent).toEqual({
+      status: "verified",
+      nodes: [{ hostname: "docker-swarm-mgr-1" }]
     });
   });
 

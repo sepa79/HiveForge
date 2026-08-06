@@ -28,6 +28,7 @@ import type { ReleaseImageTemplate } from "../release/release-deploy-contract.js
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import type { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
+import type { ManagedRootVerificationReport } from "../runtime/managed-root-verification-service.js";
 import type { SelfUpdateService } from "../runtime/self-update-service.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
@@ -55,6 +56,9 @@ export interface RestApiServices {
   operations?: OperationLogService;
   runtimeEnv?: RuntimeEnvStore;
   runtimeDiagnostics?: RuntimeDiagnosticsService;
+  managedRootVerification?: {
+    verify(): Promise<ManagedRootVerificationReport>;
+  };
   repositoryInspection?: {
     inspect(request: { repository: string; gitRef: string }): Promise<unknown>;
   };
@@ -168,6 +172,16 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           throw new HttpError(501, "Runtime diagnostics are not configured");
         }
         return await services.runtimeDiagnostics.diagnose();
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/diagnostics\/managed-root\/verify$/,
+      async handle() {
+        if (!services.managedRootVerification) {
+          throw new HttpError(501, "Managed-root verification is not configured");
+        }
+        return await services.managedRootVerification.verify();
       }
     },
     {

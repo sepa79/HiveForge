@@ -27,6 +27,7 @@ export interface ProjectProfile {
   requires?: {
     managedRoot?: ManagedRootRequirement;
     capabilities?: ProfileCapabilityName[];
+    placement?: PlacementRequirement;
   };
 }
 
@@ -34,6 +35,10 @@ export interface ManagedRootRequirement {
   required: true;
   shared: boolean;
   node?: string;
+}
+
+export interface PlacementRequirement {
+  nodeLabels: Record<string, string>;
 }
 
 export interface ManagedPathDeclaration {

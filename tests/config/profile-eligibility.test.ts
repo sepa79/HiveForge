@@ -131,6 +131,114 @@ describe("profile eligibility", () => {
       ]
     });
   });
+
+  it("requires all declared placement labels on one active ready Swarm node", () => {
+    const result = evaluateProfileEligibility(
+      {
+        ...environment(),
+        nodes: [
+          {
+            id: "node-manager-1",
+            hostname: "docker-swarm-mgr-1",
+            role: "manager",
+            availability: "active",
+            status: "ready",
+            labels: {
+              "pockethive.redis": "true",
+              "pockethive.postgres": "true"
+            }
+          },
+          {
+            id: "node-worker-1",
+            hostname: "docker-swarm-wrk-1",
+            role: "worker",
+            availability: "active",
+            status: "ready",
+            labels: {
+              "pockethive.redis": "true"
+            }
+          }
+        ]
+      },
+      {
+        id: "swarm-stateful",
+        runtime: "docker-swarm",
+        serviceSet: "full",
+        requires: {
+          placement: {
+            nodeLabels: {
+              "pockethive.redis": "true",
+              "pockethive.postgres": "true"
+            }
+          }
+        }
+      }
+    );
+
+    expect(result).toEqual({ eligible: true, issues: [] });
+  });
+
+  it("reports missing node inventory and labels as explicit placement failures", () => {
+    const profile = {
+      id: "swarm-stateful",
+      runtime: "docker-swarm" as const,
+      serviceSet: "full",
+      requires: {
+        placement: {
+          nodeLabels: {
+            "pockethive.redis": "true"
+          }
+        }
+      }
+    };
+
+    expect(evaluateProfileEligibility(environment(), profile)).toEqual({
+      eligible: false,
+      issues: [
+        {
+          code: "placement-node-inventory-missing",
+          message: "Environment proxmox-swarm has no active ready node inventory for placement validation",
+          requirement: "placement.nodeLabels"
+        }
+      ]
+    });
+
+    expect(
+      evaluateProfileEligibility(
+        {
+          ...environment(),
+          nodes: [
+            {
+              id: "node-worker-1",
+              hostname: "docker-swarm-wrk-1",
+              role: "worker",
+              availability: "active",
+              status: "ready",
+              labels: { "pockethive.redis": "false" }
+            },
+            {
+              id: "node-worker-2",
+              hostname: "docker-swarm-wrk-2",
+              role: "worker",
+              availability: "drain",
+              status: "ready",
+              labels: { "pockethive.redis": "true" }
+            }
+          ]
+        },
+        profile
+      )
+    ).toEqual({
+      eligible: false,
+      issues: [
+        {
+          code: "placement-node-labels-missing",
+          message: "Environment proxmox-swarm has no active ready node with required placement labels: pockethive.redis=true",
+          requirement: "placement.nodeLabels"
+        }
+      ]
+    });
+  });
 });
 
 function environment() {

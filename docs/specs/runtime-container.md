@@ -45,6 +45,7 @@ initializes missing runtime files and directories under the runtime root:
     operations.jsonl
   data/
     runtime-env.json
+    managed-root-verification.json
 ```
 
 The generated `projects.yaml` contains:
@@ -102,6 +103,10 @@ Explicit runtime path mode remains supported for advanced installs:
 - `HIVEFORGE_ACTION_RUNNER_IMAGE` to override the helper image used for
   isolated Ansible action execution. Normal Docker/Swarm installs set this to
   the same concrete HiveForge image as the control-plane service.
+- `HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE` to select the explicit image used by the
+  short-lived managed-root visibility probe. The image must provide `sh`; a
+  missing value leaves active visibility verification `unknown` rather than
+  selecting an image implicitly.
 
 Explicit path mode is for maintainers and unusual packaging only. Normal Docker
 and Swarm installs should use the fixed `/hf` container root and configure the
@@ -145,7 +150,7 @@ an update failure.
 
 `POST /hiveforge/update` starts a self-update only when a newer release exists.
 The target image is the concrete release tag, for example
-`ghcr.io/sepa79/hiveforge:v0.5.2`; HiveForge does not update itself to a
+`ghcr.io/sepa79/hiveforge:v0.5.3`; HiveForge does not update itself to a
 floating `latest` tag. If no release is published yet, the response status is
 `no_release` and no Docker command is run.
 
@@ -193,6 +198,29 @@ substituting the container path.
 Managed artifact targets are always relative to that project directory.
 HiveForge does not create or repair host mount points outside its configured
 data root.
+
+## Managed-Root Verification
+
+`POST /diagnostics/managed-root/verify` and MCP
+`verify_managed_root_access` are explicit operational diagnostics. They do not
+run during normal `diagnose_hiveforge_runtime` requests. On Docker, the check
+starts one `--rm` container with a read-only bind mount of
+`<bindSourceRoot>/data`. On Swarm, it starts a temporary global service with
+the same read-only bind mount, waits for one terminal task per active ready node
+from the current inventory, and removes that service.
+
+The probe never writes a sentinel, creates a host path, alters node labels, or
+changes deployment services. `verified` is returned only after every checked
+task completes successfully. Errors, timeouts, unscheduled tasks, a missing
+probe image, or cleanup failures remain explicit `failed`, `inconclusive`, or
+`unknown` evidence.
+
+HiveForge stores the latest non-secret probe report atomically at
+`data/managed-root-verification.json`. Subsequent runtime diagnostics use that
+evidence only when its configured bind-source root, runtime kind, and checked
+node scope still match (the current Docker host or all active ready Swarm
+nodes). A malformed or unreadable evidence file is a diagnostics error, not a
+reason to fall back to an assumed successful probe.
 
 ## Future Per-Node Agent
 

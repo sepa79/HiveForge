@@ -135,6 +135,17 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "verify_managed_root_access",
+    {
+      title: "Verify managed-root access",
+      description:
+        "Run an explicit short-lived Docker or Swarm bind-mount probe for the configured HiveForge managed root.",
+      inputSchema: {}
+    },
+    runtime.verifyManagedRootAccess
+  );
+
+  server.registerTool(
     "check_deployment_runtime_status",
     {
       title: "Check deployment runtime status",

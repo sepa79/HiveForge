@@ -176,6 +176,53 @@ describe("manifest schema", () => {
     await expect(validateContract(schemaPaths.manifest, rootManifest)).rejects.toBeInstanceOf(ContractValidationError);
   });
 
+  it("accepts explicit Swarm placement label requirements and rejects an empty label map", async () => {
+    const rootManifest = {
+      kind: "project",
+      version: "0.5",
+      project: {
+        name: "hivewatch",
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        actions: ["deploy"],
+        profiles: [
+          {
+            id: "swarm-stateful",
+            runtime: "docker-swarm",
+            serviceSet: "full",
+            requires: {
+              placement: {
+                nodeLabels: {
+                  "pockethive.redis": "true"
+                }
+              }
+            }
+          }
+        ]
+      },
+      components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }]
+    };
+
+    await expect(validateContract(schemaPaths.manifest, rootManifest)).resolves.toBeUndefined();
+    await expect(
+      validateContract(schemaPaths.manifest, {
+        ...rootManifest,
+        project: {
+          ...rootManifest.project,
+          profiles: [
+            {
+              ...rootManifest.project.profiles[0],
+              requires: {
+                placement: {
+                  nodeLabels: {}
+                }
+              }
+            }
+          ]
+        }
+      })
+    ).rejects.toBeInstanceOf(ContractValidationError);
+  });
+
   it("builds a registry only from listed component manifests and declared action files", async () => {
     const workspace = await mkdtemp(path.join(os.tmpdir(), "hiveforge-"));
     await mkdir(path.join(workspace, "components/api/ansible"), { recursive: true });

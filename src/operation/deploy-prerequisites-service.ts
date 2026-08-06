@@ -238,7 +238,15 @@ export class DeployPrerequisitesService {
       return;
     }
     for (const issue of result.issues) {
-      hiveforgePrerequisites.push(missing("profile_eligibility", issue.requirement, issue.message));
+      hiveforgePrerequisites.push(
+        missing(
+          issue.code === "placement-node-inventory-missing" || issue.code === "placement-node-labels-missing"
+            ? "swarm_node_labels"
+            : "profile_eligibility",
+          issue.requirement,
+          issue.message
+        )
+      );
     }
   }
 

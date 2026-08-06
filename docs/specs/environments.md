@@ -97,6 +97,11 @@ and labels, and preserves operator-owned `capabilities.managedRoot`,
 reports a different environment id, the refresh fails explicitly instead of
 switching environments silently.
 
+Profiles with `requires.placement.nodeLabels` use this inventory as their proof
+surface. All required labels must be present on one node with
+`availability: active` and `status: ready`. A node with stale labels, a paused
+or drained node, or a non-ready node does not satisfy that requirement.
+
 Environment config may also declare deployment var overrides:
 
 ```yaml

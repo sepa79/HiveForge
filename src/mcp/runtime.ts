@@ -11,6 +11,7 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     listEnvironmentNodes: () => call(() => listEnvironmentNodes(apiClient)),
     listDeployments: () => call(() => apiClient.listDeployments()),
     diagnoseHiveForgeRuntime: () => call(() => apiClient.diagnoseHiveForgeRuntime()),
+    verifyManagedRootAccess: () => call(() => apiClient.verifyManagedRootAccess()),
     getDeploymentCompose: (input: { operationId: string }) => call(() => apiClient.getDeploymentCompose(input)),
     checkDeploymentRuntimeStatus: (input: {
       deploymentId?: string;

@@ -31,18 +31,22 @@ deployment assets needed by its managed components.
 
 ## Main modules
 
-Planned modules:
+The following modules are implemented. Their owning contracts are the current
+source of truth; roadmap items remain explicitly marked as future work.
 
-| Module | Purpose | Notes |
+| Module | Current responsibility | Owning contract |
 |---|---|---|
-| API | REST control surface. | Contract to be defined. |
-| MCP server | AI-facing tool surface. | Reuses application services. |
-| UI | Human-facing project/component/action workflow. | Minimal for POC. |
-| Workspace manager | Git checkout and workspace cache. | Project registry required. |
-| Manifest loader | Load root and component manifests. | Uses schema once defined. |
-| Validator | Check requirements before actions. | Explicit failure only. |
-| Action runner | Run declared adapter actions. | Initial adapter: Ansible. |
-| Journal | Append-only operation history. | No secret values. |
+| REST API | Authenticated control-plane transport for project, environment, deployment, diagnostics, and update operations. | `docs/specs/api/openapi.yaml` |
+| MCP server | Local stdio AI-facing tools backed by the REST API. | `docs/specs/mcp/tools.md` |
+| Operator UI | Project, component, action, deployment, artifact, and runtime inspection workflow. | `docs/specs/ui/operator-console.md` |
+| Registry, workspace, and manifest loading | Explicit Git repository registration, checkout, and root/component manifest inspection. | `docs/specs/config/project-registry.schema.json`, `docs/specs/manifest.schema.json` |
+| Environment and validation | Environment policy, runtime requirements, profile eligibility, and deploy prerequisites. | `docs/specs/environments.md`, `docs/specs/capabilities.md` |
+| Action and Docker execution | Declared lifecycle actions plus HiveForge-owned Docker deploy/remove/purge paths. | `docs/specs/actions/lifecycle.md`, `docs/specs/orchestration/deploy-flow.md` |
+| Runtime evidence | Journal, deployment state, runtime diagnostics, and managed-root verification evidence. | `docs/specs/journal/jsonl.md`, `docs/specs/runtime-container.md` |
+
+Remaining delivery work, including access/trust roles, restricted runner
+hardening, and deeper diagnostics/UI coverage, is tracked in
+`docs/ai/HIVEFORGE_0_5_PLAN.md`.
 
 ## Runtime model
 

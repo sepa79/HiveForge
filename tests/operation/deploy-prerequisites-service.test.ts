@@ -140,6 +140,93 @@ describe("deploy prerequisites service", () => {
       ]
     });
   });
+
+  it("makes a missing concrete Swarm label an explicit blocking prerequisite", async () => {
+    const service = new DeployPrerequisitesService(
+      {
+        projects: [
+          {
+            id: "hivewatch",
+            name: "HiveWatch",
+            source: "github",
+            repository: "https://github.com/sepa79/HiveWatch.git",
+            approvedRefs: ["main"]
+          }
+        ]
+      },
+      inspection({
+        ...registry(),
+        project: {
+          ...registry().project,
+          profiles: [
+            {
+              id: "swarm-stateful",
+              runtime: "docker-swarm",
+              serviceSet: "full",
+              requires: {
+                placement: {
+                  nodeLabels: {
+                    "pockethive.redis": "true"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }),
+      validator([]),
+      runtimeEnv({}),
+      {
+        id: "swarm",
+        name: "Docker Swarm",
+        kind: "swarm",
+        capabilities: {
+          runtime: ["docker-swarm"],
+          managedRoot: { shared: true },
+          placement: true
+        },
+        nodes: [
+          {
+            id: "node-worker-1",
+            hostname: "docker-swarm-wrk-1",
+            role: "worker",
+            availability: "active",
+            status: "ready",
+            labels: { "pockethive.redis": "false" }
+          }
+        ],
+        policy: {
+          projects: [
+            {
+              id: "hivewatch",
+              profiles: ["swarm-stateful"],
+              actions: ["deploy"]
+            }
+          ]
+        }
+      }
+    );
+
+    await expect(
+      service.explain({
+        projectId: "hivewatch",
+        gitRef: "main",
+        component: "api",
+        action: "deploy",
+        profile: "swarm-stateful"
+      })
+    ).resolves.toMatchObject({
+      ready: false,
+      hiveforgePrerequisites: expect.arrayContaining([
+        {
+          type: "swarm_node_labels",
+          required: "placement.nodeLabels",
+          status: "missing",
+          reason: "Environment swarm has no active ready node with required placement labels: pockethive.redis=true"
+        }
+      ])
+    });
+  });
 });
 
 function inspection(projectRegistry: ProjectRegistry): ProjectInspectionService {

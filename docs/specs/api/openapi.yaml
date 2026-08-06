@@ -377,6 +377,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuntimeDiagnosticsReport"
+  /diagnostics/managed-root/verify:
+    post:
+      summary: Verify managed-root Docker bind-source access
+      description: >
+        Runs an explicit short-lived read-only Docker bind-mount probe. On
+        Swarm, one global probe task is scheduled for every active ready node
+        in the current stored node inventory, then removed. This is not a
+        read-only diagnostics request.
+      operationId: verifyManagedRootAccess
+      responses:
+        "200":
+          description: Managed-root probe result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedRootVerificationReport"
   /operations:
     get:
       summary: List operations retained by this HiveForge process
@@ -1145,9 +1161,11 @@ components:
                 type: string
             visibilityStatus:
               type: string
-              enum: [configured, unknown]
+              enum: [configured, verified, failed, inconclusive, unknown]
             reason:
               type: string
+            verification:
+              $ref: "#/components/schemas/ManagedRootVerificationReport"
         actionContractPaths:
           type: object
           additionalProperties: false
@@ -1161,6 +1179,44 @@ components:
               type: array
               items:
                 type: string
+    ManagedRootVerificationNode:
+      type: object
+      additionalProperties: false
+      required: [hostname, status, reason]
+      properties:
+        hostname:
+          type: string
+        status:
+          type: string
+          enum: [verified, failed, inconclusive]
+        reason:
+          type: string
+    ManagedRootVerificationReport:
+      type: object
+      additionalProperties: false
+      required: [status, checkedAt, runtime, nodes, reason]
+      properties:
+        status:
+          type: string
+          enum: [verified, failed, inconclusive, unknown]
+        checkedAt:
+          type: string
+          format: date-time
+        runtime:
+          type: string
+          enum: [docker-single, docker-swarm]
+        bindSourceRoot:
+          type: string
+        managedDataBindSourceRoot:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ManagedRootVerificationNode"
+        reason:
+          type: string
+        cleanupError:
+          type: string
     DeploymentRuntimeStatusRequest:
       type: object
       additionalProperties: false

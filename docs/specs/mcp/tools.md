@@ -180,12 +180,31 @@ Output: read-only diagnostics for the connected HiveForge service:
 - current environment id/name/kind,
 - managed-root mapping from control-plane path to node-visible path when
   configured,
-- `configured` vs `unknown` visibility status for runtime-node bind-source
-  access,
+- `configured`, `verified`, `failed`, `inconclusive`, or `unknown` visibility
+  status for runtime-node bind-source access,
 - action contract path names exposed to project actions.
 
-This does not verify every Swarm node can access `managedRoot.bindSourceRoot`; active
-per-node probing is a separate runtime diagnostics slice.
+This is read-only. A configured mapping is not proof of cross-node visibility;
+use `verify_managed_root_access` for the explicit active probe.
+
+### `verify_managed_root_access`
+
+Input: none.
+
+Output: a timestamped managed-root verification result with the configured bind
+source and one result per checked node.
+
+Behavior: this is an explicit mutating diagnostic operation. On a single Docker
+host, HiveForge runs one short-lived read-only bind-mount container. On Swarm,
+it creates a temporary global service using
+`HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE`, observes one task on every stored node
+with `availability: active` and `status: ready`, then removes the service.
+
+The result is `verified` only when every checked node completed the read-only
+mount check. A rejected or failed task produces `failed`. An unavailable probe
+image, Docker/Swarm error, unscheduled task, timeout, cleanup error, missing
+node inventory, or absent probe configuration is visible as `inconclusive` or
+`unknown`; HiveForge does not call such a result verified.
 
 ### `check_deployment_runtime_status`
 

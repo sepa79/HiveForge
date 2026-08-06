@@ -124,6 +124,29 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("runs explicit managed-root verification through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { status: "verified" });
+      }
+    });
+
+    await expect(client.verifyManagedRootAccess()).resolves.toEqual({ status: "verified" });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/diagnostics/managed-root/verify",
+      init: {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
   it("reads deployment compose through REST transport", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({
