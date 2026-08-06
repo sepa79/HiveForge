@@ -22,6 +22,17 @@ export interface ProfileEligibilityResult {
   issues: ProfileEligibilityIssue[];
 }
 
+export interface PlacementNodeLabelEvidence {
+  status: "present" | "missing" | "unknown";
+  requiredLabels: Record<string, string>;
+  nodes: Array<{
+    hostname: string;
+    labels: Record<string, string>;
+    satisfies: boolean;
+  }>;
+  reason: string;
+}
+
 export class ProfileEligibilityError extends Error {
   constructor(
     public readonly environmentId: string,
@@ -81,37 +92,83 @@ function evaluatePlacementRequirement(
   environment: EnvironmentDefinition,
   profile: ProjectProfile
 ): ProfileEligibilityIssue[] {
-  const nodeLabels = profile.requires?.placement?.nodeLabels;
-  if (!nodeLabels) {
+  const evidence = placementNodeLabelEvidence(environment, profile);
+  if (!evidence || evidence.status === "present") {
     return [];
+  }
+  if (evidence.status === "unknown") {
+    return [
+      {
+        code: "placement-node-inventory-missing",
+        message: evidence.reason,
+        requirement: "placement.nodeLabels"
+      }
+    ];
+  }
+  return [
+    {
+      code: "placement-node-labels-missing",
+      message: evidence.reason,
+      requirement: "placement.nodeLabels"
+    }
+  ];
+}
+
+export function placementNodeLabelEvidence(
+  environment: EnvironmentDefinition | undefined,
+  profile: ProjectProfile
+): PlacementNodeLabelEvidence | undefined {
+  const requiredLabels = profile.requires?.placement?.nodeLabels;
+  if (!requiredLabels) {
+    return undefined;
+  }
+  if (!environment) {
+    return {
+      status: "unknown",
+      requiredLabels: { ...requiredLabels },
+      nodes: [],
+      reason: "Current environment is not configured, so required placement labels cannot be checked."
+    };
   }
 
   const activeNodes = environment.nodes?.filter(
     (node) => node.availability === "active" && node.status.toLowerCase() === "ready"
   );
   if (!activeNodes?.length) {
-    return [
-      {
-        code: "placement-node-inventory-missing",
-        message: `Environment ${environment.id} has no active ready node inventory for placement validation`,
-        requirement: "placement.nodeLabels"
-      }
-    ];
+    return {
+      status: "unknown",
+      requiredLabels: { ...requiredLabels },
+      nodes: [],
+      reason: `Environment ${environment.id} has no active ready node inventory for placement validation`
+    };
   }
 
-  const requiredLabels = Object.entries(nodeLabels);
-  const matchingNode = activeNodes.find((node) => requiredLabels.every(([key, value]) => node.labels[key] === value));
-  if (matchingNode) {
-    return [];
+  const nodes = activeNodes.map((node) => {
+    const labels = Object.fromEntries(
+      Object.keys(requiredLabels)
+        .filter((key) => node.labels[key] !== undefined)
+        .map((key) => [key, node.labels[key]!])
+    );
+    return {
+      hostname: node.hostname,
+      labels,
+      satisfies: Object.entries(requiredLabels).every(([key, value]) => node.labels[key] === value)
+    };
+  });
+  if (nodes.some((node) => node.satisfies)) {
+    return {
+      status: "present",
+      requiredLabels: { ...requiredLabels },
+      nodes,
+      reason: `Environment ${environment.id} has an active ready node with required placement labels: ${formatNodeLabels(requiredLabels)}`
+    };
   }
-
-  return [
-    {
-      code: "placement-node-labels-missing",
-      message: `Environment ${environment.id} has no active ready node with required placement labels: ${formatNodeLabels(requiredLabels)}`,
-      requirement: "placement.nodeLabels"
-    }
-  ];
+  return {
+    status: "missing",
+    requiredLabels: { ...requiredLabels },
+    nodes,
+    reason: `Environment ${environment.id} has no active ready node with required placement labels: ${formatNodeLabels(requiredLabels)}`
+  };
 }
 
 export function assertProfileEligible(environment: EnvironmentDefinition, profile: ProjectProfile): void {
@@ -208,8 +265,10 @@ function hasNamedCapability(environment: EnvironmentDefinition, capability: Prof
   throw new Error(`Unsupported profile capability: ${exhaustive}`);
 }
 
-function formatNodeLabels(labels: Array<[string, string]>): string {
-  return labels.map(([key, value]) => `${key}=${value}`).join(", ");
+function formatNodeLabels(labels: Record<string, string>): string {
+  return Object.entries(labels)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(", ");
 }
 
 function formatProfileEligibilityFailure(

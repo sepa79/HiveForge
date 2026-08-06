@@ -341,6 +341,10 @@ const state = {
   selectedProfile: "",
   selectedRef: "",
   selectedAction: "deploy",
+  deployPrerequisites: null,
+  deployPrerequisitesLoading: false,
+  deployPrerequisitesError: null,
+  deployPrerequisitesRequestId: 0,
   view: initialViewFromPath(),
   busy: false,
   environmentRefreshing: false,
@@ -533,6 +537,17 @@ function selectedProjectRefs() {
   return currentProject()?.approvedRefs || [];
 }
 
+function selectedPrerequisitesKey() {
+  return [state.selectedProject, state.selectedRef, state.selectedComponent, state.selectedAction, state.selectedProfile].join("\u0000");
+}
+
+function resetDeployPrerequisites() {
+  state.deployPrerequisites = null;
+  state.deployPrerequisitesLoading = false;
+  state.deployPrerequisitesError = null;
+  state.deployPrerequisitesRequestId += 1;
+}
+
 async function inspectSelectedProject() {
   if (!state.selectedProject || !state.selectedRef) return;
   state.error = null;
@@ -552,6 +567,7 @@ async function inspectSelectedProject() {
     state.selectedComponent = result.components[0]?.name || state.selectedComponent;
     const actions = availableActionsForSelectedComponent();
     state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || state.selectedAction;
+    resetDeployPrerequisites();
     state.message = \`Inspection loaded \${result.components.length} component(s).\`;
     await refreshAll({ render: false });
     state.operation = await api(\`/operations/\${encodeURIComponent(result.operationId)}\`);
@@ -671,6 +687,48 @@ async function pollOperation(operationId) {
   render();
 }
 
+async function loadDeployPrerequisites() {
+  if (!state.token) {
+    state.deployPrerequisitesError = "API token is required to check deploy prerequisites.";
+    render();
+    return;
+  }
+  if (!state.selectedProject || !state.selectedRef || !state.selectedComponent || !state.selectedAction) {
+    state.deployPrerequisitesError = "Select a project, ref, component, and action before checking prerequisites.";
+    render();
+    return;
+  }
+  const requestId = state.deployPrerequisitesRequestId + 1;
+  const targetKey = selectedPrerequisitesKey();
+  state.deployPrerequisitesRequestId = requestId;
+  state.deployPrerequisitesLoading = true;
+  state.deployPrerequisitesError = null;
+  state.deployPrerequisites = null;
+  render();
+  try {
+    const body = {
+      gitRef: state.selectedRef,
+      component: state.selectedComponent,
+      action: state.selectedAction,
+      ...(state.selectedProfile ? { profile: state.selectedProfile } : {})
+    };
+    const route = "/projects/" + encodeURIComponent(state.selectedProject) + "/deploy-prerequisites";
+    const report = await api(route, { method: "POST", body: JSON.stringify(body) });
+    if (requestId === state.deployPrerequisitesRequestId && targetKey === selectedPrerequisitesKey()) {
+      state.deployPrerequisites = report;
+    }
+  } catch (error) {
+    if (requestId === state.deployPrerequisitesRequestId) {
+      state.deployPrerequisitesError = error instanceof Error ? error.message : "Deploy prerequisite check failed";
+    }
+  } finally {
+    if (requestId === state.deployPrerequisitesRequestId) {
+      state.deployPrerequisitesLoading = false;
+      render();
+    }
+  }
+}
+
 function setToken(value) {
   state.token = value.trim();
   if (state.token) localStorage.setItem(TOKEN_KEY, state.token);
@@ -760,8 +818,12 @@ function renderDeploymentDetail(deployment) {
     \${renderRuntimeEvidence(runtime)}
     <h2 class="h2" style="margin:14px 0 8px;">Diagnostics</h2>
     \${renderDeploymentAnalysis(diagnostics)}
+    <h2 class="h2" style="margin:14px 0 8px;">Expected from recorded compose</h2>
+    \${renderDeploymentExpected(diagnostics)}
     <h2 class="h2" style="margin:14px 0 8px;">Recorded compose</h2>
     \${renderDeploymentCompose(diagnostics)}
+    <h2 class="h2" style="margin:14px 0 8px;">HiveForge runtime</h2>
+    \${renderHiveForgeRuntime(diagnostics)}
     \${renderDeploymentDebug(deployment, diagnostics)}
   </div>\`;
 }
@@ -800,7 +862,43 @@ function renderDeploymentAnalysis(diagnostics) {
   if (!findings.length) {
     return \`<div class="notice" data-kind="ok">\${escapeHtml(diagnostics.analysis?.summary || "ok")}</div>\`;
   }
-  return \`<div class="runtimeEvidence">\${findings.map((finding) => \`<div class="runtimeItem"><strong>\${escapeHtml(humanLabel(finding.type))}</strong> \${pill(finding.severity, finding.severity === "error" ? "alert" : finding.severity === "warning" ? "warn" : "")}<div class="muted">\${escapeHtml(finding.message)}</div></div>\`).join("")}</div>\`;
+  return \`<div class="runtimeEvidence">\${findings.map(renderDeploymentFinding).join("")}</div>\`;
+}
+
+function renderDeploymentFinding(finding) {
+  const context = [
+    finding.service ? ["service", finding.service] : undefined,
+    finding.runtimeResource ? ["runtime resource", finding.runtimeResource] : undefined,
+    finding.node ? ["node", finding.node] : undefined,
+    finding.source ? ["source", finding.source] : undefined,
+    finding.target ? ["target", finding.target] : undefined
+  ].filter(Boolean);
+  const evidence = Array.isArray(finding.evidence) ? finding.evidence : [];
+  return \`<div class="runtimeItem"><strong>\${escapeHtml(humanLabel(finding.type))}</strong> \${pill(finding.severity, finding.severity === "error" ? "alert" : finding.severity === "warning" ? "warn" : "")}<div class="muted">\${escapeHtml(finding.message)}</div>\${context.length ? \`<div class="detailGrid">\${context.map(([label, value]) => detailCell(label, value)).join("")}</div>\` : ""}\${evidence.length ? \`<div class="muted mono runtimeImage">\${evidence.map(escapeHtml).join("<br>")}</div>\` : ""}</div>\`;
+}
+
+function renderDeploymentExpected(diagnostics) {
+  if (!diagnostics) {
+    return \`<div class="notice muted">Expected resources load with deployment diagnostics.</div>\`;
+  }
+  const services = diagnostics.analysis?.expected?.services || [];
+  if (!services.length) {
+    return \`<div class="notice muted">\${escapeHtml(diagnostics.composeValidation?.reason || "No readable recorded Compose/Stack artifact is available to derive expected services.")}</div>\`;
+  }
+  return \`<div class="runtimeEvidence">\${services.map((service) => {
+    const mounts = (service.bindMounts || []).map((mount) => \`\${mount.source}\${mount.target ? \` → \${mount.target}\` : ""}\`).join(" · ");
+    const constraints = (service.placementConstraints || []).join(" · ");
+    return \`<div class="runtimeItem"><div class="runtimeNameLine"><strong class="runtimeName">\${escapeHtml(service.service)}</strong></div><div class="muted mono runtimeImage">\${escapeHtml(service.image || "")}</div>\${mounts ? \`<div class="muted">bind mounts: \${escapeHtml(mounts)}</div>\` : ""}\${constraints ? \`<div class="muted">placement: \${escapeHtml(constraints)}</div>\` : ""}</div>\`;
+  }).join("")}</div>\`;
+}
+
+function renderHiveForgeRuntime(diagnostics) {
+  const managedRoot = diagnostics?.hiveforge?.managedRoot;
+  if (!managedRoot) {
+    return \`<div class="notice muted">HiveForge runtime diagnostics are not available in this report.</div>\`;
+  }
+  const kind = managedRoot.visibilityStatus === "verified" ? "ok" : managedRoot.visibilityStatus === "failed" ? "alert" : "warn";
+  return \`<div class="runtimeEvidence"><div class="runtimeItem"><strong>Managed root</strong> \${pill(managedRoot.visibilityStatus, kind)}<div class="muted">\${escapeHtml(managedRoot.reason || "")}</div><div class="detailGrid">\${detailCell("control-plane path", managedRoot.controlPlanePath || "")}\${managedRoot.bindSourceRoot ? detailCell("bind-source root", managedRoot.bindSourceRoot) : ""}</div></div></div>\`;
 }
 
 function renderDeploymentCompose(diagnostics) {
@@ -1162,12 +1260,61 @@ function renderActionForm() {
           \${actions.map((action) => \`<option value="\${escapeHtml(action)}" \${action === state.selectedAction ? "selected" : ""}>\${escapeHtml(action)}</option>\`).join("")}
         </select></label>
         <button class="button" id="inspectButton" type="button" \${state.selectedRef ? "" : "disabled"}>Inspect</button>
+        <button class="button" id="checkPrerequisitesButton" type="button" \${state.deployPrerequisitesLoading || !state.selectedComponent ? "disabled" : ""}>\${state.deployPrerequisitesLoading ? "Checking..." : "Check prerequisites"}</button>
         <button class="button" id="runButton" type="button" \${state.busy || !state.selectedComponent ? "disabled" : ""}>\${state.busy ? "Running..." : "Run"}</button>
       </div>
     </div>
   </div>
+  <section class="card"><div class="cardHeader"><h2 class="h2">Deploy prerequisites</h2><span class="muted2">explicit backend check</span></div><div class="cardBody">\${renderDeployPrerequisites()}</div></section>
   <section class="card"><div class="cardHeader"><h2 class="h2">Operation status</h2><span class="muted2">current run</span></div><div class="cardBody">\${renderOperationStatus()}</div></section>
   </div>\`;
+}
+
+function renderDeployPrerequisites() {
+  if (state.deployPrerequisitesLoading) {
+    return '<div class="notice muted">Checking project, policy, profile, runtime environment, and manual prerequisites...</div>';
+  }
+  if (state.deployPrerequisitesError) {
+    return '<div class="notice" data-kind="error">' + escapeHtml(state.deployPrerequisitesError) + '</div>';
+  }
+  const report = state.deployPrerequisites;
+  if (!report) {
+    return '<div class="notice muted">Inspect the selected project, then use Check prerequisites before running an action. The action endpoint validates again when it starts.</div>';
+  }
+  const kind = report.ready ? 'ok' : 'alert';
+  return '<div class="notice" data-kind="' + kind + '"><strong>' + (report.ready ? 'Ready' : 'Not ready') + '</strong><div class="muted">This report is read-only evidence for the selected project, ref, component, action, and profile.</div></div>' +
+    renderPrerequisiteGroup('HiveForge prerequisites', report.hiveforgePrerequisites || []) +
+    renderPrerequisiteGroup('Manual prerequisites', report.manualPrerequisites || []) +
+    renderPrerequisiteGroup('Release prerequisites', report.releasePrerequisites || []);
+}
+
+function renderPrerequisiteGroup(title, items) {
+  if (!items.length) {
+    return '<div class="field" style="margin-top:12px;"><span class="fieldLabel">' + escapeHtml(title) + '</span><div class="muted">None.</div></div>';
+  }
+  return '<div class="field" style="margin-top:12px;"><span class="fieldLabel">' + escapeHtml(title) + '</span><div class="runtimeEvidence">' + items.map(renderPrerequisiteItem).join('') + '</div></div>';
+}
+
+function renderPrerequisiteItem(item) {
+  const kind = item.status === 'present' ? 'ok' : item.status === 'missing' ? 'alert' : item.status === 'unknown' ? 'warn' : '';
+  const required = item.required ? '<div class="muted mono runtimeImage">required: ' + escapeHtml(item.required) + '</div>' : '';
+  return '<div class="runtimeItem"><strong>' + escapeHtml(humanLabel(item.type)) + '</strong> ' + pill(item.status, kind) + required + '<div class="muted">' + escapeHtml(item.reason) + '</div>' + (item.nodeLabels ? renderPlacementNodeLabels(item.nodeLabels) : '') + '</div>';
+}
+
+function renderPlacementNodeLabels(evidence) {
+  const requiredLabels = evidence.requiredLabels || {};
+  const required = Object.entries(requiredLabels).map(([key, value]) => key + '=' + value).join(' · ');
+  const nodes = evidence.nodes || [];
+  const rows = nodes.length
+    ? '<div class="statusSteps">' + nodes.map((node) => {
+        const actual = Object.entries(requiredLabels).map(([key, expected]) => {
+          const value = node.labels?.[key] ?? 'missing';
+          return key + '=' + value + (value === expected ? '' : ' (requires ' + expected + ')');
+        }).join(' · ');
+        return '<div class="statusStep" data-state="' + (node.satisfies ? 'done' : 'failed') + '"><span class="statusDot"></span><span><strong>' + escapeHtml(node.hostname) + '</strong> <span class="muted">' + escapeHtml(actual) + '</span></span></div>';
+      }).join('') + '</div>'
+    : '<div class="muted">No active ready node inventory is available.</div>';
+  return '<div class="field" style="margin-top:10px;"><span class="fieldLabel">Placement labels</span><div class="detailGrid">' + detailCell('required', required) + '</div>' + rows + '</div>';
 }
 
 function pageTitle() {
@@ -1284,23 +1431,35 @@ function render(options = {}) {
     state.selectedComponent = "";
     const actions = availableActionsForSelectedComponent(policy);
     state.selectedAction = actions[0] || "deploy";
+    resetDeployPrerequisites();
     render();
   });
   document.getElementById("refSelect")?.addEventListener("change", (event) => {
     state.selectedRef = event.target.value;
     state.inspectedComponents = [];
     state.selectedComponent = "";
+    resetDeployPrerequisites();
     render();
   });
   document.getElementById("componentSelect")?.addEventListener("change", (event) => {
     state.selectedComponent = event.target.value;
     const actions = availableActionsForSelectedComponent();
     state.selectedAction = actions.includes(state.selectedAction) ? state.selectedAction : actions[0] || state.selectedAction;
+    resetDeployPrerequisites();
     render();
   });
-  document.getElementById("profileSelect")?.addEventListener("change", (event) => { state.selectedProfile = event.target.value; });
-  document.getElementById("actionSelect")?.addEventListener("change", (event) => { state.selectedAction = event.target.value; });
+  document.getElementById("profileSelect")?.addEventListener("change", (event) => {
+    state.selectedProfile = event.target.value;
+    resetDeployPrerequisites();
+    render();
+  });
+  document.getElementById("actionSelect")?.addEventListener("change", (event) => {
+    state.selectedAction = event.target.value;
+    resetDeployPrerequisites();
+    render();
+  });
   document.getElementById("inspectButton")?.addEventListener("click", inspectSelectedProject);
+  document.getElementById("checkPrerequisitesButton")?.addEventListener("click", loadDeployPrerequisites);
   document.getElementById("runButton")?.addEventListener("click", runLifecycleAction);
   document.querySelectorAll("[data-activity-id]").forEach((element) => {
     element.addEventListener("click", (event) => {

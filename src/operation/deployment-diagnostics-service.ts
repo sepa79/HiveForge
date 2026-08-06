@@ -115,7 +115,7 @@ export class DeploymentDiagnosticsService {
   async diagnose(request: DeploymentDiagnosticsRequest): Promise<DeploymentDiagnosticsResult> {
     const [deployment, runtime, hiveforge] = await Promise.all([
       this.resolveDeployment(request),
-      this.runtimeStatus.check(request),
+      this.readRuntimeStatus(request),
       this.runtimeDiagnostics.diagnose()
     ]);
 
@@ -165,6 +165,28 @@ export class DeploymentDiagnosticsService {
       component: request.component,
       profile: request.profile
     });
+  }
+
+  private async readRuntimeStatus(request: DeploymentDiagnosticsRequest): Promise<DeploymentRuntimeStatusResult> {
+    try {
+      return await this.runtimeStatus.check(request);
+    } catch (error) {
+      return {
+        ...(request.deploymentId ? { deploymentId: request.deploymentId } : {}),
+        ...(request.projectId ? { projectId: request.projectId } : {}),
+        ...(request.component ? { component: request.component } : {}),
+        ...(request.profile ? { profile: request.profile } : {}),
+        summary: "unknown",
+        requiredLabels: request.deploymentId
+          ? {
+              [HIVEFORGE_DOCKER_LABELS.deployment]: request.deploymentId
+            }
+          : {},
+        containers: [],
+        services: [],
+        reason: `Docker runtime diagnostics are unavailable: ${redactedErrorMessage(error)}`
+      };
+    }
   }
 
   private async validateComposeArtifact(
@@ -404,11 +426,13 @@ function analyzeDiagnostics(
     }
   }
 
-  if (runtime.summary === "unknown" && findings.length === 0) {
+  if (runtime.summary === "unknown") {
     findings.push({
       severity: "warning",
       type: "unknown_ownership",
-      message: "Docker runtime status is unknown for labelled resources."
+      message: runtime.reason
+        ? `Docker runtime status is unknown for labelled resources: ${runtime.reason}`
+        : "Docker runtime status is unknown for labelled resources."
     });
   }
 
@@ -465,6 +489,9 @@ function analysisSummary(
 ): DeploymentDiagnosticsAnalysis["summary"] {
   if (findings.some((finding) => finding.type === "missing_state") || runtimeSummary === "missing") {
     return "missing";
+  }
+  if (runtimeSummary === "unknown") {
+    return "unknown";
   }
   if (findings.some((finding) => finding.severity === "error" || finding.severity === "warning")) {
     return "degraded";
@@ -595,4 +622,8 @@ function bindMountMessage(
   ]
     .filter((part): part is string => Boolean(part))
     .join(" ");
+}
+
+function redactedErrorMessage(error: unknown): string {
+  return redactSensitiveText(error instanceof Error ? error.message : String(error));
 }

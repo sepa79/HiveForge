@@ -166,7 +166,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     {
       title: "Diagnose deployment",
       description:
-        "Return one debug view with HiveForge deployment state, Docker runtime status, recorded compose, compose bind-source validation, and HiveForge path diagnostics.",
+        "Return one read-only debug view with HiveForge deployment state, Docker runtime status, recorded compose, bind-source validation, and HiveForge path diagnostics. If Docker cannot be queried, it returns explicit unknown diagnostics with a redacted reason.",
       inputSchema: {
         deploymentId: z.string().min(1)
       }

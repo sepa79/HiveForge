@@ -281,7 +281,9 @@ The `analysis.findings` list reports actionable issues such as:
 
 Behavior: read-only. This tool does not re-render Compose, does not infer
 ownership from Docker object names, does not run project actions, and does not
-fetch full container logs.
+fetch full container logs. If Docker/Swarm cannot be queried, the result keeps
+the report shape and returns `analysis.summary: unknown` with a redacted reason;
+it does not infer an alternative runtime view.
 
 ### `get_deployment_compose`
 
@@ -525,6 +527,8 @@ The first 0.5 slice reports:
 - profile eligibility status,
 - missing Docker volumes and secrets by name only,
 - missing non-secret runtime env keys,
+- required Swarm placement labels and the matching/mismatching active ready
+  nodes when a selected profile declares `requires.placement.nodeLabels`,
 - release-mode presence checks for `release.imageTag`,
   `imageRepository.project`, and image/artifact templates.
 

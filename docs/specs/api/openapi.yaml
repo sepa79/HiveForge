@@ -329,7 +329,10 @@ paths:
         hiveforge.deployment label, the recorded compose artifact, compose
         bind-source validation, HiveForge runtime diagnostics, and a correlated
         expected-vs-actual analysis. This endpoint does not infer ownership from
-        Docker object names and does not re-render compose from source.
+        Docker object names and does not re-render compose from source. If
+        Docker/Swarm cannot be queried, it returns explicit unknown runtime
+        diagnostics with a redacted reason instead of inventing an alternative
+        runtime view.
       operationId: diagnoseDeployment
       requestBody:
         required: true
@@ -744,6 +747,35 @@ components:
           type: string
         reason:
           type: string
+        nodeLabels:
+          type: object
+          additionalProperties: false
+          required: [status, requiredLabels, nodes, reason]
+          properties:
+            status:
+              type: string
+              enum: [present, missing, unknown]
+            requiredLabels:
+              type: object
+              additionalProperties:
+                type: string
+            nodes:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [hostname, labels, satisfies]
+                properties:
+                  hostname:
+                    type: string
+                  labels:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  satisfies:
+                    type: boolean
+            reason:
+              type: string
     DeployPrerequisitesReport:
       type: object
       additionalProperties: false

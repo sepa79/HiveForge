@@ -80,8 +80,17 @@ Test work needed:
 
 Severity: high.
 
-Current operator pain: the UI lets an operator select a project/profile/action,
-but does not give a complete, readable answer to:
+Current status: partially resolved on `main`. The Actions view now has an
+explicit backend-backed **Check prerequisites** panel for the selected project,
+ref, component, action, and profile. It shows policy, runtime env, manual
+requirements, profile eligibility, and structured placement-label evidence for
+each active ready node. The action endpoint still validates independently.
+
+Remaining scope: a broader standalone project view and browser-level visual
+coverage for every missing/unknown prerequisite state.
+
+Current remaining operator pain: outside the Actions flow, the UI does not yet
+give a complete project-centered answer to:
 
 ```text
 What does this selected project/profile need from this environment before deploy?
@@ -113,43 +122,27 @@ Contract work needed:
 
 Test work needed:
 
-- UI tests for missing label, missing runtime env, and unknown diagnostic states.
-- Server/API tests proving project/profile prerequisite data includes concrete
-  node-label evidence when placement requirements exist.
+- Browser-level UI tests for missing label, missing runtime env, and unknown
+  diagnostic states.
+- Maintain service/API coverage proving project/profile prerequisite data
+  includes concrete node-label evidence when placement requirements exist.
 
-## HF-PROBLEM-003: Rendered Compose/Stack Is Not Visible In UI
+## HF-PROBLEM-003: Recorded Compose/Stack Visibility
 
-Severity: high.
+Severity: resolved.
 
-Current operator pain: after an action renders or uses a Compose/Stack artifact,
-the UI does not expose that artifact clearly enough for troubleshooting.
+Status: resolved for post-deploy troubleshooting. In **Deployments**, selecting
+a deployment loads the canonical diagnostics report. Its detail renders:
 
-HiveForge already has API/MCP direction for recorded rendered Compose artifacts:
-`get_deployment_compose` reads the artifact recorded in the action journal and
-does not re-render or guess paths. The human UI needs the same visibility.
+- the recorded Compose/Stack content used by the operation, with secrets
+  redacted;
+- an explicit recorded-artifact, digest-mismatch, or unavailable state/reason;
+- services, bind mounts, and placement constraints derived only from that
+  recorded artifact; and
+- Docker/Swarm failure findings tied back to the rendered service and mount
+  when evidence exists.
 
-Required behavior:
-
-- For each deployment operation that records a Compose/Stack artifact, the UI
-  must show a clear link or panel for the recorded artifact.
-- The view must include artifact path, digest/size, whether the current file
-  still matches the recorded journal evidence, and redacted content when
-  readable.
-- The UI must show an explicit missing state when no artifact was recorded or
-  the recorded file is no longer readable.
-- The UI should expose parsed bind sources and placement-relevant constraints as
-  diagnostics, without turning diagnostics into hidden compatibility behavior.
-
-Contract work needed:
-
-- Promote the rendered artifact UI behavior into
-  `docs/specs/ui/operator-console.md`.
-- Keep artifact retrieval tied to recorded operation evidence. Do not re-render
-  Compose from the current checkout as a fallback.
-
-Test work needed:
-
-- UI/API tests for present, missing, unreadable, digest-changed, and redacted
-  Compose artifact states.
-- Regression test that an action failure after writing the artifact still leaves
-  the recorded artifact discoverable.
+The view never re-renders Compose from the current checkout or guesses an
+artifact path. It is intentionally post-deploy evidence: a pre-deploy
+prerequisite check must not construct a prospective artifact merely to preview
+it.

@@ -68,6 +68,30 @@ visible in Activity even when no deployment inventory row exists.
 The UI sends the bearer token supplied by the user. Environment policy remains
 server-side and is enforced before actions run.
 
+Before an operator runs a selected lifecycle action, the Actions view provides
+an explicit **Check prerequisites** control. It calls:
+
+```text
+POST /projects/{projectId}/deploy-prerequisites
+```
+
+with the selected git ref, component, action, and optional profile. The result
+is the same `DeployPrerequisitesReport` used by REST and MCP; the UI must not
+recalculate readiness, parse failure text, or infer missing resources itself.
+
+The panel groups HiveForge-managed, manual, and release prerequisites. Every
+item renders its `present`, `missing`, `unknown`, or `not_applicable` status,
+required name when supplied, and backend reason. A placement-label item renders
+the required labels and the evidence for every active ready node, showing each
+node's value for the required keys and whether it satisfies all labels.
+
+Changing project, ref, component, action, or profile clears the old report.
+Responses for an earlier selection must be discarded rather than displayed for
+the new selection. The check remains explicit and read-only; it does not create
+labels, mounts, secrets, policy, runtime env values, or managed files. A
+successful report does not replace the server-side validation performed when
+the action starts.
+
 ## Deployments View
 
 The Deployments view is the operator's answer to "what is deployed and is it
@@ -80,11 +104,23 @@ The default filter is `Active`, which hides removed deployments but keeps
 runtime problems visible. `Missing`, `Unhealthy`, `Exited`, `Unknown`, and
 runtime-status lookup failures are active problems, not historical entries.
 
-The detail pane for a selected deployment uses `/deployments/diagnostics`.
-It should show runtime evidence first, then diagnostics findings, then the
-recorded compose artifact when one exists. HiveForge recorded state, operation
-ids, deployment ids, labels, and compose source metadata are debug/context
-fields, not the primary status.
+The detail pane for a selected deployment uses `/deployments/diagnostics` and
+renders the one canonical post-deploy report in this order:
+
+1. summary and selected deployment identity;
+2. actual Docker/Swarm runtime evidence;
+3. diagnostics findings, including rendered service, runtime resource, node,
+   bind source/target, and safe evidence when present;
+4. expected services, bind mounts, and placement constraints derived only from
+   the recorded Compose/Stack artifact;
+5. recorded Compose artifact status and content, including digest/redaction;
+6. HiveForge managed-root visibility state and reason.
+
+If Docker runtime diagnostics are unavailable, the UI shows the explicit
+`unknown` report state and redacted reason. It must not replace it with a name
+lookup, a green status, or a different runtime adapter. HiveForge recorded
+state, operation ids, deployment ids, labels, and compose source metadata are
+debug/context fields, not the primary status.
 
 Runtime summaries must stay scan-friendly. When many services report the same
 replica state, the UI should summarize that repeated state instead of rendering

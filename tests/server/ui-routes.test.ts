@@ -197,6 +197,11 @@ describe("UI routes", () => {
     expect(body).toContain("Runtime deployments");
     expect(body).toContain("Recorded state");
     expect(body).toContain("Recorded compose");
+    expect(body).toContain("Expected from recorded compose");
+    expect(body).toContain("HiveForge runtime");
+    expect(body).toContain("function renderDeploymentFinding");
+    expect(body).toContain("function renderDeploymentExpected");
+    expect(body).toContain("function renderHiveForgeRuntime");
     expect(body).toContain("runtime status from Docker labels");
     expect(body).toContain("No deployment matches the current filter.");
     expect(body).toContain("all replicas");
@@ -221,6 +226,76 @@ describe("UI routes", () => {
     expect(body).toContain("const inspectedComponent = state.inspectedComponents.find");
     expect(body).toContain("state.inspectedComponents = result.components");
     expect(body).toContain("state.selectedComponent = result.components[0]?.name");
+  });
+
+  it("renders the selected project's backend prerequisites before an action", async () => {
+    const baseUrl = await startServer();
+
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+
+    expect(script.status).toBe(200);
+    expect(body).toContain('id="checkPrerequisitesButton"');
+    expect(body).toContain("function loadDeployPrerequisites");
+    expect(body).toContain('"/deploy-prerequisites"');
+    expect(body).toContain("function renderDeployPrerequisites");
+    expect(body).toContain("function renderPlacementNodeLabels");
+    expect(body).toContain("The action endpoint validates again when it starts.");
+    expect(body).toContain("resetDeployPrerequisites");
+    expect(() => new Function(body)).not.toThrow();
+  });
+
+  it("does not let a stale prerequisite report overwrite a later selection", async () => {
+    const baseUrl = await startServer();
+    const script = await fetch(`${baseUrl}/ui/app.js`);
+    const body = await script.text();
+    const firstResponse = deferred<Response>();
+    const secondResponse = deferred<Response>();
+    const requests: Array<{ action: string; component: string; gitRef: string; profile?: string }> = [];
+    const ui = executeUiScriptForTest(body, ((input, init) => {
+      const path = typeof input === "string" ? input : input.toString();
+      if (path !== "/projects/hivewatch/deploy-prerequisites") {
+        return Promise.reject(new Error(`Unexpected UI request: ${path}`));
+      }
+      requests.push(JSON.parse(String(init?.body)));
+      return requests.length === 1 ? firstResponse.promise : secondResponse.promise;
+    }) as typeof fetch);
+    const latestReport = {
+      ready: true,
+      hiveforgePrerequisites: [],
+      manualPrerequisites: [],
+      releasePrerequisites: []
+    };
+
+    try {
+      Object.assign(ui.state, {
+        selectedProject: "hivewatch",
+        selectedRef: "main",
+        selectedComponent: "api",
+        selectedProfile: "lite",
+        selectedAction: "deploy"
+      });
+      const firstRequest = ui.loadDeployPrerequisites();
+
+      ui.state.selectedAction = "update";
+      ui.resetDeployPrerequisites();
+      const secondRequest = ui.loadDeployPrerequisites();
+      secondResponse.resolve(jsonResponse(latestReport));
+      await secondRequest;
+
+      firstResponse.resolve(jsonResponse({ ready: false }));
+      await firstRequest;
+
+      expect(requests).toEqual([
+        { gitRef: "main", component: "api", action: "deploy", profile: "lite" },
+        { gitRef: "main", component: "api", action: "update", profile: "lite" }
+      ]);
+      expect(ui.state.deployPrerequisites).toEqual(latestReport);
+      expect(ui.state.deployPrerequisitesLoading).toBe(false);
+      expect(ui.state.deployPrerequisitesError).toBeNull();
+    } finally {
+      ui.restore();
+    }
   });
 
   it("uses registered refs and inspected components instead of free-text lifecycle inputs", async () => {
@@ -256,4 +331,96 @@ async function startServer(): Promise<string> {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+interface UiScriptTestApi {
+  state: {
+    deployPrerequisites: unknown;
+    deployPrerequisitesError: string | null;
+    deployPrerequisitesLoading: boolean;
+    selectedAction: string;
+    selectedComponent: string;
+    selectedProfile: string;
+    selectedProject: string;
+    selectedRef: string;
+  };
+  loadDeployPrerequisites(): Promise<void>;
+  resetDeployPrerequisites(): void;
+}
+
+interface UiScriptTestHarness extends UiScriptTestApi {
+  restore(): void;
+}
+
+function executeUiScriptForTest(script: string, fetchImpl: typeof fetch): UiScriptTestHarness {
+  const element = { addEventListener() {}, innerHTML: "" };
+  const restores = [
+    replaceGlobal("window", {
+      addEventListener() {},
+      history: { pushState() {} },
+      location: { pathname: "/ui/actions" },
+      scrollTo() {},
+      scrollX: 0,
+      scrollY: 0
+    }),
+    replaceGlobal("document", {
+      getElementById: () => element,
+      querySelectorAll: () => []
+    }),
+    replaceGlobal("localStorage", {
+      getItem: () => "test-token",
+      removeItem() {},
+      setItem() {}
+    }),
+    replaceGlobal("fetch", fetchImpl),
+    replaceGlobal("__hiveforgeUiTest", undefined)
+  ];
+  const startup = "render();\nrefreshUi();\n";
+  if (!script.endsWith(startup)) {
+    restores.reverse().forEach((restore) => restore());
+    throw new Error("UI script startup sequence changed; update the UI test harness");
+  }
+
+  try {
+    new Function(
+      `${script.slice(0, -startup.length)}globalThis.__hiveforgeUiTest = { state, loadDeployPrerequisites, resetDeployPrerequisites };`
+    )();
+    const api = (globalThis as Record<string, unknown>).__hiveforgeUiTest as UiScriptTestApi | undefined;
+    if (!api) {
+      throw new Error("UI test API was not initialized");
+    }
+    return {
+      ...api,
+      restore() {
+        restores.reverse().forEach((restore) => restore());
+      }
+    };
+  } catch (error) {
+    restores.reverse().forEach((restore) => restore());
+    throw error;
+  }
+}
+
+function replaceGlobal(name: string, value: unknown): () => void {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+  Object.defineProperty(globalThis, name, { configurable: true, value, writable: true });
+  return () => {
+    if (descriptor) {
+      Object.defineProperty(globalThis, name, descriptor);
+      return;
+    }
+    delete (globalThis as Record<string, unknown>)[name];
+  };
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), { status: 200 });
 }

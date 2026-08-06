@@ -218,12 +218,24 @@ describe("deploy prerequisites service", () => {
     ).resolves.toMatchObject({
       ready: false,
       hiveforgePrerequisites: expect.arrayContaining([
-        {
+        expect.objectContaining({
           type: "swarm_node_labels",
           required: "placement.nodeLabels",
           status: "missing",
-          reason: "Environment swarm has no active ready node with required placement labels: pockethive.redis=true"
-        }
+          reason: "Environment swarm has no active ready node with required placement labels: pockethive.redis=true",
+          nodeLabels: {
+            status: "missing",
+            requiredLabels: { "pockethive.redis": "true" },
+            nodes: [
+              {
+                hostname: "docker-swarm-wrk-1",
+                labels: { "pockethive.redis": "false" },
+                satisfies: false
+              }
+            ],
+            reason: "Environment swarm has no active ready node with required placement labels: pockethive.redis=true"
+          }
+        })
       ])
     });
   });

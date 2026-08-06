@@ -29,6 +29,7 @@ Use it for:
 | `control-plane-vision.md` | Direction for environments, bootstrap, UI, MCP, and deployments. | Draft |
 | `capabilities.md` | Capability vocabulary for portable profile matching. | Draft |
 | `deployment-artifacts.md` | Portable release deployment profiles and environment matching design. | Draft |
+| `deployment-diagnostics.md` | Semantic contract for the canonical post-deploy diagnostics report. | Draft |
 | `hiveforge-poc.md` | Initial HiveForge/HiveWatch POC contract. | Draft |
 | `manifest.schema.json` | Root and component `hiveforge.yaml` contract. | Draft |
 | `config/project-registry.schema.json` | Registered project registry contract. | Draft |

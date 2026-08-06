@@ -47,6 +47,14 @@ describe("HiveForge MCP runtime", () => {
     expect(toolBlock).not.toContain("deploymentId: z.string().min(1).optional()");
   });
 
+  it("announces explicit unknown diagnostics when Docker cannot be queried", async () => {
+    const source = await readFile(new URL("../../src/mcp/server.ts", import.meta.url), "utf8");
+    const toolBlock = source.slice(source.indexOf('"diagnose_deployment"'), source.indexOf('"get_deployment_compose"'));
+
+    expect(toolBlock).toContain("explicit unknown diagnostics");
+    expect(toolBlock).toContain("redacted reason");
+  });
+
   it("announces managed-root verification as a manual non-blocking MCP tool", async () => {
     const source = await readFile(new URL("../../src/mcp/server.ts", import.meta.url), "utf8");
     const toolBlock = source.slice(source.indexOf('"verify_managed_root_access"'), source.indexOf('"check_deployment_runtime_status"'));

@@ -335,6 +335,50 @@ describe("deployment diagnostics service", () => {
     ]);
   });
 
+  it("returns explicit unknown diagnostics when Docker cannot be queried", async () => {
+    const runtimePaths = await createRuntimePaths();
+    const composePath = path.join(runtimePaths.dataRoot, "deployed/hivewatch/stacks/compose.yml");
+    const composeContent = ["services:", "  api:", "    image: hivewatch:test", ""].join("\n");
+    await mkdir(path.dirname(composePath), { recursive: true });
+    await writeFile(composePath, composeContent, "utf8");
+
+    const deployment = deploymentRecord();
+    const environment = dockerEnvironment();
+    const unavailableDocker: CommandRunner = {
+      async run() {
+        throw new Error("Cannot connect to Docker daemon; HIVEMIND_TOKEN=super-secret");
+      }
+    };
+    const service = new DeploymentDiagnosticsService(
+      stateStore([deployment]),
+      new DeploymentRuntimeStatusService(unavailableDocker, environment, stateStore([deployment])),
+      new DeploymentComposeService(journal(composePath, composeContent)),
+      new RuntimeDiagnosticsService(runtimePaths, environment),
+      environment
+    );
+
+    const result = await service.diagnose({ deploymentId: "deployment-1" });
+
+    expect(result.runtime).toMatchObject({
+      deploymentId: "deployment-1",
+      summary: "unknown",
+      requiredLabels: {
+        "hiveforge.deployment": "deployment-1"
+      },
+      reason: "Docker runtime diagnostics are unavailable: Cannot connect to Docker daemon; HIVEMIND_TOKEN=[redacted]"
+    });
+    expect(JSON.stringify(result)).not.toContain("super-secret");
+    expect(result.analysis.summary).toBe("unknown");
+    expect(result.analysis.findings).toEqual([
+      expect.objectContaining({
+        severity: "warning",
+        type: "unknown_ownership",
+        message:
+          "Docker runtime status is unknown for labelled resources: Docker runtime diagnostics are unavailable: Cannot connect to Docker daemon; HIVEMIND_TOKEN=[redacted]"
+      })
+    ]);
+  });
+
   it("does not degrade healthy Swarm diagnostics for ignored services or historical failed tasks", async () => {
     const runtimePaths = await createRuntimePaths();
     const composePath = path.join(runtimePaths.dataRoot, "deployed/hivewatch/stacks/compose.yml");

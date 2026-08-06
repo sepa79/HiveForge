@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateProfileEligibility } from "../../src/config/profile-eligibility.js";
+import { evaluateProfileEligibility, placementNodeLabelEvidence } from "../../src/config/profile-eligibility.js";
 
 describe("profile eligibility", () => {
   it("allows profiles when environment capabilities satisfy every requirement", () => {
@@ -176,6 +176,64 @@ describe("profile eligibility", () => {
     );
 
     expect(result).toEqual({ eligible: true, issues: [] });
+  });
+
+  it("exposes active ready node label evidence without requiring callers to parse reasons", () => {
+    const profile = {
+      id: "swarm-stateful",
+      runtime: "docker-swarm" as const,
+      serviceSet: "full",
+      requires: {
+        placement: {
+          nodeLabels: {
+            "pockethive.redis": "true"
+          }
+        }
+      }
+    };
+
+    expect(
+      placementNodeLabelEvidence(
+        {
+          ...environment(),
+          nodes: [
+            {
+              id: "node-worker-1",
+              hostname: "docker-swarm-wrk-1",
+              role: "worker",
+              availability: "active",
+              status: "ready",
+              labels: { "pockethive.redis": "false" }
+            },
+            {
+              id: "node-worker-2",
+              hostname: "docker-swarm-wrk-2",
+              role: "worker",
+              availability: "active",
+              status: "ready",
+              labels: { "pockethive.redis": "true" }
+            }
+          ]
+        },
+        profile
+      )
+    ).toEqual({
+      status: "present",
+      requiredLabels: { "pockethive.redis": "true" },
+      nodes: [
+        {
+          hostname: "docker-swarm-wrk-1",
+          labels: { "pockethive.redis": "false" },
+          satisfies: false
+        },
+        {
+          hostname: "docker-swarm-wrk-2",
+          labels: { "pockethive.redis": "true" },
+          satisfies: true
+        }
+      ],
+      reason: "Environment proxmox-swarm has an active ready node with required placement labels: pockethive.redis=true"
+    });
   });
 
   it("reports missing node inventory and labels as explicit placement failures", () => {

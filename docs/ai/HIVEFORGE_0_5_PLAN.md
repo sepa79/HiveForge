@@ -48,28 +48,36 @@ operator console. The remaining goal is to make failed deploys explainable
 without SSHing into the host, reading raw journal JSON, or guessing from Docker
 names.
 
-- Expand Docker diagnostics with expected-vs-actual resources, Swarm task
-  placement mismatch, restart loops, last exit/log hints, and bind-source mount
-  errors tied back to the rendered service and source path.
+- Implemented on `main`: Docker diagnostics correlate expected-vs-actual
+  resources, Swarm task placement mismatch, restart loops, last exit hints, and
+  bind-source mount errors back to the rendered service and source path. A
+  failed Docker query is explicit `unknown` evidence with a redacted reason,
+  never a guessed healthy runtime state.
 - Implemented in the current worktree: validate concrete placement label
   prerequisites before deploy. `requires.placement.nodeLabels` now requires all
   labels on one active, ready node; `placement: true` alone is not proof.
-- Improve `diagnose_deployment` into a coherent one-page report for
-  project/component/profile/deployment filters, reusing the existing runtime
-  status, recorded Compose artifact, bind-source validation, and HiveForge path
-  diagnostics services.
+- Implemented on `main`: `diagnose_deployment` is the canonical, one-page
+  post-deploy report for deployment selectors. It reuses runtime status,
+  recorded Compose artifact, bind-source validation, and HiveForge path
+  diagnostics without re-rendering or Docker name inference. The semantic
+  contract is `docs/specs/deployment-diagnostics.md`; OpenAPI remains the exact
+  public payload source of truth.
 - Implemented in the current worktree: add explicit managed-root accessibility
   states (`configured`, `verified`, `failed`, `inconclusive`, `unknown`) and
   `verify_managed_root_access`. The separate probe is the only operation that
   may claim per-node bind-mount visibility.
-- Add UI/API coverage for deploy prerequisites and recorded artifacts: missing
-  labels, runtime env, policy, managed-root constraints, rendered Compose
-  digest/content status, and unknown/degraded states.
-- Preserve the exact Docker/Swarm error text that is safe to expose, especially
-  `no suitable node`, rejected task messages, and bind-source path failures.
-- Add focused tests for missing placement labels, unknown diagnostics states,
-  redacted/missing artifact evidence, and Swarm task or bind mount failure
-  reporting.
+- Implemented for deployment detail: the UI shows actual runtime evidence,
+  correlated findings, expected recorded Compose resources, artifact
+  digest/content status, and managed-root state. Implemented for the Actions
+  view: explicit project/profile prerequisite checks show missing labels with
+  active-ready-node evidence, runtime env, policy, and manual constraints
+  before an action starts; the action endpoint still validates independently.
+- Implemented: safe Docker/Swarm error evidence preserves actionable text such
+  as `no suitable node`, rejected task messages, and bind-source path failures,
+  while redacting secret values.
+- Implemented: focused coverage exercises missing placement labels, unknown
+  diagnostics states, redacted/missing artifact evidence, and Swarm task or
+  bind-mount failure reporting.
 
 ### Next: Access And Trust Contracts (after Debug-Ability Completion)
 
@@ -214,10 +222,11 @@ Open naming decision:
 ## 2. Deploy Prerequisites Tool
 
 Status: current MCP/REST surface reports registration/ref, manifest,
-component/action, environment policy, profile eligibility, Docker
-volume/secret, runtime env, basic release input presence, and concrete Swarm
-placement-label evidence from refreshed node inventory. Rendered-artifact,
-bind-mount, and `requiredFiles` evidence remains next debug-ability work.
+component/action, environment policy, profile eligibility, declared Docker
+volume/secret requirements, runtime env, basic release input presence, and
+concrete Swarm placement-label evidence from refreshed node inventory. This is
+deliberately a fast, declarative preflight: recorded artifacts, bind-mount
+outcomes, and deployment failures are post-deploy diagnostics evidence.
 
 Add a read-only MCP tool:
 
@@ -279,12 +288,10 @@ The tool should report at least:
 - profile eligibility against environment capabilities,
 - Swarm node labels needed by placement requirements,
 - declared Docker secrets by name only,
-- declared volumes/bind paths/mount requirements,
+- declared Docker volume requirements,
 - non-secret runtime env requirements and whether HiveForge has values,
 - release vars such as `release.imageTag`,
-- registry vars such as `imageRepository.project`,
-- rendered application image requirements,
-- checkout-backed `artifacts.managedPaths` and `requiredFiles` status.
+- registry vars such as `imageRepository.project`.
 
 Behavior rules:
 
@@ -293,6 +300,9 @@ Behavior rules:
 - No automatic label/secret/mount creation.
 - Missing data is an explicit checklist item, not a guessed default.
 - Use `refresh_environment` before this tool when Swarm labels may have changed.
+- Do not render prospective Compose, inspect prospective bind mounts, or prepare
+  managed artifacts. Those become evidence only after an action and are read
+  through `diagnose_deployment`.
 
 ## 3. Runtime Container Status
 

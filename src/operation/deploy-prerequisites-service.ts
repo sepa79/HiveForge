@@ -1,7 +1,11 @@
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { ProjectRegistryConfig } from "../config/project-registry-types.js";
 import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
-import { evaluateProfileEligibility } from "../config/profile-eligibility.js";
+import {
+  evaluateProfileEligibility,
+  placementNodeLabelEvidence,
+  type PlacementNodeLabelEvidence
+} from "../config/profile-eligibility.js";
 import type { ProjectRegistry } from "../manifest/manifest-types.js";
 import type { RequirementValidator } from "../validation/requirement-validator.js";
 import type { ProjectInspectionService } from "./project-inspection-service.js";
@@ -27,6 +31,7 @@ export interface PrerequisiteItem {
   status: PrerequisiteStatus;
   required?: string;
   reason: string;
+  nodeLabels?: PlacementNodeLabelEvidence;
 }
 
 export interface DeployPrerequisitesReport {
@@ -227,10 +232,12 @@ export class DeployPrerequisitesService {
       return;
     }
     if (!this.currentEnvironment) {
+      this.explainPlacementNodeLabels(profile, hiveforgePrerequisites);
       hiveforgePrerequisites.push(unknown("profile_eligibility", request.profile, "Current environment is not configured"));
       return;
     }
     const result = evaluateProfileEligibility(this.currentEnvironment, profile);
+    this.explainPlacementNodeLabels(profile, hiveforgePrerequisites);
     if (result.eligible) {
       hiveforgePrerequisites.push(
         present("profile_eligibility", request.profile, "Profile is eligible for the current environment")
@@ -238,16 +245,34 @@ export class DeployPrerequisitesService {
       return;
     }
     for (const issue of result.issues) {
+      if (issue.code === "placement-node-inventory-missing" || issue.code === "placement-node-labels-missing") {
+        continue;
+      }
       hiveforgePrerequisites.push(
         missing(
-          issue.code === "placement-node-inventory-missing" || issue.code === "placement-node-labels-missing"
-            ? "swarm_node_labels"
-            : "profile_eligibility",
+          "profile_eligibility",
           issue.requirement,
           issue.message
         )
       );
     }
+  }
+
+  private explainPlacementNodeLabels(
+    profile: NonNullable<ProjectRegistry["project"]["profiles"]>[number],
+    hiveforgePrerequisites: PrerequisiteItem[]
+  ): void {
+    const evidence = placementNodeLabelEvidence(this.currentEnvironment, profile);
+    if (!evidence) {
+      return;
+    }
+    hiveforgePrerequisites.push({
+      type: "swarm_node_labels",
+      status: evidence.status,
+      required: "placement.nodeLabels",
+      reason: evidence.reason,
+      nodeLabels: evidence
+    });
   }
 
   private explainReleasePrerequisites(
