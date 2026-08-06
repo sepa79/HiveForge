@@ -81,6 +81,8 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    list_environments
    refresh_environment
    list_environment_nodes
+   diagnose_hiveforge_runtime
+   verify_managed_root_access
    inspect_repository
    register_project
    unregister_project_ref
@@ -102,6 +104,12 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    changes made afterward affect only future validation/action calls and do not
    update an already deployed service. Secrets are outside the current
    HiveForge contract.
+
+   When an environment uses host bind mounts, ask the agent to run the manual
+   `verify_managed_root_access` MCP tool after `refresh_environment`, before
+   the first deploy and after a node or mount change. It is available as an
+   explicit diagnostic; it never runs automatically and does not block a
+   deploy.
 
 4. Deploy only projects that carry HiveForge manifests.
 

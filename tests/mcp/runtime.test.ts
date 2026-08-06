@@ -47,6 +47,14 @@ describe("HiveForge MCP runtime", () => {
     expect(toolBlock).not.toContain("deploymentId: z.string().min(1).optional()");
   });
 
+  it("announces managed-root verification as a manual non-blocking MCP tool", async () => {
+    const source = await readFile(new URL("../../src/mcp/server.ts", import.meta.url), "utf8");
+    const toolBlock = source.slice(source.indexOf('"verify_managed_root_access"'), source.indexOf('"check_deployment_runtime_status"'));
+
+    expect(toolBlock).toContain("Manually verify");
+    expect(toolBlock).toContain("never runs automatically or blocks deployment");
+  });
+
   it("resolves package metadata from the built server location", async () => {
     const builtServerUrl = new URL("../../dist/src/mcp/server.js", import.meta.url);
     const packageJson = await readFile(new URL("../../../package.json", builtServerUrl), "utf8");

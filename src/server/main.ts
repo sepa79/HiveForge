@@ -165,9 +165,7 @@ const deploymentCompose = new DeploymentComposeService(journal);
 const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
 const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
-const managedRootVerification = new ManagedRootVerificationService(commandRunner, currentEnvironment, {
-  probeImage: nonEmptyEnv("HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE")
-});
+const managedRootVerification = new ManagedRootVerificationService(commandRunner, currentEnvironment);
 const selfUpdate = new SelfUpdateService({ appInfo, commandRunner });
 const deploymentDiagnostics = new DeploymentDiagnosticsService(
   deploymentState,

@@ -103,10 +103,13 @@ Explicit runtime path mode remains supported for advanced installs:
 - `HIVEFORGE_ACTION_RUNNER_IMAGE` to override the helper image used for
   isolated Ansible action execution. Normal Docker/Swarm installs set this to
   the same concrete HiveForge image as the control-plane service.
-- `HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE` to select the explicit image used by the
-  short-lived managed-root visibility probe. The image must provide `sh`; a
-  missing value leaves active visibility verification `unknown` rather than
-  selecting an image implicitly.
+
+Managed-root visibility verification uses the current HiveForge container image
+itself. It obtains that image through Docker inspect using the container's
+default `HOSTNAME`, then runs the short-lived probe with `sh`; it has no
+separate image setting. A custom container hostname that prevents Docker
+inspect from finding the running HiveForge container makes verification
+explicitly `inconclusive`.
 
 Explicit path mode is for maintainers and unusual packaging only. Normal Docker
 and Swarm installs should use the fixed `/hf` container root and configure the
@@ -209,11 +212,14 @@ starts one `--rm` container with a read-only bind mount of
 the same read-only bind mount, waits for one terminal task per active ready node
 from the current inventory, and removes that service.
 
+The temporary service name is intentionally within Docker Swarm's 63-character
+name limit when it includes its UUID probe identifier.
+
 The probe never writes a sentinel, creates a host path, alters node labels, or
 changes deployment services. `verified` is returned only after every checked
 task completes successfully. Errors, timeouts, unscheduled tasks, a missing
-probe image, or cleanup failures remain explicit `failed`, `inconclusive`, or
-`unknown` evidence.
+node inventory, failure to inspect the current image, or cleanup failures remain
+explicit `failed`, `inconclusive`, or `unknown` evidence.
 
 HiveForge stores the latest non-secret probe report atomically at
 `data/managed-root-verification.json`. Subsequent runtime diagnostics use that

@@ -244,13 +244,16 @@ by the target Docker node, for example `/opt/hiveforge` or
 `/mnt/shared_nfs/hiveforge`. HiveForge reports this mapping through runtime
 diagnostics; it does not infer or repair host mount points.
 
-Set `HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE` to a concrete image available on every
-target Docker/Swarm node before requesting active visibility proof. The image
-must provide `sh`; without it, verification returns `unknown`. After an
-environment refresh, MCP `verify_managed_root_access` mounts
-`<bindSourceRoot>/data` read-only in a short-lived probe. On Swarm it creates
-and removes one global probe service across active ready nodes. Ordinary runtime
-diagnostics stay read-only.
+After an environment refresh, the manual MCP tool
+`verify_managed_root_access` is available to confirm a host bind mount before
+the first deploy or after a node or mount change. It obtains the image of the
+currently running HiveForge container through Docker inspect and uses that same
+image for a short-lived read-only mount of `<bindSourceRoot>/data`. On Swarm it
+creates and removes one global probe service across active ready nodes. No
+additional probe-image configuration is required. The probe never runs
+automatically and does not block deployment. If the current container cannot
+be identified through Docker, the result is explicitly `inconclusive`. Ordinary
+runtime diagnostics stay read-only.
 
 ## Docker Access
 

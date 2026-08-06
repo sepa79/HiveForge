@@ -22,7 +22,7 @@ export interface ManagedRootVerificationReport {
 }
 
 export interface ManagedRootVerificationOptions {
-  probeImage?: string;
+  currentContainerId?: () => string | undefined;
   now?: () => Date;
   sleep?: (milliseconds: number) => Promise<void>;
   maxPolls?: number;
@@ -33,6 +33,7 @@ export interface ManagedRootVerificationOptions {
 const DEFAULT_MAX_POLLS = 40;
 const DEFAULT_POLL_DELAY_MS = 250;
 const PROBE_COMMAND = ["sh", "-ec", "test -d /probe && test -r /probe"];
+const SWARM_PROBE_SERVICE_PREFIX = "hiveforge-root-probe-";
 
 export class ManagedRootVerificationService {
   private readonly now: () => Date;
@@ -40,6 +41,7 @@ export class ManagedRootVerificationService {
   private readonly maxPolls: number;
   private readonly pollDelayMs: number;
   private readonly probeId: () => string;
+  private readonly currentContainerId: () => string | undefined;
 
   constructor(
     private readonly commandRunner: CommandRunner,
@@ -51,6 +53,7 @@ export class ManagedRootVerificationService {
     this.maxPolls = options.maxPolls ?? DEFAULT_MAX_POLLS;
     this.pollDelayMs = options.pollDelayMs ?? DEFAULT_POLL_DELAY_MS;
     this.probeId = options.probeId ?? (() => crypto.randomUUID());
+    this.currentContainerId = options.currentContainerId ?? (() => process.env.HOSTNAME);
   }
 
   async verify(): Promise<ManagedRootVerificationReport> {
@@ -66,22 +69,39 @@ export class ManagedRootVerificationService {
       };
     }
 
-    const probeImage = this.options.probeImage?.trim();
-    if (!probeImage) {
+    let probeImage: string;
+    try {
+      probeImage = await this.currentHiveForgeImage();
+    } catch (error) {
+      const reason = errorMessage(error);
       return {
-        status: "unknown",
+        status: "inconclusive",
         checkedAt,
         runtime: runtimeFor(this.environment),
         bindSourceRoot,
         managedDataBindSourceRoot: managedDataBindSourceRoot(bindSourceRoot),
         nodes: [],
-        reason: "Cannot verify managed-root visibility because HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE is not configured."
+        reason: `Cannot verify managed-root visibility with the current HiveForge image: ${reason}`
       };
     }
 
     return runtimeFor(this.environment) === "docker-swarm"
       ? this.verifySwarm(checkedAt, bindSourceRoot, probeImage)
       : this.verifySingle(checkedAt, bindSourceRoot, probeImage);
+  }
+
+  private async currentHiveForgeImage(): Promise<string> {
+    const containerId = this.currentContainerId();
+    if (!containerId) {
+      throw new Error("The current HiveForge container ID is unavailable.");
+    }
+
+    const result = await this.commandRunner.run("docker", ["inspect", containerId, "--format", "{{.Config.Image}}"]);
+    const image = result.stdout.trim();
+    if (!image) {
+      throw new Error("Docker inspect returned no image for the current HiveForge container.");
+    }
+    return image;
   }
 
   private async verifySingle(
@@ -154,7 +174,7 @@ export class ManagedRootVerificationService {
     }
 
     const probeId = this.probeId();
-    const serviceName = `hiveforge-managed-root-probe-${probeId}`;
+    const serviceName = `${SWARM_PROBE_SERVICE_PREFIX}${probeId}`;
     let created = false;
     let cleanupError: string | undefined;
     let result: ManagedRootVerificationReport;
@@ -162,6 +182,7 @@ export class ManagedRootVerificationService {
       await this.commandRunner.run("docker", [
         "service",
         "create",
+        "--detach",
         "--name",
         serviceName,
         "--mode",

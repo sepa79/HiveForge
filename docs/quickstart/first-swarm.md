@@ -70,6 +70,19 @@ After connection, the agent should call:
 3. `list_environments`,
 4. `list_projects`.
 
+Before the first deployment that uses a host bind mount, and after a Swarm node
+or mount change, the agent should run:
+
+```text
+refresh_environment()
+diagnose_hiveforge_runtime()
+verify_managed_root_access()
+```
+
+`verify_managed_root_access` is an available manual MCP diagnostic. It runs a
+short-lived probe on the selected Docker host or on every active ready Swarm
+node. HiveForge never runs it automatically and it does not block deployment.
+
 ## Register An External Example Project
 
 Use the external project repository URL and ref. For HiveWatch, use the

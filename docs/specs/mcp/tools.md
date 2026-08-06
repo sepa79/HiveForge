@@ -196,15 +196,21 @@ source and one result per checked node.
 
 Behavior: this is an explicit mutating diagnostic operation. On a single Docker
 host, HiveForge runs one short-lived read-only bind-mount container. On Swarm,
-it creates a temporary global service using
-`HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE`, observes one task on every stored node
-with `availability: active` and `status: ready`, then removes the service.
+it creates a temporary global service using the running HiveForge image,
+observes one task on every stored node with `availability: active` and
+`status: ready`, then removes the service.
+
+This tool is intentionally manual. An agent should use it after
+`refresh_environment`, before a first host-bind-mount deployment and after a
+node or mount change. HiveForge advertises it in the MCP tool catalog, never
+runs it automatically, and does not use its result as a deployment gate.
 
 The result is `verified` only when every checked node completed the read-only
-mount check. A rejected or failed task produces `failed`. An unavailable probe
-image, Docker/Swarm error, unscheduled task, timeout, cleanup error, missing
-node inventory, or absent probe configuration is visible as `inconclusive` or
-`unknown`; HiveForge does not call such a result verified.
+mount check. A rejected or failed task produces `failed`. Failure to inspect
+the current HiveForge image, an unavailable image on a Swarm node, a
+Docker/Swarm error, unscheduled task, timeout, cleanup error, or missing node
+inventory is visible as `inconclusive` or `unknown`; HiveForge does not call
+such a result verified.
 
 ### `check_deployment_runtime_status`
 

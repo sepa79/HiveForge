@@ -7,6 +7,10 @@ describe("managed root verification service", () => {
   it("verifies a read-only managed-root bind mount on a single Docker host", async () => {
     const runner = scriptedRunner([
       {
+        args: ["inspect", "hiveforge-container", "--format", "{{.Config.Image}}"],
+        stdout: "ghcr.io/sepa79/hiveforge:v0.5.3\n"
+      },
+      {
         args: [
           "run",
           "--rm",
@@ -21,7 +25,7 @@ describe("managed root verification service", () => {
     ]);
 
     const report = await new ManagedRootVerificationService(runner, dockerEnvironment(), {
-      probeImage: "ghcr.io/sepa79/hiveforge:v0.5.3",
+      currentContainerId: () => "hiveforge-container",
       now: () => new Date("2026-08-06T10:00:00.000Z")
     }).verify();
 
@@ -43,12 +47,19 @@ describe("managed root verification service", () => {
   });
 
   it("proves every active ready Swarm node and removes the temporary global service", async () => {
-    const serviceName = "hiveforge-managed-root-probe-probe-1";
+    const probeId = "b0ceaefc-1ec7-4950-9b05-3ab7f4a0ca01";
+    const serviceName = `hiveforge-root-probe-${probeId}`;
+    expect(serviceName).toHaveLength(57);
     const runner = scriptedRunner([
+      {
+        args: ["inspect", "hiveforge-container", "--format", "{{.Config.Image}}"],
+        stdout: "ghcr.io/sepa79/hiveforge:v0.5.3\n"
+      },
       {
         args: [
           "service",
           "create",
+          "--detach",
           "--name",
           serviceName,
           "--mode",
@@ -58,7 +69,7 @@ describe("managed root verification service", () => {
           "--mount",
           "type=bind,src=/mnt/shared/hiveforge/data,dst=/probe,readonly",
           "--label",
-          "hiveforge.managed-root-probe=probe-1",
+          `hiveforge.managed-root-probe=${probeId}`,
           "ghcr.io/sepa79/hiveforge:v0.5.3",
           "sh",
           "-ec",
@@ -78,8 +89,8 @@ describe("managed root verification service", () => {
     ]);
 
     const report = await new ManagedRootVerificationService(runner, swarmEnvironment(), {
-      probeImage: "ghcr.io/sepa79/hiveforge:v0.5.3",
-      probeId: () => "probe-1",
+      currentContainerId: () => "hiveforge-container",
+      probeId: () => probeId,
       now: () => new Date("2026-08-06T10:00:00.000Z")
     }).verify();
 
@@ -95,8 +106,12 @@ describe("managed root verification service", () => {
   });
 
   it("reports a rejected Swarm mount as failed evidence rather than configured visibility", async () => {
-    const serviceName = "hiveforge-managed-root-probe-probe-2";
+    const serviceName = "hiveforge-root-probe-probe-2";
     const runner = scriptedRunner([
+      {
+        args: ["inspect", "hiveforge-container", "--format", "{{.Config.Image}}"],
+        stdout: "ghcr.io/sepa79/hiveforge:v0.5.3\n"
+      },
       { args: expect.any(Array) },
       {
         args: ["service", "ps", serviceName, "--no-trunc", "--format", "{{json .}}"],
@@ -113,7 +128,7 @@ describe("managed root verification service", () => {
       ...swarmEnvironment(),
       nodes: [swarmEnvironment().nodes![0]!]
     }, {
-      probeImage: "ghcr.io/sepa79/hiveforge:v0.5.3",
+      currentContainerId: () => "hiveforge-container",
       probeId: () => "probe-2"
     }).verify();
 
@@ -131,8 +146,12 @@ describe("managed root verification service", () => {
   });
 
   it("does not claim verification when the temporary Swarm probe cannot be removed", async () => {
-    const serviceName = "hiveforge-managed-root-probe-probe-3";
+    const serviceName = "hiveforge-root-probe-probe-3";
     const runner = scriptedRunner([
+      {
+        args: ["inspect", "hiveforge-container", "--format", "{{.Config.Image}}"],
+        stdout: "ghcr.io/sepa79/hiveforge:v0.5.3\n"
+      },
       { args: expect.any(Array) },
       {
         args: ["service", "ps", serviceName, "--no-trunc", "--format", "{{json .}}"],
@@ -145,7 +164,7 @@ describe("managed root verification service", () => {
       ...swarmEnvironment(),
       nodes: [swarmEnvironment().nodes![0]!]
     }, {
-      probeImage: "ghcr.io/sepa79/hiveforge:v0.5.3",
+      currentContainerId: () => "hiveforge-container",
       probeId: () => "probe-3"
     }).verify();
 
@@ -173,15 +192,36 @@ describe("managed root verification service", () => {
     });
   });
 
-  it("returns unknown without running Docker when no probe image is configured", async () => {
+  it("returns an inconclusive result when its own image cannot be determined", async () => {
     const runner = scriptedRunner([]);
 
-    const report = await new ManagedRootVerificationService(runner, dockerEnvironment()).verify();
+    const report = await new ManagedRootVerificationService(runner, dockerEnvironment(), {
+      currentContainerId: () => undefined
+    }).verify();
 
     expect(report).toMatchObject({
-      status: "unknown",
+      status: "inconclusive",
       bindSourceRoot: "/opt/hiveforge",
-      reason: "Cannot verify managed-root visibility because HIVEFORGE_MANAGED_ROOT_PROBE_IMAGE is not configured."
+      reason: "Cannot verify managed-root visibility with the current HiveForge image: The current HiveForge container ID is unavailable."
+    });
+  });
+
+  it("returns an inconclusive result when Docker cannot inspect its own container", async () => {
+    const runner = scriptedRunner([
+      {
+        args: ["inspect", "hiveforge-container", "--format", "{{.Config.Image}}"],
+        error: "Error: No such container: hiveforge-container"
+      }
+    ]);
+
+    const report = await new ManagedRootVerificationService(runner, dockerEnvironment(), {
+      currentContainerId: () => "hiveforge-container"
+    }).verify();
+
+    expect(report).toMatchObject({
+      status: "inconclusive",
+      reason:
+        "Cannot verify managed-root visibility with the current HiveForge image: Error: No such container: hiveforge-container"
     });
   });
 });
