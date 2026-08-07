@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.4 - 2026-08-07
+
+- Complete the deployment debug-ability slice with canonical
+  `diagnose_deployment` evidence: expected-versus-actual Docker/Swarm
+  resources, placement mismatches, restart loops, last-exit hints, and
+  bind-source failures correlate back to the recorded deployment and rendered
+  Compose artifact. Docker query failures are explicit, redacted `unknown`
+  evidence, never inferred healthy state.
+- Validate `requires.placement.nodeLabels` against one active, ready Swarm node
+  before deployment. A generic `placement: true` capability is no longer proof
+  that a deployable node exists.
+- Add explicit managed-root accessibility states and the manual
+  `verify_managed_root_access` REST/MCP diagnostic. It is the only check that
+  verifies host bind-mount visibility across the eligible Docker/Swarm nodes;
+  it does not run automatically or block deploys.
+- Make the Swarm managed-root probe use the running HiveForge image, wait for a
+  bounded cold pull, and return `inconclusive` evidence when a task does not
+  reach a terminal result in time. Temporary probe services are removed in all
+  outcomes.
+- Surface concrete prerequisite, runtime, diagnostics, managed-root, and
+  recorded-Compose evidence in the Actions and Deployments operator views,
+  while preserving redaction of secret values.
+- Add focused contract and behavior coverage for missing placement labels,
+  managed-root probe outcomes, runtime diagnostics, rendered-artifact evidence,
+  and Swarm/bind-mount failures.
+
 ## 0.5.3 - 2026-06-25
 
 - Add explicit project ref unregistration through REST and MCP so operators can

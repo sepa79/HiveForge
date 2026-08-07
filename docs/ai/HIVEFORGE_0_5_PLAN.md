@@ -9,12 +9,12 @@ accepted tool shapes into `docs/specs/mcp/tools.md`, REST transport changes into
 `docs/specs/api/openapi.yaml`, and any workspace retention behavior into the
 relevant runtime/workspace spec.
 
-Release numbers in the original split drifted. Published `0.5.1` and `0.5.2`
-were used for urgent install/runtime/action-root fixes, and `0.5.3` shipped
-operator-console and deployment-inventory work. Changelog entries remain the
-historical source of truth for shipped releases; this file tracks remaining
-work from the `0.5.3` baseline. A heading marked "release TBD" is deliberately
-not a promise of the next version number.
+Published `0.5.1` and `0.5.2` were used for urgent install/runtime/action-root
+fixes, and `0.5.3` shipped operator-console and deployment-inventory work. The
+completed debug-ability work is the `0.5.4` release candidate; it remains
+unpublished until its Git tag and release assets are created. Changelog entries
+remain the historical source of truth for published releases. This file tracks
+accepted future scope from that `0.5.4` baseline.
 
 Current project actions use `/hf` as the project managed root, write rendered
 Compose to `/hf/stacks/compose.yml`, and use `HIVEFORGE_BIND_SOURCE_DIR` only
@@ -22,7 +22,7 @@ for Docker bind source values.
 
 ## Release Split
 
-### Shipped Baseline
+### Published Baseline
 
 - `0.5.0` shipped external bind-source allowlists, HiveForge-owned Docker
   remove/purge, runtime task diagnostics, the consolidated install template,
@@ -38,48 +38,90 @@ for Docker bind source values.
 - `0.5.3` shipped operator-console improvements: registered-ref and inspected-
   component selectors for lifecycle actions, an Activity master-detail view,
   runtime-first deployment inventory and detail, recorded Compose evidence in
-  deployment detail, and copyable `/ui` view URLs. It did not complete the
-  debug-ability acceptance criteria below.
+  deployment detail, and copyable `/ui` view URLs.
 
-### Next: Debug-Ability Completion (release TBD)
+### 0.5.4: Debug-Ability Completion (release candidate)
 
-`0.5.3` made current runtime and recorded Compose evidence visible in the
-operator console. The remaining goal is to make failed deploys explainable
-without SSHing into the host, reading raw journal JSON, or guessing from Docker
-names.
+`0.5.4` completes the goal of making failed deploys explainable without SSHing
+into the host, reading raw journal JSON, or guessing from Docker names.
 
-- Implemented on `main`: Docker diagnostics correlate expected-vs-actual
+- Docker diagnostics correlate expected-vs-actual
   resources, Swarm task placement mismatch, restart loops, last exit hints, and
   bind-source mount errors back to the rendered service and source path. A
   failed Docker query is explicit `unknown` evidence with a redacted reason,
   never a guessed healthy runtime state.
-- Implemented in the current worktree: validate concrete placement label
-  prerequisites before deploy. `requires.placement.nodeLabels` now requires all
+- Concrete placement-label prerequisites are validated before deploy.
+  `requires.placement.nodeLabels` now requires all
   labels on one active, ready node; `placement: true` alone is not proof.
-- Implemented on `main`: `diagnose_deployment` is the canonical, one-page
+- `diagnose_deployment` is the canonical, one-page
   post-deploy report for deployment selectors. It reuses runtime status,
   recorded Compose artifact, bind-source validation, and HiveForge path
   diagnostics without re-rendering or Docker name inference. The semantic
   contract is `docs/specs/deployment-diagnostics.md`; OpenAPI remains the exact
   public payload source of truth.
-- Implemented in the current worktree: add explicit managed-root accessibility
-  states (`configured`, `verified`, `failed`, `inconclusive`, `unknown`) and
-  `verify_managed_root_access`. The separate probe is the only operation that
-  may claim per-node bind-mount visibility.
-- Implemented for deployment detail: the UI shows actual runtime evidence,
-  correlated findings, expected recorded Compose resources, artifact
-  digest/content status, and managed-root state. Implemented for the Actions
-  view: explicit project/profile prerequisite checks show missing labels with
-  active-ready-node evidence, runtime env, policy, and manual constraints
-  before an action starts; the action endpoint still validates independently.
-- Implemented: safe Docker/Swarm error evidence preserves actionable text such
+- Explicit managed-root accessibility states (`configured`, `verified`,
+  `failed`, `inconclusive`, `unknown`) and `verify_managed_root_access` are
+  available. The separate probe is the only operation that may claim per-node
+  bind-mount visibility.
+- The UI shows actual runtime evidence, correlated findings, expected recorded
+  Compose resources, artifact digest/content status, and managed-root state.
+  The Actions view shows explicit project/profile prerequisite checks, missing
+  labels with active-ready-node evidence, runtime env, policy, and manual
+  constraints before an action starts; the action endpoint still validates
+  independently.
+- Safe Docker/Swarm error evidence preserves actionable text such
   as `no suitable node`, rejected task messages, and bind-source path failures,
   while redacting secret values.
-- Implemented: focused coverage exercises missing placement labels, unknown
+- Focused coverage exercises missing placement labels, unknown
   diagnostics states, redacted/missing artifact evidence, and Swarm task or
   bind-mount failure reporting.
 
-### Next: Access And Trust Contracts (after Debug-Ability Completion)
+### Next: Managed Repository Discovery (0.5.5)
+
+`0.5.5` is a deliberately thin Full-node feature. It lets an MCP agent discover
+the operator-configured local Git repositories and OCI image destinations, then
+continue the existing manual build/push/deploy workflow. It does not introduce
+a build agent or alter Git/Docker state.
+
+- Define one canonical, non-secret managed-repository descriptor, separate from
+  the deploy project registry. The project registry approves a source/ref for
+  deployment; it must not be overloaded as an agent's Git push or image push
+  destination.
+- Add one read-only MCP discovery tool, provisionally named
+  `get_managed_repositories_info`, backed by the normal HiveForge application
+  and REST transport. It lists the local managed destinations available on the
+  connected Full node.
+- For every available destination, return only non-secret operational data:
+  repository id/name, Git clone/push URL and default branch, OCI registry
+  repository and push-reference example, the immutable image-reference form
+  expected by deploy, compatible deploy profiles/actions, and authentication
+  requirements by name or mechanism.
+- Return a short explicit workflow: build with the user's or agent's existing
+  toolchain, `git push` and `docker push` to the advertised destinations, then
+  use the normal HiveForge deploy path with the selected image reference.
+- Report unavailable or incomplete local configuration explicitly. Do not
+  return an ambiguous empty result and do not expose credentials, tokens, or
+  secret registry configuration.
+
+Non-goals for `0.5.5`:
+
+- No build action, build agent, automatic Maven/npm/Docker build, or automatic
+  image push.
+- No automatic creation of repositories, registries, users, namespaces, or
+  credentials.
+- No mutation of a user's Git upstream, Docker client configuration, project
+  registry, deployment target, or selected image reference.
+- No derivation of a Docker repository from a Git URL, project id, branch, or
+  `latest`; every advertised destination is explicit configuration.
+- No UI workflow beyond existing deploy surfaces. The MCP discovery response is
+  the initial agent-facing feature.
+
+Before implementation, promote the accepted descriptor and tool response to
+the config schema, `docs/specs/mcp/tools.md`, and `docs/specs/api/openapi.yaml`.
+Add contract coverage for non-secret output, unavailable configuration, and the
+absence of state-changing side effects.
+
+### Later: Access And Trust Contracts
 
 - Introduce explicit deployment trust modes:
   - `restricted`: project actions prepare/render files and HiveForge performs
@@ -124,6 +166,9 @@ names.
 
 ### Later 0.5.x
 
+- Explicit build-agent action: a selected source commit builds to a selected
+  artifact destination and returns a build record plus immutable image digest.
+  It remains separate from deploy; a UI may compose both visible actions later.
 - Advanced workspace retention policies.
 - Better project cleanup UX.
 - More UI polish around deployment comparison and history.
@@ -141,6 +186,8 @@ names.
   deployment.
 - Give operators diagnostics for HiveForge's own runtime paths and managed-root
   accessibility across Docker/Swarm nodes.
+- Let agents discover explicitly configured local Git and OCI destinations on a
+  Full node without granting them implicit build, push, or deployment behavior.
 - Support both restricted and trusted deployment modes without hiding the
   security tradeoff.
 - Run restricted project deployment actions outside the HiveForge control-plane
@@ -183,6 +230,8 @@ names.
   or cleanup logic outside the REST/application services.
 - Do not expose secret values through MCP, REST, logs, UI, or journal entries.
 - Do not infer image tags from branches, git refs, local images, or `latest`.
+- Do not infer a managed Git or OCI destination from project metadata, or change
+  a user's Git/Docker configuration as an effect of repository discovery.
 
 ## 1. Breaking MCP Rename
 
@@ -306,18 +355,17 @@ Behavior rules:
 
 ## 3. Runtime Container Status
 
-Status: initial MCP/REST implementation exists as
-`check_deployment_runtime_status`, backed by explicit Docker label lookup.
-`0.5.3` presents this runtime evidence in the deployment UI. Follow-up work
-remains for complete task-level Swarm details, restart/exit diagnostics,
-expected-resource comparison, and direct correlation of task errors to rendered
-resources. These follow-ups are part of the next debug-ability slice.
+Status: completed in the `0.5.4` release candidate. The existing
+`check_deployment_runtime_status` remains the focused live-status tool;
+`diagnose_deployment` adds task-level Swarm evidence, restart/exit diagnostics,
+expected-resource comparison, and correlation to the recorded rendered
+resources.
 
 Current `check_health` and `/health` only report the HiveForge process health.
 They do not prove that project containers are running. `list_deployments` is
 SQLite current-state inventory, not live Docker runtime state.
 
-Add an authenticated REST endpoint and MCP tool for live runtime status.
+Authenticated REST and MCP tools for live runtime status:
 
 MCP tool:
 
@@ -409,18 +457,17 @@ Implementation notes:
 
 ## 4. Rendered Deployment Artifact Preview
 
-Status: initial compose-specific MCP/REST implementation exists as
-`get_deployment_compose`, backed by `run_action` journal artifacts recorded from
-`HIVEFORGE_RENDERED_COMPOSE_FILE`. `0.5.3` renders this recorded evidence in
-deployment detail. Follow-up work remains for parsed bind-source metadata,
-additional artifact types, immutable artifact storage decisions, and fuller UI
-presentation. The next debug-ability slice must keep artifact retrieval tied to
-operation evidence.
+Status: the `0.5.4` release candidate completes the current Compose-evidence
+slice. `get_deployment_compose` is backed by `run_action` journal artifacts
+recorded from `HIVEFORGE_RENDERED_COMPOSE_FILE`; the deployment view and
+`diagnose_deployment` show that recorded evidence. Parsed bind-source metadata,
+additional artifact types, and immutable artifact-storage decisions remain
+later work, always tied to operation evidence.
 
 Operators need to see the deployment artifact HiveForge actually used, especially
 the rendered Compose/Stack file for PocketHive-style release deployment.
 
-Add an authenticated REST endpoint and MCP tool for rendered artifact evidence.
+Authenticated REST and MCP tools for rendered artifact evidence:
 
 MCP tool:
 
@@ -679,9 +726,10 @@ Acceptance:
 
 ## 7. Admin And Operator Access Roles
 
-Status: planned after the debug-ability slice. Current HiveForge uses one bearer
-token for authenticated API/MCP calls. That is enough for the POC, but it does
-not separate administrative environment changes from normal deployment work.
+Status: planned after the `0.5.5` managed-repository discovery slice. Current
+HiveForge uses one bearer token for authenticated API/MCP calls. That is enough
+for the POC, but it does not separate administrative environment changes from
+normal deployment work.
 
 The target workflow is:
 
@@ -743,9 +791,10 @@ Status: action-root isolation shipped in `0.5.2`: project Ansible actions run
 in a short-lived helper container with the selected project's managed root at
 `/hf` and checkout at `/workspace`. Explicit `restricted`/`trusted` modes,
 role/policy approval, Docker-socket rules, and HiveForge-owned restricted
-execution remain planned after the debug-ability slice. The earlier plan made
-HiveForge-owned Docker execution the only target. SkippyBot proves that would
-make HiveForge too primitive for trusted component-level deployments.
+execution remain planned after the managed-repository discovery slice. The
+earlier plan made HiveForge-owned Docker execution the only target. SkippyBot
+proves that would make HiveForge too primitive for trusted component-level
+deployments.
 
 Current behavior isolates the action root, but it does not yet encode the
 deployment trust decision in the manifest or environment policy. The current

@@ -98,7 +98,7 @@ the published image on your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.3 \
+  ghcr.io/sepa79/hiveforge:v0.5.4 \
   npm run hiveforge-mcp
 ```
 
@@ -271,7 +271,7 @@ environment file. Run HiveForge on a manager node or provide an explicit
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.3 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.4 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
 For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or
@@ -297,7 +297,7 @@ When no GitHub Release exists yet, HiveForge reports that no published release
 was found and does not run Docker update commands.
 
 The update target is the concrete release image tag such as
-`ghcr.io/sepa79/hiveforge:v0.5.3`; it does not update to floating `latest`.
+`ghcr.io/sepa79/hiveforge:v0.5.4`; it does not update to floating `latest`.
 
 For Docker Compose installs, HiveForge uses the running container's Compose
 labels and `/hf` mount to start a helper container that runs the same Compose
