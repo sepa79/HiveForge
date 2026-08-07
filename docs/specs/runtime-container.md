@@ -104,7 +104,7 @@ Explicit runtime path mode remains supported for advanced installs:
   isolated Ansible action execution. Normal Docker/Swarm installs set this to
   the same concrete HiveForge image as the control-plane service.
 
-When the Full Compose overlay includes the sibling `forgejo` service,
+When the standalone Full Compose stack includes the sibling `forgejo` service,
 HiveForge identifies that service through the current Compose project or Swarm
 stack labels and reads `FORGEJO__server__ROOT_URL` using Docker inspection. It
 derives the shared Git base URL and lab HTTP OCI registry address from that one
@@ -160,7 +160,7 @@ an update failure.
 
 `POST /hiveforge/update` starts a self-update only when a newer release exists.
 The target image is the concrete release tag, for example
-`ghcr.io/sepa79/hiveforge:v0.5.4`; HiveForge does not update itself to a
+`ghcr.io/sepa79/hiveforge:v0.5.5`; HiveForge does not update itself to a
 floating `latest` tag. If no release is published yet, the response status is
 `no_release` and no Docker command is run.
 

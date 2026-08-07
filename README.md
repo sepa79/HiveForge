@@ -1,203 +1,174 @@
 # HiveForge
 
-HiveForge is a deployment control plane for target Docker/Swarm environments.
+HiveForge is a deployment control plane for Docker and Docker Swarm targets.
+It gives a human or an AI agent one explicit surface—UI, MCP, or REST—to
+inspect approved projects, validate their declared requirements, run their
+declared lifecycle actions, and retain evidence for each deployment.
 
-It runs as a container on the target environment, lets a human or AI agent connect
-through UI, MCP, or REST, validates registered projects, prepares managed files
-under its own data root, and runs explicitly declared lifecycle actions.
+Current release: **0.5.5**.
 
-HiveForge is a separate project from PocketHive. PocketHive and HiveWatch are
-consumers: they carry manifests and deployment assets, while HiveForge provides
-the deployment engine, validation surface, audit journal, UI, REST API, and MCP
-tools.
+HiveForge does not own application code or invent deployment behaviour.
+Applications carry `hiveforge.yaml`, component manifests, and declared action
+assets; HiveForge executes only that explicit contract.
 
-## Current POC
+## What It Does
 
-The first POC target is HiveWatch. PocketHive comes later after the model is
-proven on a smaller project.
+For a registered repository and an explicit Git ref, HiveForge:
 
-POC flow:
+1. checks out the project and reads its root and listed component manifests;
+2. checks the environment policy, profile, and declared requirements;
+3. runs the declared lifecycle action, initially an Ansible playbook;
+4. deploys the rendered Docker Compose/Swarm stack when the action declares it;
+5. records a journal event, deployment state, rendered Compose artifact, and
+   read-only runtime diagnostics.
 
-1. HiveForge runs as a container on a target Docker/Swarm environment.
-2. User connects to that environment through UI or MCP.
-3. User selects a registered project, initially HiveWatch.
-4. HiveForge checks out an explicit git ref.
-5. HiveForge reads the project `hiveforge.yaml`.
-6. HiveForge reads only component manifests listed by the project manifest.
-7. User chooses a component lifecycle action exposed by the project.
-8. HiveForge checks the current environment policy for the project, profile, and
-   action.
-9. HiveForge validates requirements.
-10. HiveForge runs the declared Ansible playbook from the checked-out repo.
-11. HiveForge writes the operation result to an append-only journal.
-12. HiveForge exposes deployment inventory derived from journaled lifecycle
-    actions.
+It deliberately does not infer components from a Compose file, deploy arbitrary
+repositories, manage secrets, choose a fallback adapter, or implement a build
+action. Build, `git push`, and `docker push` remain visible steps outside the
+current deployment action.
 
-The HiveWatch POC is still repo/ref-driven. The target v1 model for
-PocketHive/HiveMind-style managed services is release-driven: deploy an
-already-published release or registry-qualified image tag set, validate registry
-artifacts, and use repository inspection as bootstrap/dev tooling rather than
-the deployment source of truth. See [Release deployment](docs/specs/releases.md).
+## Choose The Node Shape
 
-## How To Use
+| Shape | Includes | Use it for |
+|---|---|---|
+| **Lite** | HiveForge control plane, UI, MCP, REST, deployment evidence | Test/deploy targets that consume already-published artifacts. |
+| **Full** | Lite plus a local Forgejo Git service and OCI registry | A trusted development lab that needs its own Git and Docker artifact endpoints. |
 
-1. Install HiveForge on the target Docker/Swarm environment.
+Full is not a repository catalog or a build system. It exposes one shared,
+trusted-LAN `hiveforge` identity. A user or agent chooses the application path
+and manually pushes its source and image; the ordinary HiveForge deploy flow
+then selects an explicit image reference from the application's profile.
 
-   ```bash
-   mkdir -p /opt/hiveforge
-   cd /opt/hiveforge
-   curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
-   docker compose -f docker-compose.hiveforge.yml up -d
-   cat /opt/hiveforge/auth-token
-   ```
+## Quick Start: Lite
 
-   The install template mounts `/opt/hiveforge` into the HiveForge container at
-   `/hf`. Edit the left side of that bind mount before deploy when the host
-   directory should be somewhere else.
+Run this on the target Docker host or a Swarm manager:
 
-   For Portainer, paste
-   [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml) as a
-   Swarm stack. See [First Swarm quickstart](docs/quickstart/first-swarm.md).
+```bash
+mkdir -p /opt/hiveforge
+cd /opt/hiveforge
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
+docker compose -f docker-compose.hiveforge.yml up -d
+cat /opt/hiveforge/auth-token
+```
 
-   A Full lab node can add its own Forgejo Git and OCI registry with the
-   [Full-node Compose overlay](docs/install/docker-compose.md#full-node-forgejo-git-and-oci-registry-lab-http).
-   Its initial transport is deliberately `insecure-http`: each Docker engine
-   that pushes/pulls must be configured manually. On the trusted lab LAN,
-   ordinary Git and Docker pushes use the shared `hiveforge` identity without a
-   client login; an MCP agent can discover the endpoints and namespace with
-   `get_managed_repositories_info`.
+For Portainer or `docker stack deploy`, use the same base file. The complete
+Compose/Swarm instructions, runtime-root behaviour, proxy settings, and token
+options are in [Install HiveForge](docs/install/docker-compose.md).
 
-2. Start the MCP server from your workstation.
+Check the public health endpoint:
 
-   ```bash
-   docker run --rm -i \
-     -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
-     -e HIVEFORGE_AUTH_TOKEN=<token> \
-     ghcr.io/sepa79/hiveforge:v0.5.4 \
-     npm run hiveforge-mcp
-   ```
+```bash
+curl -fsS http://<target-host>:3000/health
+```
 
-   MCP clients configure stdio servers differently. For VS Code Copilot,
-   Amazon Q Developer, and agent-facing setup notes, see
-   [Configure an MCP client for HiveForge](docs/install/mcp-clients.md).
+## Quick Start: Full
 
-3. Ask your agent to use HiveForge MCP tools in this order:
+Full is one standalone Compose/Swarm stack containing HF, Forgejo, and the
+gateway. Download `docker-compose.hiveforge-full.yml` and
+`forgejo-gateway.nginx.conf`, then follow
+[the Full installation](docs/install/docker-compose.md#full-node-forgejo-git-and-oci-registry-lab-http).
+Do not combine it with the Lite Compose file. Forgejo data belongs on local
+storage of the selected node, never on NFS/EFS.
 
-   ```text
-   check_health
-   get_hiveforge_info
-   get_managed_repositories_info
-   list_environments
-   refresh_environment
-   list_environment_nodes
-   diagnose_hiveforge_runtime
-   verify_managed_root_access
-   inspect_repository
-   register_project
-   unregister_project_ref
-   set_environment_project_policy
-   set_project_runtime_env
-   inspect_project
-   validate_requirements
-   start_action
-   get_operation
-   diagnose_deployment
-   read_journal
-   ```
+The gateway is the only public Forgejo endpoint. On the trusted lab network:
 
-   `register_project` approves a repository/ref. `set_environment_project_policy`
-   is a separate explicit operator decision that allows that registered project
-   to run selected actions/profiles on the target environment.
-   `set_project_runtime_env` is only for non-secret runtime values that must
-   stay outside git. Set required runtime env before validation/deployment;
-   changes made afterward affect only future validation/action calls and do not
-   update an already deployed service. Secrets are outside the current
-   HiveForge contract.
+```bash
+git push http://<forge-host>:3001/hiveforge/<app>.git <branch>
+docker push <forge-host>:3001/hiveforge/<app>:<tag>
+```
 
-   When an environment uses host bind mounts, ask the agent to run the manual
-   `verify_managed_root_access` MCP tool after `refresh_environment`, before
-   the first deploy and after a node or mount change. It is available as an
-   explicit diagnostic; it never runs automatically and does not block a
-   deploy.
+No Git credential helper or `docker login` is needed. This is intentionally
+open to every client that reaches that trusted network; it is not suitable for
+a public endpoint. Because the initial registry transport is HTTP, every Docker
+engine that pushes or pulls must manually trust `<forge-host>:3001` through
+Docker's `insecure-registries` setting. HiveForge never changes Docker daemon
+configuration or claims that every node is ready.
 
-4. Deploy only projects that carry HiveForge manifests.
+## Use With An Agent
 
-   HiveWatch and HiveMind are external consumer repositories. They become
-   deployable when their own repositories carry `hiveforge.yaml` manifests,
-   component manifests, and declared action assets. The fixture under
-   `examples/hivewatch/` is for HiveForge development, not the user-facing
-   deployment example.
+Run the local MCP stdio client from your workstation:
 
-## Core Rule
+```bash
+docker run --rm -i \
+  -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
+  -e HIVEFORGE_AUTH_TOKEN=<token> \
+  ghcr.io/sepa79/hiveforge:v0.5.5 \
+  npm run hiveforge-mcp
+```
 
-HiveForge manages only components that are explicitly listed in the project
-manifest and have their own component `hiveforge.yaml`.
+MCP is a local stdio process that connects to HiveForge REST; do not expose the
+REST endpoint as an MCP HTTP server. Client-specific setup is in
+[Configure an MCP client](docs/install/mcp-clients.md).
 
-Everything else in `docker-compose.yml` is outside HiveForge's scope.
+A safe first agent flow is:
 
-No manifest means no visibility and no actions.
+```text
+check_health
+get_hiveforge_info
+list_environments
+refresh_environment
+diagnose_hiveforge_runtime
+verify_managed_root_access       # manual diagnostic for host-bind deployments
+get_managed_repositories_info   # Full only
+list_projects
+inspect_repository
+register_project
+set_environment_project_policy
+set_project_runtime_env          # non-secret values only, when required
+validate_requirements
+start_action
+diagnose_deployment
+read_journal
+```
 
-## Initial Sources
+`verify_managed_root_access` is deliberately manual: run it before the first
+host-bind deployment and after a node or mount change. It does not run
+automatically and does not block a deployment. `get_managed_repositories_info`
+advertises Full's shared Git/OCI endpoints and their Docker prerequisite; it
+never creates, lists, or tracks application repositories.
 
-- [Project context](docs/ai/PROJECT_CONTEXT.md)
+## Project Contract
+
+A deployable application repository contains:
+
+- a root `hiveforge.yaml` listing its managed components and supported actions;
+- one component manifest for each managed component;
+- action assets declared by those manifests;
+- an explicit repository/ref registration and environment policy in HiveForge.
+
+HiveWatch and HiveMind are consumer repositories, not built-in applications.
+The `examples/hivewatch/` fixture exists for HiveForge development; use a
+consumer repository's own manifest and profile for a real deployment.
+
+## Evidence And Diagnostics
+
+Every lifecycle attempt writes an append-only journal record. Successful deploys
+also get a durable `deploymentId`, the recorded Compose artifact, and runtime
+evidence. `diagnose_deployment` correlates the expected Compose services,
+images, bind mounts, and placement constraints with the live Docker/Swarm
+state. It does not re-render source or infer ownership from resource names.
+
+## Documentation
+
+- [Install with Docker Compose or Portainer](docs/install/docker-compose.md)
+- [First Swarm quickstart](docs/quickstart/first-swarm.md)
+- [MCP tool contract](docs/specs/mcp/tools.md)
+- [REST API](docs/specs/api/openapi.yaml)
 - [Architecture](docs/ARCHITECTURE.md)
-- [POC spec](docs/specs/hiveforge-poc.md)
-- [Commands](docs/ai/COMMANDS.md)
+- [0.5 delivery plan](docs/ai/HIVEFORGE_0_5_PLAN.md)
 
 ## Development
 
-The first implementation iteration uses Node.js 22+ and TypeScript for contract
-validation and manifest loading.
+HiveForge uses Node.js 22+ and TypeScript.
 
 ```bash
 npm install
 npm run check
 ```
 
-Run the REST server against one initialized local runtime root:
-
-```bash
-npm run hiveforge -- read-journal --runtime-root tmp/hf >/dev/null
-HIVEFORGE_AUTH_TOKEN=local-dev-token \
-HIVEFORGE_PROJECT_REGISTRY_PATH=tmp/hf/projects.yaml \
-HIVEFORGE_ENVIRONMENTS_PATH=tmp/hf/environments.yaml \
-HIVEFORGE_WORKSPACE_DIR=tmp/hf/workspace \
-HIVEFORGE_JOURNAL_DIR=tmp/hf/journal \
-HIVEFORGE_DATA_ROOT=tmp/hf/data \
-npm run serve
-```
-
-Open `http://127.0.0.1:3000/` for the bundled operator console. The UI loads
-without auth so the browser can render it, but API calls require the bearer
-token.
-
-Run the MCP server against the REST API over stdio:
-
-```bash
-HIVEFORGE_BASE_URL=http://127.0.0.1:3000 \
-HIVEFORGE_AUTH_TOKEN=local-dev-token \
-npm run hiveforge-mcp
-```
-
-MCP connects to the REST server. It does not read runtime files directly.
-
-## Install HiveForge
-
-HiveForge runs from one Docker Compose file that works with `docker compose up`
-and Portainer Swarm stacks.
-
-Use [Docker Compose / Portainer install](docs/install/docker-compose.md),
-[first Swarm quickstart](docs/quickstart/first-swarm.md),
-and [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml) as
-the installation source of truth.
-
-The install file uses one mounted runtime root. HiveForge creates missing
-runtime files there on first start and generates `auth-token` when an
-operator-provided `HIVEFORGE_AUTH_TOKEN` is not set. Project deployment remains
-blocked until project registry and environment policy entries are explicitly
-configured.
+For local REST/MCP commands and the release gate, see
+[canonical commands](docs/ai/COMMANDS.md).
 
 ## License
 
-This project is licensed under the project's repository license. See `LICENSE`
-in the root for details.
+See [LICENSE](LICENSE).

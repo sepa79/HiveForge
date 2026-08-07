@@ -1,6 +1,6 @@
 # Install HiveForge With Docker Compose Or Portainer
 
-HiveForge installs from one Docker Compose file:
+Lite installs from one Docker Compose file:
 
 ```text
 deploy/docker-compose.hiveforge.yml
@@ -20,7 +20,7 @@ HiveForge mounts one operator-owned runtime directory at `/hf`; the HiveForge
 server always uses `/hf` as its container runtime root and initializes missing
 runtime files there on first start.
 
-## Docker Compose
+## Lite: Docker Compose
 
 Run this on the target Docker host or on one Swarm manager:
 
@@ -32,7 +32,7 @@ docker compose -f docker-compose.hiveforge.yml up -d
 cat /opt/hiveforge/auth-token
 ```
 
-## Portainer Or Swarm Stack
+## Lite: Portainer Or Swarm Stack
 
 For Portainer, paste the same `deploy/docker-compose.hiveforge.yml` file as a
 Swarm stack.
@@ -83,14 +83,13 @@ It does not require the bearer token.
 
 ## Full Node: Forgejo Git And OCI Registry (Lab HTTP)
 
-A Full node extends the base install with Forgejo Git and its OCI package
-registry. It is an overlay, so keep the base Compose file and add
-`deploy/docker-compose.hiveforge-full.yml`:
+A Full node is one standalone Compose/Swarm stack containing HiveForge, Forgejo
+Git, and its OCI package registry. Use `deploy/docker-compose.hiveforge-full.yml`
+instead of the Lite file; do not combine the two files:
 
 ```bash
 mkdir -p /opt/hiveforge/forgejo
 cd /opt/hiveforge
-curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge-full.yml
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/forgejo-gateway.nginx.conf
 export HIVEFORGE_FORGEJO_DOMAIN=10.0.0.54
@@ -98,13 +97,13 @@ export HIVEFORGE_FORGEJO_ROOT_URL=http://10.0.0.54:3001/
 export HIVEFORGE_FORGEJO_HTTP_PORT=3001
 export HIVEFORGE_FORGEJO_DATA_ROOT=/opt/hiveforge/forgejo
 export HIVEFORGE_FORGEJO_NODE=swarm-manager-1
-docker compose -f docker-compose.hiveforge.yml -f docker-compose.hiveforge-full.yml up -d
+docker compose -f docker-compose.hiveforge-full.yml up -d
 ```
 
 For Swarm, run the equivalent on a manager:
 
 ```bash
-docker stack deploy -c docker-compose.hiveforge.yml -c docker-compose.hiveforge-full.yml hiveforge
+docker stack deploy -c docker-compose.hiveforge-full.yml hiveforge
 ```
 
 `HIVEFORGE_FORGEJO_DOMAIN` and `HIVEFORGE_FORGEJO_ROOT_URL` must use the exact
@@ -113,7 +112,7 @@ host or IP and port reachable from Git and Docker clients. Forgejo is pinned to
 `HIVEFORGE_FORGEJO_DATA_ROOT` on that node's local filesystem, never under the
 shared HiveForge managed root or on NFS; back it up separately.
 
-The overlay exposes only `forgejo-gateway` on that address. The raw Forgejo
+Full exposes only `forgejo-gateway` on that address. The raw Forgejo
 service stays on a private network. The gateway supplies a single fixed
 Forgejo identity, `hiveforge`, so normal clients use no credentials:
 
@@ -171,7 +170,7 @@ the published image on your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.4 \
+  ghcr.io/sepa79/hiveforge:v0.5.5 \
   npm run hiveforge-mcp
 ```
 
@@ -344,7 +343,7 @@ environment file. Run HiveForge on a manager node or provide an explicit
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
 ```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.4 docker compose -f docker-compose.hiveforge.yml up -d
+HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.5 docker compose -f docker-compose.hiveforge.yml up -d
 ```
 
 For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or
@@ -370,7 +369,7 @@ When no GitHub Release exists yet, HiveForge reports that no published release
 was found and does not run Docker update commands.
 
 The update target is the concrete release image tag such as
-`ghcr.io/sepa79/hiveforge:v0.5.4`; it does not update to floating `latest`.
+`ghcr.io/sepa79/hiveforge:v0.5.5`; it does not update to floating `latest`.
 
 For Docker Compose installs, HiveForge uses the running container's Compose
 labels and `/hf` mount to start a helper container that runs the same Compose

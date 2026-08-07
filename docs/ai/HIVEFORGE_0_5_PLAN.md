@@ -129,9 +129,9 @@ Before implementation, promote the accepted service response to
 coverage for non-secret output, unavailable configuration, and the absence of
 state-changing side effects.
 
-Implementation status: complete in the unreleased `0.5.5` working tree. The
-Full Compose overlay contains Forgejo only; HiveForge discovers the sibling
-service from Docker labels and its configured root URL. REST/MCP discovery
+Implementation status: complete in the `0.5.5` release, with a standalone Full
+Compose file that contains HiveForge, Forgejo, and the gateway. HiveForge
+discovers the sibling service from Docker labels and its configured root URL. REST/MCP discovery
 exposes those facts and the explicit `manual-unverified` insecure-registry
 prerequisite. UAT of the actual Forgejo stack and an operator-configured Docker
 engine remains a separate deployment acceptance step.

@@ -2,11 +2,11 @@
 
 ## 0.5.5 - 2026-08-07
 
-- Add a Full-node Forgejo overlay with a trusted-LAN gateway. It provides Git
-  and OCI services through one fixed `hiveforge` identity, so normal `git push`
-  and `docker push` need no client login. Forgejo uses node-local SQLite
-  storage and is pinned to the explicitly configured manager that owns that
-  data.
+- Add a standalone Full Compose/Swarm install containing HiveForge, Forgejo,
+  and a trusted-LAN gateway. It provides Git and OCI services through one fixed
+  `hiveforge` identity, so normal `git push` and `docker push` need no client
+  login. Forgejo uses node-local SQLite storage and is pinned to the explicitly
+  configured manager that owns that data.
 - Add read-only `GET /managed-repositories/info` and MCP
   `get_managed_repositories_info`. Full advertises only the shared Forgejo Git
   service, OCI registry, and fixed owner namespace—not a catalog of application

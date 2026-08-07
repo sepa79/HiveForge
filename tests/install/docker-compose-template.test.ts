@@ -27,8 +27,16 @@ describe("Docker Compose install template", () => {
     });
   });
 
-  it("adds Forgejo and its trusted-LAN gateway through the Full overlay with an explicit HTTP endpoint and local data root", async () => {
-    const raw = await readFile("deploy/docker-compose.hiveforge-full.yml", "utf8");
+  it("makes Full a standalone HiveForge, Forgejo, and trusted-LAN gateway install with an explicit HTTP endpoint and local data root", async () => {
+    const [liteRaw, raw] = await Promise.all([
+      readFile("deploy/docker-compose.hiveforge.yml", "utf8"),
+      readFile("deploy/docker-compose.hiveforge-full.yml", "utf8")
+    ]);
+    const lite = YAML.parse(liteRaw) as {
+      services?: {
+        hiveforge?: unknown;
+      };
+    };
     const compose = YAML.parse(raw) as {
       services?: {
         hiveforge?: {
@@ -51,7 +59,7 @@ describe("Docker Compose install template", () => {
       configs?: Record<string, { file?: string }>;
     };
 
-    expect(compose.services?.hiveforge).toBeUndefined();
+    expect(compose.services?.hiveforge).toEqual(lite.services?.hiveforge);
     expect(compose.services?.forgejo?.image).toBe("${HIVEFORGE_FORGEJO_IMAGE:-codeberg.org/forgejo/forgejo:16.0}");
     expect(compose.services?.forgejo?.environment).toMatchObject({
       FORGEJO__server__PROTOCOL: "http",
