@@ -71,6 +71,10 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/info" });
   }
 
+  getManagedRepositoriesInfo(): Promise<unknown> {
+    return this.request({ method: "GET", path: "/managed-repositories/info" });
+  }
+
   getHealth(): Promise<unknown> {
     return this.request({ method: "GET", path: "/health" });
   }

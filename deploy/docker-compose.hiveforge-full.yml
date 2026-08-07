@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  forgejo:
+    image: ${HIVEFORGE_FORGEJO_IMAGE:-codeberg.org/forgejo/forgejo:16.0}
+    restart: unless-stopped
+    environment:
+      USER_UID: ${HIVEFORGE_FORGEJO_UID:-1000}
+      USER_GID: ${HIVEFORGE_FORGEJO_GID:-1000}
+      FORGEJO__server__DOMAIN: ${HIVEFORGE_FORGEJO_DOMAIN:?Set HIVEFORGE_FORGEJO_DOMAIN to the host or IP reachable by Git and Docker clients}
+      FORGEJO__server__ROOT_URL: ${HIVEFORGE_FORGEJO_ROOT_URL:?Set HIVEFORGE_FORGEJO_ROOT_URL to the exact http URL reachable by Git and Docker clients}
+      FORGEJO__server__PROTOCOL: http
+      FORGEJO__server__HTTP_PORT: "3000"
+      # Forgejo accepts trusted identity headers only from the private gateway
+      # network below. The raw Forgejo port is never published.
+      FORGEJO__security__REVERSE_PROXY_TRUSTED_PROXIES: "*"
+      FORGEJO__packages__ENABLED: "true"
+      FORGEJO__security__INSTALL_LOCK: "true"
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__ENABLE_REVERSE_PROXY_AUTHENTICATION: "true"
+      FORGEJO__service__ENABLE_REVERSE_PROXY_AUTHENTICATION_API: "true"
+      FORGEJO__service__ENABLE_REVERSE_PROXY_AUTO_REGISTRATION: "true"
+      FORGEJO__service__ENABLE_REVERSE_PROXY_EMAIL: "true"
+      FORGEJO__repository__DEFAULT_PRIVATE: "true"
+      FORGEJO__repository__ENABLE_PUSH_CREATE_USER: "true"
+      FORGEJO__repository__DEFAULT_PUSH_CREATE_PRIVATE: "false"
+    volumes:
+      # This directory is local to the manager running Forgejo. Back it up separately.
+      - type: bind
+        source: ${HIVEFORGE_FORGEJO_DATA_ROOT:-/opt/hiveforge/forgejo}
+        target: /data
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          # Forgejo uses local SQLite data; set the one manager that owns this bind.
+          - node.hostname == ${HIVEFORGE_FORGEJO_NODE:?Set HIVEFORGE_FORGEJO_NODE to the manager that owns HIVEFORGE_FORGEJO_DATA_ROOT}
+    networks:
+      - forgejo-backend
+
+  forgejo-gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    configs:
+      - source: forgejo_gateway_nginx
+        target: /etc/nginx/conf.d/default.conf
+        mode: 0444
+    ports:
+      - target: 3000
+        published: ${HIVEFORGE_FORGEJO_HTTP_PORT:-3001}
+        protocol: tcp
+        mode: ingress
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+      placement:
+        constraints:
+          - node.hostname == ${HIVEFORGE_FORGEJO_NODE:?Set HIVEFORGE_FORGEJO_NODE to the manager that owns HIVEFORGE_FORGEJO_DATA_ROOT}
+    networks:
+      - forgejo-backend
+
+configs:
+  forgejo_gateway_nginx:
+    file: ./forgejo-gateway.nginx.conf
+
+networks:
+  forgejo-backend:
+    internal: true

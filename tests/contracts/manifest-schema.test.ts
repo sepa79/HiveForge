@@ -83,6 +83,27 @@ describe("manifest schema", () => {
     await expect(validateContract(schemaPaths.manifest, componentManifest)).resolves.toBeUndefined();
   });
 
+  it("accepts an explicit internal HTTP Git project repository and rejects arbitrary HTTP", async () => {
+    const rootManifest = {
+      kind: "project",
+      version: "0.5",
+      project: {
+        name: "hivewatch",
+        repository: "http://192.168.88.50:3001/sepa/hivewatch.git",
+        actions: ["deploy"]
+      },
+      components: [{ name: "api", manifest: "components/api/hiveforge.yaml" }]
+    };
+
+    await expect(validateContract(schemaPaths.manifest, rootManifest)).resolves.toBeUndefined();
+    await expect(
+      validateContract(schemaPaths.manifest, {
+        ...rootManifest,
+        project: { ...rootManifest.project, repository: "http://example.com/sepa/hivewatch.git" }
+      })
+    ).rejects.toBeInstanceOf(ContractValidationError);
+  });
+
   it("rejects implicit component manifest locations", async () => {
     const rootManifest = {
       kind: "project",

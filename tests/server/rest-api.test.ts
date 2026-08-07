@@ -50,6 +50,21 @@ describe("REST API", () => {
     });
   });
 
+  it("returns managed Git and OCI service discovery without a state-changing operation", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/managed-repositories/info`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      status: "unavailable",
+      reason: "Managed Git and OCI services are not configured for this HiveForge target.",
+      workflow: ["manual build"]
+    });
+    expect(calls).toEqual([{ managedArtifactServices: true }]);
+  });
+
   it("checks for HiveForge updates", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -1043,6 +1058,16 @@ async function startServer(
           }
         ]
       },
+      managedArtifactServices: {
+        getInfo() {
+          options.calls?.push({ managedArtifactServices: true });
+          return {
+            status: "unavailable",
+            reason: "Managed Git and OCI services are not configured for this HiveForge target.",
+            workflow: ["manual build"]
+          };
+        }
+      } as never,
       journal: journal(),
       inspection: {
         async inspect() {

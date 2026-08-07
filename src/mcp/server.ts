@@ -74,6 +74,17 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "get_managed_repositories_info",
+    {
+      title: "Get managed Git and OCI services",
+      description:
+        "Read the shared Forgejo Git service, OCI registry, and trusted-LAN owner namespace configured on this Full node without changing Git, Docker, or deployment state. It does not list, create, or inspect application repositories. Trusted-LAN endpoints use normal Git and Docker pushes without a client login. For insecure HTTP registry entries, it reports the manual, unverified Docker insecure-registries prerequisite on every engine that pushes or pulls.",
+      inputSchema: {}
+    },
+    runtime.getManagedRepositoriesInfo
+  );
+
+  server.registerTool(
     "list_projects",
     {
       title: "List HiveForge projects",

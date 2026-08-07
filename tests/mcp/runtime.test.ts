@@ -11,6 +11,7 @@ describe("HiveForge MCP runtime", () => {
     expect(toolNames).toEqual([
       "check_health",
       "get_hiveforge_info",
+      "get_managed_repositories_info",
       "list_projects",
       "list_environments",
       "refresh_environment",
@@ -95,6 +96,18 @@ describe("HiveForge MCP runtime", () => {
     const result = await runtime.getHiveForgeInfo();
 
     expect(result.structuredContent).toEqual({ hiveforge: { name: "hiveforge", version: "0.1.0-test" } });
+  });
+
+  it("returns managed Git and OCI service discovery through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async getManagedRepositoriesInfo() {
+        return { status: "unavailable" };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.getManagedRepositoriesInfo();
+
+    expect(result.structuredContent).toEqual({ status: "unavailable" });
   });
 
   it("returns connected endpoint health through the runtime", async () => {

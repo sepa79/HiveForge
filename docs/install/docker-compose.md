@@ -81,6 +81,79 @@ http://<host>:3000/health
 
 It does not require the bearer token.
 
+## Full Node: Forgejo Git And OCI Registry (Lab HTTP)
+
+A Full node extends the base install with Forgejo Git and its OCI package
+registry. It is an overlay, so keep the base Compose file and add
+`deploy/docker-compose.hiveforge-full.yml`:
+
+```bash
+mkdir -p /opt/hiveforge/forgejo
+cd /opt/hiveforge
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge-full.yml
+curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/forgejo-gateway.nginx.conf
+export HIVEFORGE_FORGEJO_DOMAIN=10.0.0.54
+export HIVEFORGE_FORGEJO_ROOT_URL=http://10.0.0.54:3001/
+export HIVEFORGE_FORGEJO_HTTP_PORT=3001
+export HIVEFORGE_FORGEJO_DATA_ROOT=/opt/hiveforge/forgejo
+export HIVEFORGE_FORGEJO_NODE=swarm-manager-1
+docker compose -f docker-compose.hiveforge.yml -f docker-compose.hiveforge-full.yml up -d
+```
+
+For Swarm, run the equivalent on a manager:
+
+```bash
+docker stack deploy -c docker-compose.hiveforge.yml -c docker-compose.hiveforge-full.yml hiveforge
+```
+
+`HIVEFORGE_FORGEJO_DOMAIN` and `HIVEFORGE_FORGEJO_ROOT_URL` must use the exact
+host or IP and port reachable from Git and Docker clients. Forgejo is pinned to
+`HIVEFORGE_FORGEJO_NODE` because its SQLite `/data` bind is local. Keep
+`HIVEFORGE_FORGEJO_DATA_ROOT` on that node's local filesystem, never under the
+shared HiveForge managed root or on NFS; back it up separately.
+
+The overlay exposes only `forgejo-gateway` on that address. The raw Forgejo
+service stays on a private network. The gateway supplies a single fixed
+Forgejo identity, `hiveforge`, so normal clients use no credentials:
+
+```bash
+git push http://10.0.0.54:3001/hiveforge/my-app.git main
+docker push 10.0.0.54:3001/hiveforge/my-app:1.0.0
+```
+
+The first push creates the repository under that namespace. This is deliberately
+a trusted development-LAN hub: anyone who can reach the gateway can read,
+create, or overwrite content in `hiveforge`. Do not expose it beyond that
+trusted network. Forgejo's installer remains locked; a Forgejo administrator is
+only needed to operate the Forgejo UI itself, not for normal Git or OCI use.
+
+This initial Full mode uses **plain HTTP** for the isolated lab. Before any
+Docker engine can push or pull, its own operator must manually configure this
+exact registry address, here `10.0.0.54:3001`, in Docker
+`insecure-registries`, then restart Docker using that environment's normal
+procedure. Repeat that on every push/pull engine, including relevant Swarm
+nodes. HiveForge does not write Docker daemon configuration, perform that
+restart, or prove that every node was configured.
+
+HiveForge discovers the sibling Forgejo service through the current Docker
+Compose project or Swarm stack labels, then reads its configured root URL. An
+agent calls `get_managed_repositories_info` to receive the shared Git service,
+OCI registry address, the fixed `hiveforge` owner namespace, and the manual
+registry prerequisite. No additional HiveForge environment variables or
+descriptor file are required. It does not list, create, or track application
+repositories or image paths.
+
+For a project stored there, its `hiveforge.yaml` may declare that exact
+internal HTTP Git URL (ending in `.git`), for example
+`http://10.0.0.54:3001/hiveforge/my-app.git`. Register the same URL and explicit
+Git ref as a development project before deployment. Arbitrary external HTTP
+Git URLs remain invalid.
+
+This does not add a build action: the user or agent continues to build, `git
+push`, and `docker push` manually, then uses the existing HiveForge deployment
+workflow with an explicit image reference accepted by that project's profile.
+
 ## MCP
 
 Start MCP against the installed HiveForge endpoint with:

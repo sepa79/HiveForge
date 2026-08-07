@@ -50,6 +50,29 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("reads managed Git and OCI service discovery from REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { status: "unavailable" });
+      }
+    });
+
+    await expect(client.getManagedRepositoriesInfo()).resolves.toEqual({ status: "unavailable" });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/managed-repositories/info",
+      init: {
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
   it("reads public health from REST transport", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({

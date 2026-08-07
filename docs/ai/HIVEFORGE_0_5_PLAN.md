@@ -76,29 +76,33 @@ into the host, reading raw journal JSON, or guessing from Docker names.
   diagnostics states, redacted/missing artifact evidence, and Swarm task or
   bind-mount failure reporting.
 
-### Next: Managed Repository Discovery (0.5.5)
+### Managed Repository Discovery (0.5.5, unreleased)
 
 `0.5.5` is a deliberately thin Full-node feature. It lets an MCP agent discover
-the operator-configured local Git repositories and OCI image destinations, then
-continue the existing manual build/push/deploy workflow. It does not introduce
-a build agent or alter Git/Docker state.
+the shared Forgejo Git service and OCI registry provided by that Full node,
+then continue the existing manual build/push/deploy workflow. HiveForge does
+not know or care which application repositories, namespaces, or image paths a
+user keeps there.
 
-- Define one canonical, non-secret managed-repository descriptor, separate from
-  the deploy project registry. The project registry approves a source/ref for
-  deployment; it must not be overloaded as an agent's Git push or image push
-  destination.
+- Initial registry transport is an explicit `insecure-http` lab mode. Every
+  Docker engine that pushes to or pulls from that endpoint must be configured by
+  its own operator with the registry address in `insecure-registries`. HiveForge
+  never writes Docker daemon configuration, restarts Docker, or silently falls
+  back between HTTPS and HTTP.
 - Add one read-only MCP discovery tool, provisionally named
   `get_managed_repositories_info`, backed by the normal HiveForge application
-  and REST transport. It lists the local managed destinations available on the
-  connected Full node.
-- For every available destination, return only non-secret operational data:
-  repository id/name, Git clone/push URL and default branch, OCI registry
-  repository and push-reference example, the immutable image-reference form
-  expected by deploy, compatible deploy profiles/actions, and authentication
-  requirements by name or mechanism.
+  and REST transport. It lists the shared Git and OCI artifact services of the
+  connected Full node, discovered from the sibling Forgejo Docker service.
+- Return only non-secret operational data: Forgejo Git base URL, OCI registry
+  address, explicit registry transport/security mode, and authentication
+  requirement by mechanism. Do not return or derive application repository,
+  namespace, branch, image path, profile, action, or ownership data.
 - Return a short explicit workflow: build with the user's or agent's existing
   toolchain, `git push` and `docker push` to the advertised destinations, then
   use the normal HiveForge deploy path with the selected image reference.
+- For `insecure-http`, return the exact registry address that the local Docker
+  operator must add to `insecure-registries`; mark the prerequisite as manual
+  and unverified rather than claiming that every deployment node can pull.
 - Report unavailable or incomplete local configuration explicitly. Do not
   return an ambiguous empty result and do not expose credentials, tokens, or
   secret registry configuration.
@@ -107,19 +111,30 @@ Non-goals for `0.5.5`:
 
 - No build action, build agent, automatic Maven/npm/Docker build, or automatic
   image push.
-- No automatic creation of repositories, registries, users, namespaces, or
-  credentials.
+- No application repository catalog, automatic repository creation, registry
+  provisioning, user/namespace/credential provisioning, or ownership tracking.
 - No mutation of a user's Git upstream, Docker client configuration, project
-  registry, deployment target, or selected image reference.
-- No derivation of a Docker repository from a Git URL, project id, branch, or
-  `latest`; every advertised destination is explicit configuration.
+  registry, Docker daemon configuration, deployment target, or selected image
+  reference.
+- No derivation of an application Git or Docker repository from a project id,
+  branch, Git URL, or `latest`.
 - No UI workflow beyond existing deploy surfaces. The MCP discovery response is
   the initial agent-facing feature.
+- No implicit promotion of the lab `insecure-http` mode to an AWS or
+  production-like environment; a future TLS-backed mode is a separate explicit
+  service configuration and acceptance path.
 
-Before implementation, promote the accepted descriptor and tool response to
-the config schema, `docs/specs/mcp/tools.md`, and `docs/specs/api/openapi.yaml`.
-Add contract coverage for non-secret output, unavailable configuration, and the
-absence of state-changing side effects.
+Before implementation, promote the accepted service response to
+`docs/specs/mcp/tools.md` and `docs/specs/api/openapi.yaml`. Add contract
+coverage for non-secret output, unavailable configuration, and the absence of
+state-changing side effects.
+
+Implementation status: complete in the unreleased `0.5.5` working tree. The
+Full Compose overlay contains Forgejo only; HiveForge discovers the sibling
+service from Docker labels and its configured root URL. REST/MCP discovery
+exposes those facts and the explicit `manual-unverified` insecure-registry
+prerequisite. UAT of the actual Forgejo stack and an operator-configured Docker
+engine remains a separate deployment acceptance step.
 
 ### Later: Access And Trust Contracts
 

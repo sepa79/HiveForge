@@ -42,6 +42,17 @@ paths:
                 properties:
                   hiveforge:
                     $ref: "#/components/schemas/HiveForgeInfo"
+  /managed-repositories/info:
+    get:
+      summary: Read configured Full-node shared Git and OCI services
+      operationId: getManagedRepositoriesInfo
+      responses:
+        "200":
+          description: Read-only shared Git and OCI service discovery result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedArtifactServicesReport"
   /hiveforge/update:
     get:
       summary: Check whether a newer HiveForge release is available
@@ -614,6 +625,68 @@ components:
           type: string
         version:
           type: string
+    ManagedArtifactServicesReport:
+      type: object
+      additionalProperties: false
+      required: [status, workflow]
+      properties:
+        status:
+          type: string
+          enum: [unavailable, incomplete, configured]
+        reason:
+          type: string
+        workflow:
+          type: array
+          items:
+            type: string
+        git:
+          type: object
+          additionalProperties: false
+          required: [provider, baseUrl, authentication, owner]
+          properties:
+            provider:
+              type: string
+              enum: [forgejo]
+            baseUrl:
+              type: string
+            authentication:
+              type: string
+              enum: [trusted-lan-no-login]
+            owner:
+              type: string
+              const: hiveforge
+        registry:
+          type: object
+          additionalProperties: false
+          required: [address, transport, authentication, owner, prerequisite]
+          properties:
+            address:
+              type: string
+            transport:
+              type: string
+              enum: [insecure-http]
+            authentication:
+              type: string
+              enum: [trusted-lan-no-login]
+            owner:
+              type: string
+              const: hiveforge
+            prerequisite:
+              type: object
+              additionalProperties: false
+              required: [id, status, registryAddress, requiredDockerDaemonSetting]
+              properties:
+                id:
+                  type: string
+                  enum: [docker-insecure-registry]
+                status:
+                  type: string
+                  enum: [manual-unverified]
+                registryAddress:
+                  type: string
+                requiredDockerDaemonSetting:
+                  type: string
+                  enum: [insecure-registries]
     ErrorResponse:
       type: object
       additionalProperties: false

@@ -5,6 +5,7 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
   return {
     checkHealth: () => call(() => apiClient.getHealth()),
     getHiveForgeInfo: () => call(() => apiClient.getInfo()),
+    getManagedRepositoriesInfo: () => call(() => apiClient.getManagedRepositoriesInfo()),
     listProjects: () => call(() => apiClient.listProjects()),
     listEnvironments: () => call(() => apiClient.listEnvironments()),
     refreshEnvironment: () => call(() => apiClient.refreshEnvironment()),

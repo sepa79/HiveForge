@@ -30,6 +30,7 @@ import type { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import type { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-service.js";
 import type { ManagedRootVerificationReport } from "../runtime/managed-root-verification-service.js";
 import type { SelfUpdateService } from "../runtime/self-update-service.js";
+import type { ManagedArtifactServices } from "../config/managed-artifact-services.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
@@ -38,6 +39,7 @@ const LIFECYCLE_ACTIONS = new Set(["deploy", "remove", "purge", "update", "upgra
 export interface RestApiServices {
   appInfo: HiveForgeInfo;
   projectRegistry: ProjectRegistryConfig;
+  managedArtifactServices: ManagedArtifactServices;
   journal: Journal;
   inspection: ProjectInspectionService;
   validation: ProjectValidationService;
@@ -98,6 +100,13 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
         return {
           hiveforge: services.appInfo
         };
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/managed-repositories\/info$/,
+      async handle() {
+        return services.managedArtifactServices.getInfo();
       }
     },
     {

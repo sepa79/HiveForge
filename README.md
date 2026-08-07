@@ -59,6 +59,14 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    [deploy/docker-compose.hiveforge.yml](deploy/docker-compose.hiveforge.yml) as a
    Swarm stack. See [First Swarm quickstart](docs/quickstart/first-swarm.md).
 
+   A Full lab node can add its own Forgejo Git and OCI registry with the
+   [Full-node Compose overlay](docs/install/docker-compose.md#full-node-forgejo-git-and-oci-registry-lab-http).
+   Its initial transport is deliberately `insecure-http`: each Docker engine
+   that pushes/pulls must be configured manually. On the trusted lab LAN,
+   ordinary Git and Docker pushes use the shared `hiveforge` identity without a
+   client login; an MCP agent can discover the endpoints and namespace with
+   `get_managed_repositories_info`.
+
 2. Start the MCP server from your workstation.
 
    ```bash
@@ -78,6 +86,7 @@ the deployment source of truth. See [Release deployment](docs/specs/releases.md)
    ```text
    check_health
    get_hiveforge_info
+   get_managed_repositories_info
    list_environments
    refresh_environment
    list_environment_nodes

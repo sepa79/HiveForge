@@ -104,6 +104,13 @@ Explicit runtime path mode remains supported for advanced installs:
   isolated Ansible action execution. Normal Docker/Swarm installs set this to
   the same concrete HiveForge image as the control-plane service.
 
+When the Full Compose overlay includes the sibling `forgejo` service,
+HiveForge identifies that service through the current Compose project or Swarm
+stack labels and reads `FORGEJO__server__ROOT_URL` using Docker inspection. It
+derives the shared Git base URL and lab HTTP OCI registry address from that one
+source. No separate HiveForge endpoint variables or application-repository
+catalog exist.
+
 Managed-root visibility verification uses the current HiveForge container image
 itself. It obtains that image through Docker inspect using the container's
 default `HOSTNAME`, then runs the short-lived probe with `sh`; it has no

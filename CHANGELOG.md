@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.5.5 - 2026-08-07
+
+- Add a Full-node Forgejo overlay with a trusted-LAN gateway. It provides Git
+  and OCI services through one fixed `hiveforge` identity, so normal `git push`
+  and `docker push` need no client login. Forgejo uses node-local SQLite
+  storage and is pinned to the explicitly configured manager that owns that
+  data.
+- Add read-only `GET /managed-repositories/info` and MCP
+  `get_managed_repositories_info`. Full advertises only the shared Forgejo Git
+  service, OCI registry, and fixed owner namespace—not a catalog of application
+  repositories or image paths; the response includes the manual
+  build/push/deploy workflow.
+- Make the initial Full lab transport explicitly `insecure-http`. Every result
+  identifies the exact Docker `insecure-registries` prerequisite as
+  `manual-unverified`; HiveForge never modifies Docker daemon configuration,
+  restarts Docker, claims node-wide pull readiness, or falls back to another
+  transport.
+- Allow `hiveforge.yaml` to declare the same explicit internal HTTP Git URLs
+  already supported by development project registration, while continuing to
+  reject arbitrary external HTTP repositories.
+- Keep build actions, application-repository provisioning, Git upstream
+  changes, image selection, and deploy mutation outside this release.
+
 ## 0.5.4 - 2026-08-07
 
 - Complete the deployment debug-ability slice with canonical

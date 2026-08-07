@@ -110,6 +110,32 @@ Input: none.
 
 Output: HiveForge service name and version for the connected target.
 
+### `get_managed_repositories_info`
+
+Input: none.
+
+Output: the configured Full-node Forgejo Git base URL and OCI registry address,
+the fixed `hiveforge` owner namespace, and an explicit manual workflow. It does
+not list application repositories, Git paths, or OCI image paths. `unavailable`
+means this target is not configured as a Full artifact host; `incomplete` means
+the discovered Forgejo service lacks a supported lab HTTP endpoint, OCI packages,
+an installation lock, trusted-LAN HTTP and API authentication configuration, or
+a running gateway.
+`configured` means the Full service contract is present; it does not prove a
+Git push, OCI push, or Docker pull. HiveForge discovers the sibling service
+through the current Compose project or Swarm stack; no extra HiveForge endpoint
+configuration is required.
+
+For the initial `insecure-http` registry mode, every result includes the exact
+registry address and a `manual-unverified` prerequisite for the Docker daemon
+`insecure-registries` setting on every engine that pushes or pulls. The tool
+never writes Docker configuration, restarts Docker, changes Git upstreams,
+creates or inspects application repositories, builds images, pushes artifacts,
+or starts deployment. Full returns `trusted-lan-no-login` for both Git and OCI:
+the private gateway supplies the fixed `hiveforge` identity, therefore normal
+`git push` and `docker push` require no client login. This mode is intentionally
+open to every client that can reach the trusted lab LAN.
+
 ### `list_projects`
 
 Input: none.
