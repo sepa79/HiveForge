@@ -92,11 +92,6 @@ mkdir -p /opt/hiveforge/forgejo
 cd /opt/hiveforge
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge-full.yml
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/forgejo-gateway.nginx.conf
-export HIVEFORGE_FORGEJO_DOMAIN=10.0.0.54
-export HIVEFORGE_FORGEJO_ROOT_URL=http://10.0.0.54:3001/
-export HIVEFORGE_FORGEJO_HTTP_PORT=3001
-export HIVEFORGE_FORGEJO_DATA_ROOT=/opt/hiveforge/forgejo
-export HIVEFORGE_FORGEJO_NODE=swarm-manager-1
 docker compose -f docker-compose.hiveforge-full.yml up -d
 ```
 
@@ -106,11 +101,13 @@ For Swarm, run the equivalent on a manager:
 docker stack deploy -c docker-compose.hiveforge-full.yml hiveforge
 ```
 
-`HIVEFORGE_FORGEJO_DOMAIN` and `HIVEFORGE_FORGEJO_ROOT_URL` must use the exact
-host or IP and port reachable from Git and Docker clients. Forgejo is pinned to
-`HIVEFORGE_FORGEJO_NODE` because its SQLite `/data` bind is local. Keep
-`HIVEFORGE_FORGEJO_DATA_ROOT` on that node's local filesystem, never under the
-shared HiveForge managed root or on NFS; back it up separately.
+Set the public host and URL directly in the Compose file when its defaults do
+not match the installation. They must use the exact host or IP and port
+reachable from Git and Docker clients. Before a Swarm deployment, replace both
+`CHANGE-ME-SWARM-MANAGER-HOSTNAME` constraints with the manager that owns
+Forgejo's SQLite `/data` bind. Keep `/opt/hiveforge/forgejo` on that node's
+local filesystem, never under the shared HiveForge managed root or on NFS; back
+it up separately.
 
 Full exposes only `forgejo-gateway` on that address. The raw Forgejo
 service stays on a private network. The gateway supplies a single fixed
@@ -338,7 +335,7 @@ On a Swarm worker, HiveForge startup fails when creating a new runtime-root
 environment file. Run HiveForge on a manager node or provide an explicit
 `environments.yaml`.
 
-## Image And Port Overrides
+## Image Override And Public Port
 
 The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
 
@@ -349,14 +346,9 @@ HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.5 docker compose -f docker-compose
 For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or
 edit the image in the Compose file.
 
-The default public port is `3000`. Override it with:
-
-```bash
-HIVEFORGE_HTTP_PORT=13000 docker compose -f docker-compose.hiveforge.yml up -d
-```
-
-For Portainer or `docker stack deploy`, set `HIVEFORGE_HTTP_PORT` before deploy
-or edit the published port in the Compose file.
+The public port is explicitly `3000` in both the Lite and Full Compose files.
+To use a different port, edit `published: 3000` in the file you deploy before
+starting the stack.
 
 ## Self-Update From The UI
 

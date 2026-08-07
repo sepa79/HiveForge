@@ -23,7 +23,7 @@ services:
       no_proxy: ${no_proxy:-}
     ports:
       - target: 3000
-        published: ${HIVEFORGE_HTTP_PORT:-3000}
+        published: 3000
         protocol: tcp
         mode: ingress
     volumes:
@@ -46,8 +46,8 @@ services:
     environment:
       USER_UID: ${HIVEFORGE_FORGEJO_UID:-1000}
       USER_GID: ${HIVEFORGE_FORGEJO_GID:-1000}
-      FORGEJO__server__DOMAIN: ${HIVEFORGE_FORGEJO_DOMAIN:?Set HIVEFORGE_FORGEJO_DOMAIN to the host or IP reachable by Git and Docker clients}
-      FORGEJO__server__ROOT_URL: ${HIVEFORGE_FORGEJO_ROOT_URL:?Set HIVEFORGE_FORGEJO_ROOT_URL to the exact http URL reachable by Git and Docker clients}
+      FORGEJO__server__DOMAIN: ${HIVEFORGE_FORGEJO_DOMAIN:-my.domain.org}
+      FORGEJO__server__ROOT_URL: ${HIVEFORGE_FORGEJO_ROOT_URL:-http://my.domain.org:3001/}
       FORGEJO__server__PROTOCOL: http
       FORGEJO__server__HTTP_PORT: "3000"
       # Forgejo accepts trusted identity headers only from the private gateway
@@ -73,9 +73,10 @@ services:
       restart_policy:
         condition: any
       placement:
+        # CHANGE ME: replace this with the Swarm manager hostname that owns
+        # /opt/hiveforge/forgejo. For example: node.hostname == swarm-manager-1
         constraints:
-          # Forgejo uses local SQLite data; set the one manager that owns this bind.
-          - node.hostname == ${HIVEFORGE_FORGEJO_NODE:?Set HIVEFORGE_FORGEJO_NODE to the manager that owns HIVEFORGE_FORGEJO_DATA_ROOT}
+          - node.hostname == CHANGE-ME-SWARM-MANAGER-HOSTNAME
     networks:
       - forgejo-backend
 
@@ -88,7 +89,7 @@ services:
         mode: 0444
     ports:
       - target: 3000
-        published: ${HIVEFORGE_FORGEJO_HTTP_PORT:-3001}
+        published: 3001
         protocol: tcp
         mode: ingress
     deploy:
@@ -96,8 +97,9 @@ services:
       restart_policy:
         condition: any
       placement:
+        # CHANGE ME: use the same manager hostname as the Forgejo service above.
         constraints:
-          - node.hostname == ${HIVEFORGE_FORGEJO_NODE:?Set HIVEFORGE_FORGEJO_NODE to the manager that owns HIVEFORGE_FORGEJO_DATA_ROOT}
+          - node.hostname == CHANGE-ME-SWARM-MANAGER-HOSTNAME
     networks:
       - forgejo-backend
 

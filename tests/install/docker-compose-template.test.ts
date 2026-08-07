@@ -8,6 +8,7 @@ describe("Docker Compose install template", () => {
       services?: {
         hiveforge?: {
           environment?: Record<string, string>;
+          ports?: Array<{ target?: number; published?: string | number; mode?: string }>;
           volumes?: Array<{ source?: string; target?: string } | string>;
         };
       };
@@ -20,6 +21,12 @@ describe("Docker Compose install template", () => {
     expect(hiveforge?.environment?.HIVEFORGE_ACTION_RUNNER_IMAGE).toBe(
       "${HIVEFORGE_IMAGE:-ghcr.io/sepa79/hiveforge:latest}"
     );
+    expect(hiveforge?.ports).toContainEqual({
+      target: 3000,
+      published: 3000,
+      protocol: "tcp",
+      mode: "ingress"
+    });
     expect(hiveforge?.volumes).toContainEqual({
       type: "bind",
       source: "${HIVEFORGE_MANAGED_ROOT_BIND_SOURCE_ROOT:-/opt/hiveforge}",
@@ -41,6 +48,7 @@ describe("Docker Compose install template", () => {
       services?: {
         hiveforge?: {
           environment?: Record<string, string>;
+          ports?: Array<{ target?: number; published?: string | number; mode?: string }>;
         };
         forgejo?: {
           image?: string;
@@ -76,7 +84,7 @@ describe("Docker Compose install template", () => {
     expect(compose.services?.["forgejo-gateway"]?.image).toBe("nginx:1.27-alpine");
     expect(compose.services?.["forgejo-gateway"]?.ports).toContainEqual({
       target: 3000,
-      published: "${HIVEFORGE_FORGEJO_HTTP_PORT:-3001}",
+      published: 3001,
       protocol: "tcp",
       mode: "ingress"
     });
@@ -86,7 +94,7 @@ describe("Docker Compose install template", () => {
       target: "/data"
     });
     expect(compose.services?.forgejo?.deploy?.placement?.constraints).toContain(
-      "node.hostname == ${HIVEFORGE_FORGEJO_NODE:?Set HIVEFORGE_FORGEJO_NODE to the manager that owns HIVEFORGE_FORGEJO_DATA_ROOT}"
+      "node.hostname == CHANGE-ME-SWARM-MANAGER-HOSTNAME"
     );
     expect(compose.services?.["forgejo-gateway"]?.configs).toContainEqual({
       source: "forgejo_gateway_nginx",
