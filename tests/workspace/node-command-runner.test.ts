@@ -7,9 +7,9 @@ describe("Node command runner", () => {
     const runner = new NodeCommandRunner();
 
     await expect(
-      runner.run(process.execPath, [
-        "-e",
-        "console.log('stdout detail'); console.error('stderr detail'); process.exit(7);"
+      runner.run("/bin/sh", [
+        "-c",
+        "printf 'stdout detail\\n'; printf 'stderr detail\\n' >&2; exit 7"
       ])
     ).rejects.toMatchObject({
       name: "CommandExecutionError",
@@ -25,10 +25,7 @@ describe("Node command runner", () => {
     let caught: unknown;
 
     try {
-      await runner.run(process.execPath, [
-        "-e",
-        "console.error('HIVEMIND_OPENSEARCH_PASSWORD=super-secret'); process.exit(1);"
-      ]);
+      await runner.run("/bin/sh", ["-c", "printf 'HIVEMIND_OPENSEARCH_PASSWORD=super-secret\\n' >&2; exit 1"]);
     } catch (error) {
       caught = error;
     }

@@ -130,6 +130,8 @@ Canonical specs live under `docs/specs/`.
   validation.
 - `docs/specs/actions/ansible.md` defines the POC Ansible action runner.
 - `docs/specs/orchestration/deploy-flow.md` defines the POC deploy flow.
+- `docs/specs/orchestration/portainer-adapter.md` defines the planned explicit
+  Portainer-backed deployment executor.
 - `docs/specs/api/openapi.yaml` defines the POC REST contract.
 - `docs/specs/mcp/tools.md` defines the POC MCP tool contract.
 - `docs/specs/ui/operator-console.md` defines the POC UI contract.

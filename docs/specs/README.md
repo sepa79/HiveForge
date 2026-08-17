@@ -47,6 +47,7 @@ Use it for:
 | `actions/lifecycle.md` | Canonical deployment lifecycle action contract. | Draft |
 | `actions/ansible.md` | POC Ansible action runner contract. | Draft |
 | `orchestration/deploy-flow.md` | POC deploy orchestration contract. | Draft |
+| `orchestration/portainer-adapter.md` | Planned explicit Portainer-backed deployment executor contract. | Planned |
 | `api/openapi.yaml` | POC REST API contract. | Draft |
 | `mcp/tools.md` | POC MCP tool contract. | Draft |
 | `ui/operator-console.md` | POC human operator console contract. | Draft |
