@@ -60,11 +60,11 @@ describe("Docker Compose install template", () => {
         "forgejo-gateway"?: {
           image?: string;
           ports?: Array<{ target?: number; published?: string | number; mode?: string }>;
-          configs?: Array<{ source?: string; target?: string; mode?: number }>;
+          environment?: Record<string, string>;
+          command?: string[];
           deploy?: { placement?: { constraints?: string[] } };
         };
       };
-      configs?: Record<string, { file?: string }>;
     };
 
     expect(compose.services?.hiveforge).toEqual(lite.services?.hiveforge);
@@ -96,20 +96,21 @@ describe("Docker Compose install template", () => {
     expect(compose.services?.forgejo?.deploy?.placement?.constraints).toContain(
       "node.hostname == CHANGE-ME-SWARM-MANAGER-HOSTNAME"
     );
-    expect(compose.services?.["forgejo-gateway"]?.configs).toContainEqual({
-      source: "forgejo_gateway_nginx",
-      target: "/etc/nginx/conf.d/default.conf",
-      mode: 444
-    });
-    expect(compose.configs?.forgejo_gateway_nginx).toEqual({ file: "./forgejo-gateway.nginx.conf" });
+    expect(compose.services?.["forgejo-gateway"]?.command).toEqual([
+      "/bin/sh",
+      "-ec",
+      "printf '%s\\n' \"$${NGINX_GATEWAY_CONFIG}\" > /etc/nginx/conf.d/default.conf\nexec nginx -g 'daemon off;'\n"
+    ]);
   });
 
   it("makes the trusted-LAN gateway the only public Forgejo endpoint", async () => {
-    const raw = await readFile("deploy/forgejo-gateway.nginx.conf", "utf8");
+    const raw = await readFile("deploy/docker-compose.hiveforge-full.yml", "utf8");
 
     expect(raw).toContain("proxy_pass http://forgejo:3000;");
     expect(raw).toContain("proxy_set_header X-WEBAUTH-USER hiveforge;");
     expect(raw).toContain('proxy_set_header Authorization "";');
     expect(raw).toContain("client_max_body_size 0;");
+    expect(raw).toContain("$${NGINX_GATEWAY_CONFIG}");
+    expect(raw).not.toContain("forgejo-gateway.nginx.conf");
   });
 });

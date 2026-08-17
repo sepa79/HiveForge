@@ -125,7 +125,7 @@ describe("REST API", () => {
         {
           id: "hivewatch",
           name: "HiveWatch",
-          source: "github",
+          source: "https-git",
           repository: "https://github.com/sepa79/HiveWatch.git",
           approvedRefs: ["main"]
         }
@@ -809,7 +809,7 @@ describe("REST API", () => {
       project: {
         id: "hivewatch",
         name: "hivewatch",
-        source: "github",
+        source: "https-git",
         repository: "https://github.com/sepa79/HiveWatch.git",
         approvedRefs: ["main"]
       }
@@ -1052,7 +1052,7 @@ async function startServer(
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }
@@ -1259,7 +1259,7 @@ async function startServer(
             project: {
               id: "hivewatch",
               name: "hivewatch",
-              source: "github",
+              source: "https-git",
               repository: request.repository,
               approvedRefs: [request.gitRef]
             }

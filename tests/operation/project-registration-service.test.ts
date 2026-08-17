@@ -22,7 +22,7 @@ class FixtureGitRunner implements CommandRunner {
 }
 
 describe("project registration service", () => {
-  it("registers a deployable repository ref in the project registry", async () => {
+  it("registers a deployable HTTPS Git repository ref in the project registry", async () => {
     const fixture = await writeDeployableFixture();
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
     const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
@@ -33,7 +33,7 @@ describe("project registration service", () => {
 
     await expect(
       service.register({
-        repository: "https://github.com/sepa79/HiveWatch.git",
+        repository: "https://gitlab.example.org/sepa/HiveWatch.git",
         gitRef: "main"
       })
     ).resolves.toEqual({
@@ -41,8 +41,8 @@ describe("project registration service", () => {
       project: {
         id: "hivewatch",
         name: "hivewatch",
-        source: "github",
-        repository: "https://github.com/sepa79/HiveWatch.git",
+        source: "https-git",
+        repository: "https://gitlab.example.org/sepa/HiveWatch.git",
         approvedRefs: ["main"]
       }
     });
@@ -51,15 +51,15 @@ describe("project registration service", () => {
         {
           id: "hivewatch",
           name: "hivewatch",
-          source: "github",
-          repository: "https://github.com/sepa79/HiveWatch.git",
+          source: "https-git",
+          repository: "https://gitlab.example.org/sepa/HiveWatch.git",
           approvedRefs: ["main"]
         }
       ]
     });
   });
 
-  it("registers explicit LAN HTTP Git repositories as http-git", async () => {
+  it("registers environment-reachable HTTP Git repositories as http-git", async () => {
     const fixture = await writeDeployableFixture();
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
     const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
@@ -70,7 +70,7 @@ describe("project registration service", () => {
 
     await expect(
       service.register({
-        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        repository: "http://forgejo/git/PocketHive.git",
         gitRef: "pushed-ref"
       })
     ).resolves.toEqual({
@@ -79,7 +79,7 @@ describe("project registration service", () => {
         id: "hivewatch",
         name: "hivewatch",
         source: "http-git",
-        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        repository: "http://forgejo/git/PocketHive.git",
         approvedRefs: ["pushed-ref"]
       }
     });
@@ -95,7 +95,7 @@ describe("project registration service", () => {
         "projects:",
         "  - id: hivewatch",
         "    name: hivewatch",
-        "    source: github",
+        "    source: https-git",
         "    repository: https://github.com/sepa79/HiveWatch.git",
         "    approvedRefs:",
         "      - main",
@@ -125,7 +125,7 @@ describe("project registration service", () => {
         "projects:",
         "  - id: hivewatch",
         "    name: hivewatch",
-        "    source: github",
+        "    source: https-git",
         "    repository: https://github.com/sepa79/HiveWatch.git",
         "    approvedRefs:",
         "      - main",
@@ -157,7 +157,7 @@ describe("project registration service", () => {
         {
           id: "hivewatch",
           name: "hivewatch",
-          source: "github",
+          source: "https-git",
           repository: "https://github.com/sepa79/HiveWatch.git",
           approvedRefs: ["main"]
         },

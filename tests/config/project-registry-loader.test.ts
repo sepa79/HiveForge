@@ -17,7 +17,7 @@ describe("project registry loader", () => {
         "projects:",
         "  - id: hivewatch",
         "    name: HiveWatch",
-        "    source: github",
+        "    source: https-git",
         "    repository: https://github.com/sepa79/HiveWatch.git",
         "    approvedRefs:",
         "      - main",
@@ -40,7 +40,7 @@ describe("project registry loader", () => {
             {
               id: "hivewatch",
               name: "HiveWatch",
-              source: "github",
+              source: "https-git",
               repository: "https://github.com/sepa79/HiveWatch.git",
               approvedRefs: ["main"]
             }
@@ -60,7 +60,7 @@ describe("project registry loader", () => {
             {
               id: "hivewatch",
               name: "HiveWatch",
-              source: "github",
+              source: "https-git",
               repository: "https://github.com/sepa79/HiveWatch.git",
               approvedRefs: ["main"]
             }

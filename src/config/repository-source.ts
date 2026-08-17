@@ -1,11 +1,11 @@
 import type { RegisteredProject } from "./project-registry-types.js";
 
-export const GITHUB_GIT_REPOSITORY_PATTERN = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\.git$/;
+export const HTTPS_GIT_REPOSITORY_PATTERN = /^https:\/\/[^@/?#]+(?::[0-9]+)?\/.+\.git$/;
 export const FILE_GIT_REPOSITORY_PATTERN = /^file:\/\/\/.+/;
 
 export function isInspectableRepository(repository: string): boolean {
   return (
-    GITHUB_GIT_REPOSITORY_PATTERN.test(repository) ||
+    isHttpsGitRepository(repository) ||
     FILE_GIT_REPOSITORY_PATTERN.test(repository) ||
     isLanHttpGitRepository(repository)
   );
@@ -15,13 +15,33 @@ export function sourceForRepository(repository: string): RegisteredProject["sour
   if (FILE_GIT_REPOSITORY_PATTERN.test(repository)) {
     return "local-git";
   }
-  if (GITHUB_GIT_REPOSITORY_PATTERN.test(repository)) {
-    return "github";
+  if (isHttpsGitRepository(repository)) {
+    return "https-git";
   }
   if (isLanHttpGitRepository(repository)) {
     return "http-git";
   }
   throw new Error(`Repository source is not supported for registration: ${repository}`);
+}
+
+function isHttpsGitRepository(repository: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(repository);
+  } catch {
+    return false;
+  }
+
+  return (
+    url.protocol === "https:" &&
+    url.username === "" &&
+    url.password === "" &&
+    url.search === "" &&
+    url.hash === "" &&
+    url.pathname.length > "/.git".length &&
+    url.pathname.endsWith(".git") &&
+    HTTPS_GIT_REPOSITORY_PATTERN.test(repository)
+  );
 }
 
 function isLanHttpGitRepository(repository: string): boolean {

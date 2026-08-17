@@ -746,8 +746,8 @@ components:
           type: string
         source:
           type: string
-          description: local-git and http-git are development/internal Git tooling, not the managed-service release contract.
-          enum: [github, local-git, http-git]
+          description: https-git is the general explicit Git checkout source; local-git and http-git are development tooling, and http-git specifically covers environment-reachable development repos such as a Full node Forgejo service.
+          enum: [https-git, local-git, http-git]
         repository:
           type: string
         approvedRefs:

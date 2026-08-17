@@ -46,8 +46,8 @@ services:
     environment:
       USER_UID: ${HIVEFORGE_FORGEJO_UID:-1000}
       USER_GID: ${HIVEFORGE_FORGEJO_GID:-1000}
-      FORGEJO__server__DOMAIN: ${HIVEFORGE_FORGEJO_DOMAIN:-my.domain.org}
-      FORGEJO__server__ROOT_URL: ${HIVEFORGE_FORGEJO_ROOT_URL:-http://my.domain.org:3001/}
+      FORGEJO__server__DOMAIN: ${HIVEFORGE_FORGEJO_DOMAIN:-forgejo-change-me.invalid}
+      FORGEJO__server__ROOT_URL: ${HIVEFORGE_FORGEJO_ROOT_URL:-http://forgejo-change-me.invalid:3001/}
       FORGEJO__server__PROTOCOL: http
       FORGEJO__server__HTTP_PORT: "3000"
       # Forgejo accepts trusted identity headers only from the private gateway
@@ -83,10 +83,44 @@ services:
   forgejo-gateway:
     image: nginx:1.27-alpine
     restart: unless-stopped
-    configs:
-      - source: forgejo_gateway_nginx
-        target: /etc/nginx/conf.d/default.conf
-        mode: 0444
+    environment:
+      # Kept inline so Full deploys from this single Compose file.
+      NGINX_GATEWAY_CONFIG: |
+        server {
+          listen 3000;
+          server_name _;
+          merge_slashes off;
+
+          # OCI layers can be large. Stream them rather than buffering in the gateway.
+          client_max_body_size 0;
+          proxy_http_version 1.1;
+          proxy_request_buffering off;
+          proxy_buffering off;
+          proxy_read_timeout 3600s;
+          proxy_send_timeout 3600s;
+
+          location / {
+            proxy_pass http://forgejo:3000;
+            proxy_set_header Connection $$http_connection;
+            proxy_set_header Upgrade $$http_upgrade;
+            proxy_set_header Host $$http_host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $$scheme;
+
+            # Full is an explicitly trusted LAN development hub. The gateway supplies
+            # one fixed Forgejo identity, so Git and OCI clients never need a login.
+            proxy_set_header X-WEBAUTH-USER hiveforge;
+            proxy_set_header X-WEBAUTH-EMAIL hiveforge@trusted-lan.invalid;
+            proxy_set_header Authorization "";
+          }
+        }
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        printf '%s\n' "$${NGINX_GATEWAY_CONFIG}" > /etc/nginx/conf.d/default.conf
+        exec nginx -g 'daemon off;'
     ports:
       - target: 3000
         published: 3001
@@ -102,10 +136,6 @@ services:
           - node.hostname == CHANGE-ME-SWARM-MANAGER-HOSTNAME
     networks:
       - forgejo-backend
-
-configs:
-  forgejo_gateway_nginx:
-    file: ./forgejo-gateway.nginx.conf
 
 networks:
   forgejo-backend:

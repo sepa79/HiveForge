@@ -1,7 +1,7 @@
 export interface RegisteredProject {
   id: string;
   name: string;
-  source: "github" | "local-git" | "http-git";
+  source: "https-git" | "local-git" | "http-git";
   repository: string;
   approvedRefs: string[];
 }

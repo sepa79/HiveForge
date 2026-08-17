@@ -46,9 +46,9 @@ Finding and correction:
   small data directory was copied without deleting the source, and it was
   redeployed on `.50` with node-local storage. The retry completed in seconds.
 - The root manifest schema initially accepted only GitHub URLs even though the
-  project registry accepted internal HTTP Git. The schema now shares the same
-  explicit private-network boundary, with contract coverage for allowed and
-  rejected URLs.
+  project registry already supported additional Git sources. The schema now
+  matches the runtime contract: general explicit HTTPS Git plus environment-
+  reachable development HTTP Git, with coverage for accepted and rejected URLs.
 
 Boundary deliberately held:
 

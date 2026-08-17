@@ -131,6 +131,27 @@ describe("managed artifact services", () => {
     });
   });
 
+  it("reports incomplete when the discovered Forgejo service still uses the shipped placeholder root URL", async () => {
+    const service = new ManagedArtifactServices(
+      commandRunner([
+        inspectHiveForge({ "com.docker.compose.project": "hiveforge" }),
+        "forgejo-container\n",
+        inspectForgejo([
+          "FORGEJO__server__ROOT_URL=http://forgejo-change-me.invalid:3001/",
+          ...trustedLanForgejoEnvironment().filter((entry) => !entry.startsWith("FORGEJO__server__ROOT_URL="))
+        ]),
+        "forgejo-gateway-container\n"
+      ]),
+      { currentContainerId: () => "hiveforge-container" }
+    );
+
+    await expect(service.getInfo()).resolves.toMatchObject({
+      status: "incomplete",
+      reason:
+        "The Full Forgejo service still uses the shipped placeholder FORGEJO__server__ROOT_URL. Replace it with the real public Git/OCI host and port."
+    });
+  });
+
   it("reports incomplete when the discovered Forgejo service has its OCI registry disabled", async () => {
     const service = new ManagedArtifactServices(
       commandRunner([
@@ -206,9 +227,27 @@ describe("managed artifact services", () => {
   it("fails explicitly when Docker cannot identify the running HiveForge container", async () => {
     const service = new ManagedArtifactServices(commandRunner([]), { currentContainerId: () => undefined });
 
-    await expect(service.getInfo()).rejects.toThrow(
-      "Managed artifact service discovery requires HOSTNAME to identify the running HiveForge container."
+    await expect(service.getInfo()).resolves.toMatchObject({
+      status: "unavailable",
+      reason:
+        "Managed Git and OCI service discovery could not inspect the current HiveForge runtime: Managed artifact service discovery requires HOSTNAME to identify the running HiveForge container."
+    });
+  });
+
+  it("reports unavailable when Docker inspect of the discovered Forgejo service fails", async () => {
+    const service = new ManagedArtifactServices(
+      commandRunner([
+        inspectHiveForge({ "com.docker.compose.project": "hiveforge" }),
+        "forgejo-container\n"
+      ], undefined, { "docker inspect forgejo-container --format {{json .}}": new Error("docker inspect failed") }),
+      { currentContainerId: () => "hiveforge-container" }
     );
+
+    await expect(service.getInfo()).resolves.toMatchObject({
+      status: "unavailable",
+      reason:
+        "Managed Git and OCI service discovery could not inspect Full services: docker inspect failed"
+    });
   });
 });
 
@@ -232,12 +271,20 @@ function trustedLanForgejoEnvironment(): string[] {
   ];
 }
 
-function commandRunner(outputs: string[], calls: Array<{ command: string; args: string[] }> = []): CommandRunner {
+function commandRunner(
+  outputs: string[],
+  calls: Array<{ command: string; args: string[] }> = [],
+  failures: Record<string, Error> = {}
+): CommandRunner {
   return {
     async run(command, args) {
       expect(command).toBe("docker");
       expect(args.length).toBeGreaterThan(0);
       calls.push({ command, args });
+      const failure = failures[[command, ...args].join(" ")];
+      if (failure) {
+        throw failure;
+      }
       return { stdout: outputs.shift() ?? "", stderr: "" };
     }
   };

@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { ContractValidationError, schemaPaths, validateContract } from "../../src/contracts/schema-loader.js";
 
 describe("project registry schema", () => {
-  it("accepts explicit HiveWatch repository refs", async () => {
+  it("accepts explicit HTTPS Git repository refs", async () => {
     const registry = {
       projects: [
         {
           id: "hivewatch",
           name: "HiveWatch",
-          source: "github",
-          repository: "https://github.com/sepa79/HiveWatch.git",
+          source: "https-git",
+          repository: "https://gitlab.example.org/sepa/HiveWatch.git",
           approvedRefs: ["main"]
         }
       ]
@@ -24,8 +24,8 @@ describe("project registry schema", () => {
         {
           id: "hivewatch",
           name: "HiveWatch",
-          source: "github",
-          repository: "https://github.com/sepa79/HiveWatch.git"
+          source: "https-git",
+          repository: "https://gitlab.example.org/sepa/HiveWatch.git"
         }
       ]
     };
@@ -49,14 +49,14 @@ describe("project registry schema", () => {
     await expect(validateContract(schemaPaths.projectRegistry, registry)).resolves.toBeUndefined();
   });
 
-  it("accepts explicit LAN HTTP Git repositories", async () => {
+  it("accepts environment-reachable HTTP Git repositories", async () => {
     const registry = {
       projects: [
         {
           id: "pockethive",
           name: "PocketHive",
           source: "http-git",
-          repository: "http://192.168.88.54:8081/git/PocketHive.git",
+          repository: "http://forgejo/git/PocketHive.git",
           approvedRefs: ["pushed-ref"]
         }
       ]
@@ -73,6 +73,22 @@ describe("project registry schema", () => {
           name: "PocketHive",
           source: "http-git",
           repository: "http://example.com/PocketHive",
+          approvedRefs: ["main"]
+        }
+      ]
+    };
+
+    await expect(validateContract(schemaPaths.projectRegistry, registry)).rejects.toBeInstanceOf(ContractValidationError);
+  });
+
+  it("rejects HTTPS repository URLs with embedded credentials", async () => {
+    const registry = {
+      projects: [
+        {
+          id: "pockethive",
+          name: "PocketHive",
+          source: "https-git",
+          repository: "https://user@example.com/PocketHive.git",
           approvedRefs: ["main"]
         }
       ]

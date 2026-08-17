@@ -64,11 +64,14 @@ curl -fsS http://<target-host>:3000/health
 ## Quick Start: Full
 
 Full is one standalone Compose/Swarm stack containing HF, Forgejo, and the
-gateway. Download `docker-compose.hiveforge-full.yml` and
-`forgejo-gateway.nginx.conf`, then follow
+gateway. Download `docker-compose.hiveforge-full.yml`, then follow
 [the Full installation](docs/install/docker-compose.md#full-node-forgejo-git-and-oci-registry-lab-http).
 Do not combine it with the Lite Compose file. Forgejo data belongs on local
 storage of the selected node, never on NFS/EFS.
+
+The shipped Full template uses placeholder Forgejo host values under `.invalid`.
+Replace them with the real public Git/OCI host and port before using the node;
+until then, Full discovery remains intentionally `incomplete`.
 
 The gateway is the only public Forgejo endpoint. On the trusted lab network:
 

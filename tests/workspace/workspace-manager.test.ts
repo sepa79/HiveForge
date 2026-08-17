@@ -25,7 +25,7 @@ describe("workspace manager", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }
@@ -62,7 +62,7 @@ describe("workspace manager", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }
@@ -87,7 +87,7 @@ describe("workspace manager", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }
@@ -112,7 +112,7 @@ describe("workspace manager", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }

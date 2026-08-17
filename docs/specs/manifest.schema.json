@@ -33,11 +33,11 @@
       }
     },
     "projectRepository": {
-      "description": "A GitHub repository or an explicit HTTP Git endpoint on the internal network.",
+      "description": "An explicit HTTPS Git repository or an environment-reachable HTTP Git endpoint for development tooling.",
       "oneOf": [
         {
           "type": "string",
-          "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\\.git$"
+          "pattern": "^https://[^@/?#]+(?::[0-9]+)?/.+\\.git$"
         },
         {
           "type": "string",

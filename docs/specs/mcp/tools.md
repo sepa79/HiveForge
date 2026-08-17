@@ -365,9 +365,9 @@ Input:
 
 Behavior: read-only checkout of the requested repository/ref, manifest loading,
 and declared action-file checks. This does not authorize deployment and does not
-run project actions. Supported repository inputs are explicit GitHub HTTPS URLs,
-explicit `file:///` Git URLs, and explicit LAN/internal `http://` Git URLs whose
-path ends in `.git`.
+run project actions. Supported repository inputs are explicit `https://` Git
+URLs, explicit `file:///` Git URLs, and environment-reachable development
+`http://` Git URLs whose path ends in `.git`.
 
 Output: deployability result, project metadata, component names, lifecycle
 actions, and an explicit reason when not deployable.

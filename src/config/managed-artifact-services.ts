@@ -14,6 +14,7 @@ const COMPOSE_SERVICE_LABEL = "com.docker.compose.service";
 const STACK_NAMESPACE_LABEL = "com.docker.stack.namespace";
 const INSECURE_REGISTRY_PREREQUISITE = "docker-insecure-registry";
 const TRUSTED_LAN_OWNER = "hiveforge";
+const FORGEJO_PLACEHOLDER_HOST = "forgejo-change-me.invalid";
 
 export interface ManagedArtifactServicesOptions {
   currentContainerId?: () => string | undefined;
@@ -70,22 +71,28 @@ export class ManagedArtifactServices {
   }
 
   async getInfo(): Promise<ManagedArtifactServicesReport> {
-    const scope = await this.resolveDockerScope();
+    let scope: DockerScope | undefined;
+    try {
+      scope = await this.resolveDockerScope();
+    } catch (error) {
+      return unavailable(
+        `Managed Git and OCI service discovery could not inspect the current HiveForge runtime: ${errorMessage(error)}`
+      );
+    }
     if (!scope) {
-      return {
-        status: "unavailable",
-        reason: "This HiveForge target has no running Full Forgejo service in its Docker Compose project or Swarm stack.",
-        workflow: workflow()
-      };
+      return unavailable("This HiveForge target has no running Full Forgejo service in its Docker Compose project or Swarm stack.");
     }
 
-    const forgejoEnvironment = await this.findForgejoEnvironment(scope);
+    let forgejoEnvironment: string[] | undefined;
+    try {
+      forgejoEnvironment = await this.findForgejoEnvironment(scope);
+    } catch (error) {
+      return unavailable(
+        `Managed Git and OCI service discovery could not inspect Full services: ${errorMessage(error)}`
+      );
+    }
     if (!forgejoEnvironment) {
-      return {
-        status: "unavailable",
-        reason: "This HiveForge target has no running Full Forgejo service in its Docker Compose project or Swarm stack.",
-        workflow: workflow()
-      };
+      return unavailable("This HiveForge target has no running Full Forgejo service in its Docker Compose project or Swarm stack.");
     }
 
     const rootUrl = environmentValue(forgejoEnvironment, FORGEJO_ROOT_URL_ENV);
@@ -158,6 +165,14 @@ export class ManagedArtifactServices {
       return {
         status: "incomplete",
         reason: endpoint.message,
+        workflow: workflow()
+      };
+    }
+    if (usesPlaceholderForgejoEndpoint(endpoint)) {
+      return {
+        status: "incomplete",
+        reason:
+          `The Full Forgejo service still uses the shipped placeholder ${FORGEJO_ROOT_URL_ENV}. Replace it with the real public Git/OCI host and port.`,
         workflow: workflow()
       };
     }
@@ -390,4 +405,25 @@ function workflow(): string[] {
     "Build with the existing local or agent toolchain, then push source and images through those services.",
     "Use the normal HiveForge deploy path with the image reference selected by the project profile."
   ];
+}
+
+function usesPlaceholderForgejoEndpoint(endpoint: { baseUrl: string; registryAddress: string }): boolean {
+  try {
+    const url = new URL(endpoint.baseUrl);
+    return url.hostname === FORGEJO_PLACEHOLDER_HOST;
+  } catch {
+    return false;
+  }
+}
+
+function unavailable(reason: string): ManagedArtifactServicesReport {
+  return {
+    status: "unavailable",
+    reason,
+    workflow: workflow()
+  };
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown discovery failure";
 }

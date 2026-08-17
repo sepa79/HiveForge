@@ -18,17 +18,17 @@ class FixtureGitRunner implements CommandRunner {
 }
 
 describe("repository inspection service", () => {
-  it("reports deployable repositories without requiring project registration", async () => {
+  it("reports deployable HTTPS Git repositories without requiring project registration", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
     const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
 
     await expect(
       service.inspect({
-        repository: "https://github.com/sepa79/HiveWatch.git",
+        repository: "https://gitlab.example.org/sepa/HiveWatch.git",
         gitRef: "main"
       })
     ).resolves.toEqual({
-      repository: "https://github.com/sepa79/HiveWatch.git",
+      repository: "https://gitlab.example.org/sepa/HiveWatch.git",
       gitRef: "main",
       deployable: true,
       project: {
@@ -57,17 +57,17 @@ describe("repository inspection service", () => {
     });
   });
 
-  it("accepts explicit LAN HTTP Git repositories", async () => {
+  it("accepts environment-reachable HTTP Git repositories", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
     const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
 
     await expect(
       service.inspect({
-        repository: "http://192.168.88.54:8081/git/PocketHive.git",
+        repository: "http://forgejo/git/PocketHive.git",
         gitRef: "pushed-ref"
       })
     ).resolves.toMatchObject({
-      repository: "http://192.168.88.54:8081/git/PocketHive.git",
+      repository: "http://forgejo/git/PocketHive.git",
       gitRef: "pushed-ref",
       deployable: true
     });
@@ -118,6 +118,13 @@ describe("repository inspection service", () => {
         gitRef: "main"
       })
     ).rejects.toThrow("Repository is not inspectable by HiveForge: http://example.com/PocketHive.git");
+
+    await expect(
+      service.inspect({
+        repository: "https://user@example.com/PocketHive.git",
+        gitRef: "main"
+      })
+    ).rejects.toThrow("Repository is not inspectable by HiveForge: https://user@example.com/PocketHive.git");
   });
 });
 

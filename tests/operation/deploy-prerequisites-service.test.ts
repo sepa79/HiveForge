@@ -14,7 +14,7 @@ describe("deploy prerequisites service", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }
@@ -97,7 +97,7 @@ describe("deploy prerequisites service", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }
@@ -148,7 +148,7 @@ describe("deploy prerequisites service", () => {
           {
             id: "hivewatch",
             name: "HiveWatch",
-            source: "github",
+            source: "https-git",
             repository: "https://github.com/sepa79/HiveWatch.git",
             approvedRefs: ["main"]
           }

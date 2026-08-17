@@ -91,7 +91,6 @@ instead of the Lite file; do not combine the two files:
 mkdir -p /opt/hiveforge/forgejo
 cd /opt/hiveforge
 curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge-full.yml
-curl -fsSLO https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/forgejo-gateway.nginx.conf
 docker compose -f docker-compose.hiveforge-full.yml up -d
 ```
 
@@ -108,6 +107,12 @@ reachable from Git and Docker clients. Before a Swarm deployment, replace both
 Forgejo's SQLite `/data` bind. Keep `/opt/hiveforge/forgejo` on that node's
 local filesystem, never under the shared HiveForge managed root or on NFS; back
 it up separately.
+
+The shipped defaults `forgejo-change-me.invalid` and
+`http://forgejo-change-me.invalid:3001/` are intentional placeholders. Full is
+not ready for Git or OCI use until you replace them with the real public host
+or IP and port for that lab node. Until then, HiveForge reports Full discovery
+as `incomplete`, not `configured`.
 
 Full exposes only `forgejo-gateway` on that address. The raw Forgejo
 service stays on a private network. The gateway supplies a single fixed
