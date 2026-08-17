@@ -17,9 +17,19 @@
   `manual-unverified`; HiveForge never modifies Docker daemon configuration,
   restarts Docker, claims node-wide pull readiness, or falls back to another
   transport.
-- Allow `hiveforge.yaml` to declare the same explicit internal HTTP Git URLs
-  already supported by development project registration, while continuing to
-  reject arbitrary external HTTP repositories.
+- Allow explicit `https://...git` repositories from any HTTPS Git host, not
+  only GitHub, while continuing to allow environment-reachable development
+  `http://...git` repositories and reject arbitrary external HTTP repositories.
+- Breaking registry/schema contract change: registered project source
+  `github` is renamed to `https-git` to match the broader HTTPS Git contract.
+  Existing project registry data must migrate those source values explicitly;
+  HiveForge does not keep `github` as a silent compatibility alias.
+- Make managed-repository discovery fail explicitly as `unavailable` when
+  HiveForge cannot inspect its own Docker runtime or the sibling Full Forgejo
+  service, instead of surfacing an internal server error.
+- Ship the Full Compose template with explicit `.invalid` Forgejo placeholder
+  host values and report managed-repository discovery as `incomplete` until
+  the operator replaces them with a real Git/OCI host and port.
 - Keep build actions, application-repository provisioning, Git upstream
   changes, image selection, and deploy mutation outside this release.
 
