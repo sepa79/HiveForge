@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.5 - 2026-08-07
+## 0.5.6 - 2026-08-17
 
 - Refresh `@modelcontextprotocol/sdk`, `undici`, `vitest`, and vulnerable
   transitive packages so `npm audit` is clean again for both production and
@@ -8,6 +8,15 @@
 - Make the failed-command diagnostics test deterministic on this runtime by
   capturing stderr/stdout from `/bin/sh` instead of relying on fragile
   `node -e` stdio timing during non-zero exits.
+- Document the planned explicit Portainer deployment adapter so HiveForge can
+  keep Portainer as the stack owner for deploy, remove, restart, and upgrade
+  operations instead of bypassing it through direct Docker mutation.
+- Tighten the Portainer adapter plan around fixed install mode, durable
+  executor ownership, Portainer `stackId` persistence, and a shared
+  pre-executor render-validation path.
+
+## 0.5.5 - 2026-08-07
+
 - Add a standalone Full Compose/Swarm install containing HiveForge, Forgejo,
   and a trusted-LAN gateway. It provides Git and OCI services through one fixed
   `hiveforge` identity, so normal `git push` and `docker push` need no client
@@ -36,9 +45,6 @@
 - Ship the Full Compose template with explicit `.invalid` Forgejo placeholder
   host values and report managed-repository discovery as `incomplete` until
   the operator replaces them with a real Git/OCI host and port.
-- Document the planned explicit Portainer deployment adapter so HiveForge can
-  keep Portainer as the stack owner for deploy, remove, restart, and upgrade
-  operations instead of bypassing it through direct Docker mutation.
 - Keep build actions, application-repository provisioning, Git upstream
   changes, image selection, and deploy mutation outside this release.
 
