@@ -55,6 +55,10 @@ HiveForge should separate:
 - action adapter: project-owned render/preparation, currently `ansible`,
 - deployment executor: HiveForge-owned final runtime mutation.
 
+The installation mode is fixed at HiveForge bootstrap time. A HiveForge runtime
+installed and configured as `docker-direct` or `portainer-stack` does not
+support switching that executor later. Executor migration is out of scope.
+
 The deployment executor must be explicit per environment. Planned executor ids:
 
 - `docker-direct`
@@ -72,34 +76,71 @@ must distinguish:
 
 - executor kind: `docker-direct` or `portainer-stack`,
 - Portainer endpoint base URL when `portainer-stack` is selected,
-- Portainer stack identity needed for update/restart/remove,
+- fixed Portainer endpoint/stack-target configuration needed to create the
+  first stack without name guessing,
 - authentication source for Portainer API access.
 
 This must live in HiveForge-owned environment configuration, not in project
 manifests.
+
+For `portainer-stack`, the environment config must identify the Portainer
+endpoint and enough fixed target information to create the first deployment.
+After that first successful create, the Portainer `stackId` returned by
+Portainer becomes the durable runtime key stored in HiveForge state.
 
 ### 2. Final deploy executor boundary
 
 Replace the current implicit `DockerDeploymentService` dependency in the
 orchestrator with one typed deployment-executor boundary.
 
+The executor boundary must not absorb shared render validation rules. HiveForge
+must keep one common pre-executor preparation path that:
+
+- injects the `hiveforge.deployment=<deploymentId>` label,
+- validates rendered bind sources,
+- records the prepared rendered artifact and related metadata.
+
+Executors mutate runtime only. They must not re-implement or silently skip
+those shared contract checks.
+
 Minimum executor operations:
 
-- `deployRenderedCompose`
+- `deployPreparedCompose`
 - `removeDeployment`
 - `restartDeployment`
-- `deploymentOwner`
+- `executorKind`
 
-`deploymentOwner` is needed so UI, REST, and MCP can expose only the operations
+`executorKind` is needed so UI, REST, and MCP can expose only the operations
 that the selected executor actually owns.
 
 ### 3. Durable deployment state
 
 HiveForge must keep its own `deploymentId`, deployment name, project/component,
-profile, environment id, and recorded rendered artifact regardless of executor.
+profile, environment id, selected executor kind, and recorded rendered artifact
+regardless of executor.
 
 Portainer ownership must not replace HiveForge's durable deployment inventory.
 It only changes who performs the runtime mutation.
+
+The durable deployment record must include:
+
+- `deploymentId`: HiveForge durable internal id,
+- `deploymentName`: runtime stack/project name chosen by HiveForge,
+- `executorKind`: `docker-direct` or `portainer-stack`.
+
+When `portainer-stack` is selected, the durable record must also include:
+
+- `portainer.endpointId`,
+- `portainer.stackId`,
+- `portainer.stackName`.
+
+HiveForge must treat `portainer.stackId` as the stable runtime identity for
+later update/remove/restart operations. `portainer.stackName` is operator/debug
+metadata, not the primary lookup key after stack creation succeeds.
+
+Because executor mode is immutable after bootstrap, `executorKind` is not a
+migration knob. It is durable ownership evidence used for diagnostics,
+consistency checks, and runtime operation routing.
 
 ### 4. Restart semantics
 
@@ -117,7 +158,7 @@ No synthetic fallback such as "try Portainer, then Docker" is allowed.
 ## Portainer Adapter Scope
 
 The first Portainer slice should support only environments where HiveForge can
-name one existing Portainer stack target explicitly.
+create and then track one Portainer-managed stack target explicitly.
 
 In scope:
 
@@ -136,6 +177,8 @@ Out of scope for the first slice:
 - importing arbitrary pre-existing Docker resources into Portainer,
 - mixed ownership where some actions use Portainer and others mutate Docker
   directly,
+- changing a configured HiveForge install from `docker-direct` to
+  `portainer-stack` or back,
 - Compose-editor parity beyond the generated stack payload HiveForge already
   owns.
 
@@ -145,9 +188,13 @@ Out of scope for the first slice:
 2. Extract the deployment executor interface from the current Docker-only
    deploy/remove path.
 3. Rename the current implementation conceptually to `docker-direct`.
-4. Add a Portainer-backed executor for deploy/remove first.
-5. Add restart as a new operation only after ownership is explicit.
-6. Expose executor ownership and restart availability in REST, MCP, and UI.
+4. Extend durable deployment state with `executorKind` and Portainer stack
+   identity fields.
+5. Add a Portainer-backed executor for deploy/remove first.
+6. Persist `portainer.stackId` on first successful create and route later
+   update/remove/restart calls by that id.
+7. Add restart as a new operation only after ownership is explicit.
+8. Expose executor ownership and restart availability in REST, MCP, and UI.
 
 ## Acceptance
 
@@ -155,6 +202,8 @@ Out of scope for the first slice:
   Portainer ownership of the stack.
 - HiveForge still records one durable deployment inventory and rendered compose
   artifact for that deployment.
+- HiveForge records the selected executor kind for every durable deployment and
+  stores Portainer `stackId` for Portainer-owned deployments.
 - Restart/remove/update availability is explicit and matches the selected
   executor.
 - An environment misconfigured for Portainer fails explicitly before runtime
