@@ -151,6 +151,10 @@ When configured, environment metadata includes project policy for allowed
 project/profile/action combinations.
 The human-facing `name` and optional `description` come from `environments.yaml`
 and should be shown by clients when identifying the connected target.
+When the environment declares HiveForge deployment ownership, the response also
+includes non-secret deployment executor metadata such as
+`deployment.executor` and optional Portainer endpoint/base URL metadata.
+Private credentials such as `deployment.portainer.apiKey` are never returned.
 
 Capabilities are structured as described in `docs/specs/capabilities.md`. For
 release deployment, clients must treat them as reported environment facts, not
@@ -190,9 +194,9 @@ Behavior: read-only. This tool does not refresh the environment. Use
 Input: none.
 
 Output: deployment inventory for the current environment, read from HiveForge
-state DB. Each deployment includes `deploymentId`, `deploymentName`, project,
-component, profile, current status, last action, operation id, and update
-timestamp.
+state DB. Each deployment includes `deploymentId`, `deploymentName`,
+`executorKind`, project, component, profile, current status, last action,
+operation id, and update timestamp.
 
 ### `diagnose_hiveforge_runtime`
 

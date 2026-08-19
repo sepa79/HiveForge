@@ -5,7 +5,7 @@ It gives a human or an AI agent one explicit surface—UI, MCP, or REST—to
 inspect approved projects, validate their declared requirements, run their
 declared lifecycle actions, and retain evidence for each deployment.
 
-Current release: **0.5.5**.
+Current release: **0.5.6**.
 
 HiveForge does not own application code or invent deployment behaviour.
 Applications carry `hiveforge.yaml`, component manifests, and declared action
@@ -54,6 +54,9 @@ cat /opt/hiveforge/auth-token
 For Portainer or `docker stack deploy`, use the same base file. The complete
 Compose/Swarm instructions, runtime-root behaviour, proxy settings, and token
 options are in [Install HiveForge](docs/install/docker-compose.md).
+The environment bootstrap fixes the runtime owner explicitly as either direct
+Docker/Swarm mutation or Portainer-backed stack mutation; HiveForge does not
+switch that executor implicitly later.
 
 Check the public health endpoint:
 
@@ -95,7 +98,7 @@ Run the local MCP stdio client from your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.5 \
+  ghcr.io/sepa79/hiveforge:v0.5.6 \
   npm run hiveforge-mcp
 ```
 

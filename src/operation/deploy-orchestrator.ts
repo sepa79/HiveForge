@@ -7,10 +7,14 @@ import type { RuntimeEnvScope } from "../config/runtime-env-store.js";
 import {
   ACTIVE_LIFECYCLE_ACTIONS,
   INACTIVE_LIFECYCLE_ACTIONS,
+  type DeploymentStateRecord,
+  type DeploymentRuntimeMetadata,
   type DeploymentStateStore,
   type EnsureDeploymentInput
 } from "./deployment-state-store.js";
-import type { DockerDeploymentService } from "./docker-deployment-service.js";
+import type { DeploymentExecutor } from "./deployment-executor.js";
+import type { DeploymentRuntimeStatusService } from "./deployment-runtime-status-service.js";
+import { prepareComposeDeployment } from "./docker-deployment-service.js";
 
 export interface DeployRequest {
   projectId: string;
@@ -51,7 +55,8 @@ export class DeployOrchestrator {
     private readonly environment?: EnvironmentDefinition,
     private readonly runtimeEnv?: RuntimeEnvProvider,
     private readonly deploymentState?: DeploymentStateStore,
-    private readonly dockerDeployment?: DockerDeploymentService
+    private readonly deploymentExecutor?: DeploymentExecutor,
+    private readonly deploymentRuntimeStatus?: Pick<DeploymentRuntimeStatusService, "check">
   ) {}
 
   async deploy(request: DeployRequest): Promise<DeployResult> {
@@ -167,17 +172,18 @@ export class DeployOrchestrator {
     });
 
     if (!this.deploymentState) {
-      throw new Error("HiveForge-owned Docker removal requires deployment state.");
+      throw new Error("HiveForge-owned deployment removal requires deployment state.");
     }
-    if (!this.dockerDeployment) {
-      throw new Error("HiveForge-owned Docker removal is not configured.");
+    if (!this.deploymentExecutor) {
+      throw new Error("HiveForge-owned deployment removal is not configured.");
     }
     const environmentId = input.request.environmentId;
     if (!environmentId) {
-      throw new Error("HiveForge-owned Docker removal requires environmentId.");
+      throw new Error("HiveForge-owned deployment removal requires environmentId.");
     }
 
     const stateInput = {
+      ...deploymentRuntimeMetadataFor(this.environment),
       environment: environmentId,
       ...(input.request.deploymentName ? { deploymentName: input.request.deploymentName } : {}),
       project: input.inspection.projectId,
@@ -189,16 +195,29 @@ export class DeployOrchestrator {
       operationId: `${input.request.action}-${Date.now()}`,
       updatedAt: new Date().toISOString()
     };
+    const existing = await this.reconcileGoneDeploymentSlot(stateInput);
+    if (existing && existing.status === "gone") {
+      input.request.progress?.({
+        stage: "action",
+        status: "succeeded",
+        message: `${input.request.action} completed: runtime was already gone outside HiveForge`
+      });
+      return {
+        inspection: input.inspection,
+        validation: input.validation,
+        action: {
+          operationId: stateInput.operationId,
+          deploymentId: existing.deploymentId,
+          stdout: "",
+          stderr: ""
+        }
+      };
+    }
+
     const deployment = await this.deploymentState.ensureDeployment(stateInput);
 
     try {
-      await this.dockerDeployment.remove({
-        deploymentId: deployment.deploymentId,
-        deploymentName: deployment.deploymentName,
-        project: deployment.project,
-        component: deployment.component,
-        ...(deployment.profile ? { profile: deployment.profile } : {})
-      });
+      await this.deploymentExecutor.remove({ deployment });
     } catch (error) {
       return recordFailureAndThrow(this.deploymentState, stateInput, error);
     }
@@ -231,6 +250,7 @@ export class DeployOrchestrator {
     }
 
     const stateInput = {
+      ...deploymentRuntimeMetadataFor(this.environment),
       environment: environmentId,
       ...(input.request.deploymentName ? { deploymentName: input.request.deploymentName } : {}),
       project: input.inspection.projectId,
@@ -242,6 +262,7 @@ export class DeployOrchestrator {
       operationId: input.operationId,
       updatedAt: input.updatedAt
     };
+    await this.reconcileGoneDeploymentSlot(stateInput);
     const deployment = await this.deploymentState.ensureDeployment(stateInput);
 
     if (!ACTIVE_LIFECYCLE_ACTIONS.has(input.request.action)) {
@@ -249,46 +270,63 @@ export class DeployOrchestrator {
       return { deploymentId: deployment.deploymentId };
     }
 
-    if (!this.dockerDeployment) {
+    if (!this.deploymentExecutor) {
       return recordFailureAndThrow(
         this.deploymentState,
         stateInput,
-        new Error("HiveForge-owned Docker deployment is not configured.")
+        new Error("HiveForge-owned deployment executor is not configured.")
       );
     }
     if (!input.managedFiles?.renderedComposeFile) {
       return recordFailureAndThrow(
         this.deploymentState,
         stateInput,
-        new Error("HiveForge-owned Docker deployment requires rendered managed compose file.")
+        new Error("HiveForge-owned deployment requires rendered managed compose file.")
       );
     }
+    if (!this.environment) {
+      return recordFailureAndThrow(
+        this.deploymentState,
+        stateInput,
+        new Error("HiveForge-owned deployment requires a current environment.")
+      );
+    }
+
+    await prepareComposeDeployment(
+      input.managedFiles.renderedComposeFile,
+      deployment.deploymentId,
+      input.managedFiles.bindSourceDir,
+      this.environment
+    );
 
     input.request.progress?.({
       stage: "docker_deploy",
       status: "running",
-      message: `Deploying ${deployment.deploymentId} through HiveForge Docker executor`
+      message: `Deploying ${deployment.deploymentId} through HiveForge ${stateInput.executorKind} executor`
     });
     try {
-      await this.dockerDeployment.deploy({
-        deploymentId: deployment.deploymentId,
-        deploymentName: deployment.deploymentName,
-        project: deployment.project,
-        component: deployment.component,
-        ...(deployment.profile ? { profile: deployment.profile } : {}),
+      const result = await this.deploymentExecutor.deploy({
+        deployment,
         composeFile: input.managedFiles.renderedComposeFile,
         ...(input.managedFiles.bindSourceDir ? { bindSourceDir: input.managedFiles.bindSourceDir } : {})
+      });
+      await this.deploymentState.recordLifecycleAction({
+        ...stateInput,
+        ...(result.portainer ? { portainer: result.portainer } : {})
       });
     } catch (error) {
       return recordFailureAndThrow(this.deploymentState, stateInput, error);
     }
-    await this.deploymentState.recordLifecycleAction(stateInput);
     input.request.progress?.({
       stage: "docker_deploy",
       status: "succeeded",
-      message: `Docker deployment completed: ${deployment.deploymentId}`
+      message: `Deployment completed: ${deployment.deploymentId}`
     });
     return { deploymentId: deployment.deploymentId };
+  }
+
+  private async reconcileGoneDeploymentSlot(input: EnsureDeploymentInput): Promise<DeploymentStateRecord | null> {
+    return reconcileGoneDeploymentSlot(this.deploymentState, this.deploymentRuntimeStatus, input);
   }
 }
 
@@ -326,6 +364,36 @@ async function recordFailureAndThrow(
   throw error;
 }
 
+async function reconcileGoneDeploymentSlot(
+  deploymentState: DeploymentStateStore | undefined,
+  deploymentRuntimeStatus: Pick<DeploymentRuntimeStatusService, "check"> | undefined,
+  input: EnsureDeploymentInput
+): Promise<DeploymentStateRecord | null> {
+  if (!deploymentState || !deploymentRuntimeStatus) {
+    return null;
+  }
+
+  const existing = await deploymentState.findDeployment({
+    environment: input.environment,
+    project: input.project,
+    component: input.component,
+    profile: input.profile
+  });
+  if (!existing || existing.status === "removed" || existing.status === "gone") {
+    return existing;
+  }
+  if (existing.status !== "deployed") {
+    return existing;
+  }
+
+  const runtime = await deploymentRuntimeStatus.check({ deploymentId: existing.deploymentId });
+  if (runtime.summary !== "missing") {
+    return existing;
+  }
+
+  return deploymentState.markGone(existing.deploymentId, input.updatedAt);
+}
+
 function actionEnvironment(
   runtimeEnv: NodeJS.ProcessEnv,
   managedFiles: ManagedFilesResult | undefined,
@@ -335,5 +403,22 @@ function actionEnvironment(
     ...runtimeEnv,
     ...(managedFiles ? managedFilesEnvironment(managedFiles) : {}),
     ...(profile ? { HIVEFORGE_PROFILE: profile } : {})
+  };
+}
+
+function deploymentRuntimeMetadataFor(environment: EnvironmentDefinition | undefined): DeploymentRuntimeMetadata {
+  const executorKind = environment?.deployment?.executor ?? "docker-direct";
+  if (executorKind !== "portainer-stack") {
+    return { executorKind };
+  }
+  const endpointId = environment?.deployment?.portainer?.endpointId;
+  if (endpointId === undefined) {
+    return { executorKind };
+  }
+  return {
+    executorKind,
+    portainer: {
+      endpointId
+    }
   };
 }

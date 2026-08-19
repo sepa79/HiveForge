@@ -590,6 +590,9 @@ function stateStore(records: DeploymentStateRecord[]): DeploymentStateStore {
     async ensureDeployment() {
       throw new Error("not used");
     },
+    async markGone() {
+      throw new Error("not used");
+    },
     async recordLifecycleAction() {
       return null;
     },
@@ -603,6 +606,7 @@ function deploymentRecord(): DeploymentStateRecord {
   return {
     deploymentId: "deployment-1",
     deploymentName: "hivewatch",
+    executorKind: "docker-direct",
     environment: "docker",
     project: "hivewatch",
     repository: "https://github.com/sepa79/HiveWatch.git",

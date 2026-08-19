@@ -1,21 +1,35 @@
-export type DeploymentStateStatus = "preparing" | "deployed" | "removed" | "failed";
+export type DeploymentStateStatus = "preparing" | "deployed" | "removed" | "gone" | "failed";
+export type DeploymentExecutorKind = "docker-direct" | "portainer-stack";
+
+export interface PortainerDeploymentState {
+  endpointId: number;
+  stackId?: number;
+  stackName?: string;
+}
 
 export interface DeploymentStateRecord {
   deploymentId: string;
   deploymentName: string;
+  executorKind: DeploymentExecutorKind;
   environment: string;
   project: string;
   repository: string;
   gitRef: string;
   component: string;
   profile?: string;
+  portainer?: PortainerDeploymentState;
   status: DeploymentStateStatus;
   lastAction: string;
   operationId: string;
   updatedAt: string;
 }
 
-export interface RecordLifecycleDeploymentInput {
+export interface DeploymentRuntimeMetadata {
+  executorKind: DeploymentExecutorKind;
+  portainer?: PortainerDeploymentState;
+}
+
+export interface RecordLifecycleDeploymentInput extends DeploymentRuntimeMetadata {
   environment: string;
   deploymentName?: string;
   project: string;
@@ -28,7 +42,7 @@ export interface RecordLifecycleDeploymentInput {
   updatedAt: string;
 }
 
-export interface EnsureDeploymentInput {
+export interface EnsureDeploymentInput extends DeploymentRuntimeMetadata {
   environment: string;
   deploymentName?: string;
   project: string;
@@ -58,6 +72,7 @@ export interface DeploymentStateStore {
   getDeployment(deploymentId: string): Promise<DeploymentStateRecord | null>;
   findDeployment(lookup: DeploymentLookup): Promise<DeploymentStateRecord | null>;
   ensureDeployment(input: EnsureDeploymentInput): Promise<DeploymentStateRecord>;
+  markGone(deploymentId: string, updatedAt: string): Promise<DeploymentStateRecord | null>;
   recordLifecycleAction(input: RecordLifecycleDeploymentInput): Promise<DeploymentStateRecord | null>;
   recordDeploymentFailure(input: RecordDeploymentFailureInput): Promise<DeploymentStateRecord>;
 }

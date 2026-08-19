@@ -369,6 +369,7 @@ describe("REST API", () => {
         {
           deploymentId: "deployment-1",
           deploymentName: "hivewatch",
+          executorKind: "docker-direct",
           environment: "local",
           project: "hivewatch",
           component: "api",
@@ -701,6 +702,84 @@ describe("REST API", () => {
     });
   });
 
+  it("redacts Portainer apiKey from environment responses while keeping executor metadata", async () => {
+    const baseUrl = await startServer({
+      currentEnvironment: {
+        ...defaultEnvironment(),
+        id: "swarm",
+        name: "Docker Swarm",
+        kind: "swarm",
+        capabilities: {
+          ...defaultEnvironment().capabilities,
+          runtime: ["docker-swarm"]
+        },
+        deployment: {
+          executor: "portainer-stack",
+          portainer: {
+            baseUrl: "https://portainer.example.com:9443/api",
+            endpointId: 3,
+            apiKey: "ptr_secret_value",
+            tlsInsecureSkipVerify: true
+          }
+        }
+      }
+    });
+
+    const response = await fetch(`${baseUrl}/environments`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      current: {
+        id: "swarm",
+        name: "Docker Swarm",
+        kind: "swarm",
+        capabilities: {
+          runtime: ["docker-swarm"],
+          managedRoot: {
+            shared: false,
+            nodes: ["local-docker"]
+          }
+        },
+        deployment: {
+          executor: "portainer-stack",
+          portainer: {
+            baseUrl: "https://portainer.example.com:9443/api",
+            endpointId: 3,
+            tlsInsecureSkipVerify: true
+          }
+        },
+        policy: {
+          projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
+        }
+      },
+      known: [
+        {
+          id: "swarm",
+          name: "Docker Swarm",
+          kind: "swarm",
+          capabilities: {
+            runtime: ["docker-swarm"],
+            managedRoot: {
+              shared: false,
+              nodes: ["local-docker"]
+            }
+          },
+          deployment: {
+            executor: "portainer-stack",
+            portainer: {
+              baseUrl: "https://portainer.example.com:9443/api",
+              endpointId: 3,
+              tlsInsecureSkipVerify: true
+            }
+          },
+          policy: {
+            projects: [{ id: "hivewatch", profiles: ["normal", "test"], actions: ["deploy", "upgrade"] }]
+          }
+        }
+      ]
+    });
+  });
+
   it("refreshes the current environment through the configured refresh service", async () => {
     const calls: unknown[] = [];
     const refreshedEnvironment: EnvironmentDefinition = {
@@ -727,8 +806,14 @@ describe("REST API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      current: refreshedEnvironment,
-      known: [refreshedEnvironment]
+      current: {
+        ...refreshedEnvironment
+      },
+      known: [
+        {
+          ...refreshedEnvironment
+        }
+      ]
     });
     expect(calls).toContainEqual({ refreshEnvironment: true });
   });
@@ -1135,6 +1220,7 @@ async function startServer(
               {
                 deploymentId: "deployment-1",
                 deploymentName: "hivewatch",
+                executorKind: "docker-direct",
                 environment: "local",
                 project: "hivewatch",
                 component: "api",

@@ -74,9 +74,22 @@ async function listEnvironmentNodes(apiClient: HiveForgeApiClient): Promise<unkn
     throw new Error("HiveForge environments response does not include a current environment.");
   }
   const current = payload.current;
+  const deployment = isRecord(current.deployment) ? current.deployment : null;
   return {
     environmentId: current.id,
     environmentName: current.name,
+    executor: typeof deployment?.executor === "string" ? deployment.executor : "docker-direct",
+    ...(isRecord(deployment?.portainer)
+      ? {
+          portainer: {
+            ...(typeof deployment.portainer.baseUrl === "string" ? { baseUrl: deployment.portainer.baseUrl } : {}),
+            ...(typeof deployment.portainer.endpointId === "number" ? { endpointId: deployment.portainer.endpointId } : {}),
+            ...(typeof deployment.portainer.tlsInsecureSkipVerify === "boolean"
+              ? { tlsInsecureSkipVerify: deployment.portainer.tlsInsecureSkipVerify }
+              : {})
+          }
+        }
+      : {}),
     nodes: Array.isArray(current.nodes) ? current.nodes : []
   };
 }

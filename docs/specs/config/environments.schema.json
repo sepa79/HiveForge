@@ -108,6 +108,57 @@
               }
             }
           },
+          "deployment": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["executor"],
+            "properties": {
+              "executor": {
+                "type": "string",
+                "enum": ["docker-direct", "portainer-stack"]
+              },
+              "portainer": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["baseUrl", "endpointId", "apiKey"],
+                "properties": {
+                  "baseUrl": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  },
+                  "endpointId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "tlsInsecureSkipVerify": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "executor": { "const": "portainer-stack" }
+                  },
+                  "required": ["executor"]
+                },
+                "then": {
+                  "properties": {
+                    "portainer": {
+                      "type": "object"
+                    }
+                  },
+                  "required": ["portainer"]
+                }
+              }
+            ]
+          },
           "nodes": {
             "type": "array",
             "items": {

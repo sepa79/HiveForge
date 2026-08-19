@@ -12,10 +12,10 @@ import { SystemClock } from "../operation/clock.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
 import { DeploymentComposeService } from "../operation/deployment-compose-service.js";
 import { DeploymentDiagnosticsService } from "../operation/deployment-diagnostics-service.js";
+import { createDeploymentExecutor } from "../operation/deployment-executor-factory.js";
 import { DeployPrerequisitesService } from "../operation/deploy-prerequisites-service.js";
 import { DeploymentInventoryService } from "../operation/deployment-inventory-service.js";
 import { DeploymentRuntimeStatusService } from "../operation/deployment-runtime-status-service.js";
-import { DockerDeploymentService } from "../operation/docker-deployment-service.js";
 import { ManagedFilesService } from "../operation/managed-files-service.js";
 import { OperationLogService } from "../operation/operation-log-service.js";
 import { UuidGenerator } from "../operation/id-generator.js";
@@ -132,7 +132,8 @@ if (!currentEnvironment) {
 }
 const configuredManagedRootBindSourceRoot = currentEnvironment.capabilities.managedRoot.bindSourceRoot;
 const managedFiles = new ManagedFilesService(dataRoot, configuredManagedRootBindSourceRoot, runtimePaths.runtimeRoot);
-const dockerDeployment = new DockerDeploymentService(commandRunner, currentEnvironment);
+const deploymentExecutor = createDeploymentExecutor(currentEnvironment, commandRunner);
+const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const deploy = new DeployOrchestrator(
   inspection,
   validation,
@@ -141,7 +142,8 @@ const deploy = new DeployOrchestrator(
   currentEnvironment,
   runtimeEnv,
   deploymentState,
-  dockerDeployment
+  deploymentExecutor,
+  deploymentRuntimeStatus
 );
 const environmentPolicy = new EnvironmentPolicyService(currentEnvironment);
 const environmentPolicyEditor = new EnvironmentPolicyEditor(environmentsPath, environmentConfig);
@@ -163,7 +165,6 @@ const deployPrerequisites = new DeployPrerequisitesService(
 );
 const deploymentInventory = new DeploymentInventoryService(deploymentState, currentEnvironment.id);
 const deploymentCompose = new DeploymentComposeService(journal);
-const deploymentRuntimeStatus = new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState);
 const operations = new OperationLogService(deploy, ids, clock);
 const runtimeDiagnostics = new RuntimeDiagnosticsService(runtimePaths, currentEnvironment);
 const managedRootVerification = new ManagedRootVerificationService(commandRunner, currentEnvironment);

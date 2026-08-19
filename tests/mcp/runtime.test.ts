@@ -240,6 +240,14 @@ describe("HiveForge MCP runtime", () => {
           current: {
             id: "swarm",
             name: "Docker Swarm",
+            deployment: {
+              executor: "portainer-stack",
+              portainer: {
+                baseUrl: "https://portainer.example.com:9443/api",
+                endpointId: 3,
+                tlsInsecureSkipVerify: true
+              }
+            },
             nodes
           },
           known: []
@@ -252,6 +260,12 @@ describe("HiveForge MCP runtime", () => {
     expect(result.structuredContent).toEqual({
       environmentId: "swarm",
       environmentName: "Docker Swarm",
+      executor: "portainer-stack",
+      portainer: {
+        baseUrl: "https://portainer.example.com:9443/api",
+        endpointId: 3,
+        tlsInsecureSkipVerify: true
+      },
       nodes
     });
     expect(result.content[0].text).toContain("pockethive.postgres");

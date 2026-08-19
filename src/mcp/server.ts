@@ -98,7 +98,8 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     "list_environments",
     {
       title: "List HiveForge environments",
-      description: "List current and known environment metadata, capabilities, and policy.",
+      description:
+        "List current and known environment metadata, capabilities, policy, and non-secret deployment executor metadata such as docker-direct or portainer-stack.",
       inputSchema: {}
     },
     runtime.listEnvironments
@@ -118,7 +119,8 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     "list_environment_nodes",
     {
       title: "List current environment nodes",
-      description: "List current environment node inventory, including Docker Swarm labels when available.",
+      description:
+        "List current environment node inventory, including the selected deployment executor and, when configured, non-secret Portainer endpoint metadata plus Docker Swarm labels.",
       inputSchema: {}
     },
     runtime.listEnvironmentNodes
@@ -128,7 +130,7 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
     "list_deployments",
     {
       title: "List deployment inventory",
-      description: "List deployment inventory for the current environment.",
+      description: "List deployment inventory for the current environment, including the recorded executor kind for each deployment slot.",
       inputSchema: {}
     },
     runtime.listDeployments

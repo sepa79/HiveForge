@@ -78,7 +78,7 @@ export class DeploymentRuntimeStatusService {
     if (!deployment) {
       return missingDeploymentResult(request);
     }
-    if (deployment.status === "removed") {
+    if (deployment.status === "removed" || deployment.status === "gone") {
       return {
         deploymentId: deployment.deploymentId,
         deploymentName: deployment.deploymentName,
@@ -89,7 +89,10 @@ export class DeploymentRuntimeStatusService {
         requiredLabels: requiredLabelMap(deployment),
         containers: [],
         services: [],
-        reason: "Deployment is recorded as removed in HiveForge state."
+        reason:
+          deployment.status === "gone"
+            ? "Deployment runtime is recorded as gone outside HiveForge state reconciliation."
+            : "Deployment is recorded as removed in HiveForge state."
       };
     }
 

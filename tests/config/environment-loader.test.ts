@@ -192,6 +192,112 @@ describe("environment loader", () => {
     });
   });
 
+  it("loads explicit Portainer stack deployment config", async () => {
+    const filePath = await writeConfig([
+      "current: swarm",
+      "environments:",
+      "  - id: swarm",
+      "    name: Docker Swarm",
+      "    kind: swarm",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-swarm",
+      "      managedRoot:",
+      "        shared: true",
+      "    deployment:",
+      "      executor: portainer-stack",
+      "      portainer:",
+      "        baseUrl: https://portainer.example.com:9443/api",
+      "        endpointId: 3",
+      "        apiKey: ptr_test_token",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).resolves.toEqual({
+      current: "swarm",
+      environments: [
+        {
+          id: "swarm",
+          name: "Docker Swarm",
+          kind: "swarm",
+          capabilities: {
+            runtime: ["docker-swarm"],
+            managedRoot: {
+              shared: true
+            }
+          },
+          deployment: {
+            executor: "portainer-stack",
+            portainer: {
+              baseUrl: "https://portainer.example.com:9443/api",
+              endpointId: 3,
+              apiKey: "ptr_test_token"
+            }
+          },
+          policy: {
+            projects: []
+          }
+        }
+      ]
+    });
+  });
+
+  it("loads explicit Portainer TLS override when requested", async () => {
+    const filePath = await writeConfig([
+      "current: swarm",
+      "environments:",
+      "  - id: swarm",
+      "    name: Docker Swarm",
+      "    kind: swarm",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-swarm",
+      "      managedRoot:",
+      "        shared: true",
+      "    deployment:",
+      "      executor: portainer-stack",
+      "      portainer:",
+      "        baseUrl: https://portainer.example.com:9443/api",
+      "        endpointId: 3",
+      "        apiKey: ptr_test_token",
+      "        tlsInsecureSkipVerify: true",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).resolves.toEqual({
+      current: "swarm",
+      environments: [
+        {
+          id: "swarm",
+          name: "Docker Swarm",
+          kind: "swarm",
+          capabilities: {
+            runtime: ["docker-swarm"],
+            managedRoot: {
+              shared: true
+            }
+          },
+          deployment: {
+            executor: "portainer-stack",
+            portainer: {
+              baseUrl: "https://portainer.example.com:9443/api",
+              endpointId: 3,
+              apiKey: "ptr_test_token",
+              tlsInsecureSkipVerify: true
+            }
+          },
+          policy: {
+            projects: []
+          }
+        }
+      ]
+    });
+  });
+
   it("rejects a current environment that is not declared", async () => {
     const filePath = await writeConfig([
       "current: prod",
@@ -215,6 +321,34 @@ describe("environment loader", () => {
     ]);
 
     await expect(loadEnvironmentConfig(filePath)).rejects.toThrow("Current environment is not defined: prod");
+  });
+
+  it("rejects Portainer stack deployment on non-swarm runtimes", async () => {
+    const filePath = await writeConfig([
+      "current: docker",
+      "environments:",
+      "  - id: docker",
+      "    name: Docker",
+      "    kind: docker",
+      "    capabilities:",
+      "      runtime:",
+      "        - docker-single",
+      "      managedRoot:",
+      "        shared: true",
+      "    deployment:",
+      "      executor: portainer-stack",
+      "      portainer:",
+      "        baseUrl: https://portainer.example.com:9443/api",
+      "        endpointId: 3",
+      "        apiKey: ptr_test_token",
+      "    policy:",
+      "      projects: []",
+      ""
+    ]);
+
+    await expect(loadEnvironmentConfig(filePath)).rejects.toThrow(
+      "Portainer stack deployment requires docker-swarm runtime for environment docker"
+    );
   });
 
   it("rejects duplicate project policies within one environment", async () => {

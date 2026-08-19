@@ -5,8 +5,9 @@ import { loadProjectRegistryConfig } from "../config/project-registry-loader.js"
 import { RuntimeEnvStore } from "../config/runtime-env-store.js";
 import { JsonlJournal } from "../journal/jsonl-journal.js";
 import { DeployOrchestrator } from "../operation/deploy-orchestrator.js";
-import { DockerDeploymentService } from "../operation/docker-deployment-service.js";
+import { createDeploymentExecutor } from "../operation/deployment-executor-factory.js";
 import { managedFilesEnvironment, ManagedFilesService } from "../operation/managed-files-service.js";
+import { DeploymentRuntimeStatusService } from "../operation/deployment-runtime-status-service.js";
 import { SystemClock } from "../operation/clock.js";
 import { UuidGenerator } from "../operation/id-generator.js";
 import { ProjectActionService } from "../operation/project-action-service.js";
@@ -218,7 +219,9 @@ async function buildContext(options: CliOptions) {
     currentEnvironment?.capabilities.managedRoot.bindSourceRoot,
     runtimePaths.runtimeRoot
   );
-  const dockerDeployment = currentEnvironment ? new DockerDeploymentService(commandRunner, currentEnvironment) : undefined;
+  const deploymentExecutor = createDeploymentExecutor(currentEnvironment, commandRunner);
+  const deploymentRuntimeStatus =
+    currentEnvironment ? new DeploymentRuntimeStatusService(commandRunner, currentEnvironment, deploymentState) : undefined;
 
   return {
     journal,
@@ -236,7 +239,8 @@ async function buildContext(options: CliOptions) {
       currentEnvironment,
       runtimeEnv,
       deploymentState,
-      dockerDeployment
+      deploymentExecutor,
+      deploymentRuntimeStatus
     )
   };
 }

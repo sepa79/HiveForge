@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { DeployOrchestrator } from "../../src/operation/deploy-orchestrator.js";
 import type { ProjectActionService } from "../../src/operation/project-action-service.js";
@@ -6,8 +9,8 @@ import type { ProjectValidationService } from "../../src/operation/project-valid
 import type { ManagedFilesService } from "../../src/operation/managed-files-service.js";
 import type { ProjectRegistry } from "../../src/manifest/manifest-types.js";
 import type { EnvironmentDefinition } from "../../src/config/environment-types.js";
-import type { DeploymentStateStore } from "../../src/operation/deployment-state-store.js";
-import type { DockerDeploymentService } from "../../src/operation/docker-deployment-service.js";
+import type { DeploymentStateRecord, DeploymentStateStore } from "../../src/operation/deployment-state-store.js";
+import type { DeploymentExecutor } from "../../src/operation/deployment-executor.js";
 
 describe("deploy orchestrator", () => {
   it("runs checkout/inspect, validation, and declared action in order", async () => {
@@ -277,12 +280,15 @@ describe("deploy orchestrator", () => {
       },
       {
         dockerDeploy: {
-          deploymentId: "deployment-1",
-          deploymentName: "hivewatch",
-          project: "hivewatch",
-          component: "api",
-          profile: "test",
-          composeFile: "/data/deployed/hivewatch/stacks/compose.yml",
+          deployment: expect.objectContaining({
+            deploymentId: "deployment-1",
+            deploymentName: "hivewatch",
+            executorKind: "docker-direct",
+            project: "hivewatch",
+            component: "api",
+            profile: "test"
+          }),
+          composeFile: expect.stringMatching(/compose\.yml$/),
           bindSourceDir: "/srv/hiveforge/data/deployed/hivewatch"
         }
       },
@@ -331,10 +337,15 @@ describe("deploy orchestrator", () => {
       })
     });
     expect(calls).toContainEqual({
-      dockerDeploy: expect.objectContaining({
-        deploymentId: "deployment-1",
-        deploymentName: "hivewatch-canary"
-      })
+      dockerDeploy: {
+        deployment: expect.objectContaining({
+          deploymentId: "deployment-1",
+          deploymentName: "hivewatch-canary",
+          executorKind: "docker-direct"
+        }),
+        composeFile: expect.stringMatching(/compose\.yml$/),
+        bindSourceDir: "/srv/hiveforge/data/deployed/hivewatch"
+      }
     });
   });
 
@@ -358,7 +369,7 @@ describe("deploy orchestrator", () => {
           calls.push("docker_deploy_failed");
           throw new Error("Docker bind source path does not exist");
         }
-      } as unknown as DockerDeploymentService
+      } as unknown as DeploymentExecutor
     );
 
     await expect(
@@ -378,6 +389,71 @@ describe("deploy orchestrator", () => {
         action: "deploy",
         operationId: "action-op",
         reason: "Docker bind source path does not exist"
+      })
+    });
+  });
+
+  it("reconciles a stale missing runtime to gone before redeploying the slot", async () => {
+    const calls: unknown[] = [];
+    const stale = deploymentRecord({
+      deploymentName: "hivewatch-old",
+      executorKind: "portainer-stack",
+      status: "deployed",
+      portainer: {
+        endpointId: 3,
+        stackId: 41,
+        stackName: "hivewatch-old"
+      }
+    });
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[]),
+      validationService(calls as string[]),
+      actionServiceThatRunsAfterHook(calls),
+      managedFilesService(calls as string[]),
+      environment({
+        capabilities: {
+          runtime: ["docker-swarm"],
+          managedRoot: {
+            shared: true
+          }
+        },
+        deployment: {
+          executor: "portainer-stack",
+          portainer: {
+            baseUrl: "https://portainer.example.com/api",
+            endpointId: 9,
+            apiKey: "ptr_test_token"
+          }
+        }
+      }),
+      undefined,
+      deploymentState(calls, stale),
+      dockerDeployment(calls),
+      runtimeStatus(calls, "missing")
+    );
+
+    await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      environmentId: "local",
+      deploymentName: "hivewatch-canary"
+    });
+
+    expect(calls).toContainEqual({
+      runtimeStatus: { deploymentId: "deployment-1" }
+    });
+    expect(calls).toContainEqual({
+      markGone: {
+        deploymentId: "deployment-1",
+        updatedAt: "2026-05-17T10:00:00.000Z"
+      }
+    });
+    expect(calls).toContainEqual({
+      ensureDeployment: expect.objectContaining({
+        deploymentName: "hivewatch-canary",
+        executorKind: "portainer-stack"
       })
     });
   });
@@ -428,11 +504,14 @@ describe("deploy orchestrator", () => {
       },
       {
         dockerRemove: {
-          deploymentId: "deployment-1",
-          deploymentName: "hivewatch",
-          project: "hivewatch",
-          component: "api",
-          profile: "test"
+          deployment: expect.objectContaining({
+            deploymentId: "deployment-1",
+            deploymentName: "hivewatch",
+            executorKind: "docker-direct",
+            project: "hivewatch",
+            component: "api",
+            profile: "test"
+          })
         }
       },
       {
@@ -444,6 +523,86 @@ describe("deploy orchestrator", () => {
         })
       }
     ]);
+  });
+
+  it("marks missing runtime as gone and skips executor removal", async () => {
+    const calls: unknown[] = [];
+    const stale = deploymentRecord({
+      status: "deployed"
+    });
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[], registryWithRemoveAction()),
+      validationService(calls as string[]),
+      actionService(calls as string[]),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls, stale),
+      dockerDeployment(calls),
+      runtimeStatus(calls, "missing")
+    );
+
+    const result = await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "remove",
+      environmentId: "swarm",
+      profile: "test"
+    });
+
+    expect(result.action).toMatchObject({
+      deploymentId: "deployment-1",
+      stdout: "",
+      stderr: ""
+    });
+    expect(calls).toContainEqual({
+      markGone: {
+        deploymentId: "deployment-1",
+        updatedAt: expect.any(String)
+      }
+    });
+    expect(calls).not.toContainEqual(expect.objectContaining({ dockerRemove: expect.anything() }));
+    expect(calls).not.toContainEqual(expect.objectContaining({ recordLifecycleAction: expect.anything() }));
+  });
+
+  it("does not reconcile failed slots to gone when runtime is missing", async () => {
+    const calls: unknown[] = [];
+    const stale = deploymentRecord({
+      status: "failed"
+    });
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[]),
+      validationService(calls as string[]),
+      actionServiceThatRunsAfterHook(calls),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls, stale),
+      dockerDeployment(calls),
+      runtimeStatus(calls, "missing")
+    );
+
+    await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      environmentId: "local"
+    });
+
+    expect(calls).not.toContainEqual(expect.objectContaining({ markGone: expect.anything() }));
+    expect(calls).not.toContainEqual(expect.objectContaining({ runtimeStatus: expect.anything() }));
   });
 
   it("rejects inactive lifecycle actions that are not declared by the component", async () => {
@@ -543,11 +702,30 @@ function managedFilesService(calls: string[]): ManagedFilesService {
   return {
     async prepare() {
       calls.push("managed_files");
+      const root = await mkdtemp(path.join(os.tmpdir(), "hf-managed-files-"));
+      const projectDir = path.join(root, "data/deployed/hivewatch");
+      const stackDir = path.join(projectDir, "stacks");
+      const artifactsDir = path.join(projectDir, "artifacts");
+      const renderedComposeFile = path.join(stackDir, "compose.yml");
+      await mkdir(stackDir, { recursive: true });
+      await mkdir(artifactsDir, { recursive: true });
+      await writeFile(
+        renderedComposeFile,
+        [
+          "services:",
+          "  api:",
+          "    image: hivewatch:test",
+          "    volumes:",
+          "      - /srv/hiveforge/data/deployed/hivewatch/config:/config",
+          ""
+        ].join("\n"),
+        "utf8"
+      );
       return {
         projectDir: "/data/deployed/hivewatch",
         stackDir: "/data/deployed/hivewatch/stacks",
         artifactsDir: "/data/deployed/hivewatch/artifacts",
-        renderedComposeFile: "/data/deployed/hivewatch/stacks/compose.yml",
+        renderedComposeFile,
         actionRoot: "/hf",
         actionRenderedComposeFile: "/hf/stacks/compose.yml",
         actionRootSource: "/srv/hiveforge/data/deployed/hivewatch",
@@ -559,21 +737,22 @@ function managedFilesService(calls: string[]): ManagedFilesService {
   } as unknown as ManagedFilesService;
 }
 
-function deploymentState(calls: unknown[]): DeploymentStateStore {
+function deploymentState(calls: unknown[], existing: DeploymentStateRecord | null = null): DeploymentStateStore {
+  let current = existing;
   return {
     async listDeployments() {
-      return [];
+      return current ? [current] : [];
     },
-    async getDeployment() {
-      return null;
+    async getDeployment(deploymentId) {
+      return current?.deploymentId === deploymentId ? current : null;
     },
     async findDeployment() {
-      return null;
+      return current;
     },
     async ensureDeployment(input) {
       calls.push({ ensureDeployment: input });
-      return {
-        deploymentId: "deployment-1",
+      current = {
+        deploymentId: current?.deploymentId ?? "deployment-1",
         deploymentName: input.deploymentName ?? "hivewatch",
         environment: input.environment,
         project: input.project,
@@ -581,16 +760,32 @@ function deploymentState(calls: unknown[]): DeploymentStateStore {
         gitRef: input.gitRef,
         component: input.component,
         ...(input.profile ? { profile: input.profile } : {}),
+        executorKind: input.executorKind,
+        ...(input.portainer ? { portainer: input.portainer } : {}),
         status: "preparing",
         lastAction: input.action,
         operationId: input.operationId,
         updatedAt: input.updatedAt
       };
+      return current;
+    },
+    async markGone(deploymentId, updatedAt) {
+      calls.push({ markGone: { deploymentId, updatedAt } });
+      if (!current || current.deploymentId !== deploymentId) {
+        return null;
+      }
+      current = {
+        ...current,
+        status: "gone",
+        updatedAt
+      };
+      delete current.portainer;
+      return current;
     },
     async recordLifecycleAction(input) {
       calls.push({ recordLifecycleAction: input });
-      return {
-        deploymentId: "deployment-1",
+      current = {
+        deploymentId: current?.deploymentId ?? "deployment-1",
         deploymentName: input.deploymentName ?? "hivewatch",
         environment: input.environment,
         project: input.project,
@@ -598,16 +793,19 @@ function deploymentState(calls: unknown[]): DeploymentStateStore {
         gitRef: input.gitRef,
         component: input.component,
         ...(input.profile ? { profile: input.profile } : {}),
+        executorKind: input.executorKind,
+        ...(input.portainer ? { portainer: input.portainer } : {}),
         status: "deployed",
         lastAction: input.action,
         operationId: input.operationId,
         updatedAt: input.updatedAt
       };
+      return current;
     },
     async recordDeploymentFailure(input) {
       calls.push({ recordDeploymentFailure: input });
-      return {
-        deploymentId: "deployment-1",
+      current = {
+        deploymentId: current?.deploymentId ?? "deployment-1",
         deploymentName: input.deploymentName ?? "hivewatch",
         environment: input.environment,
         project: input.project,
@@ -615,23 +813,66 @@ function deploymentState(calls: unknown[]): DeploymentStateStore {
         gitRef: input.gitRef,
         component: input.component,
         ...(input.profile ? { profile: input.profile } : {}),
+        executorKind: input.executorKind,
+        ...(input.portainer ? { portainer: input.portainer } : {}),
         status: "failed",
         lastAction: input.action,
         operationId: input.operationId,
         updatedAt: input.updatedAt
       };
+      return current;
     }
   };
 }
 
-function dockerDeployment(calls: unknown[]): DockerDeploymentService {
+function runtimeStatus(calls: unknown[], summary: "missing" | "running") {
   return {
+    async check(request: unknown) {
+      calls.push({ runtimeStatus: request });
+      return {
+        deploymentId: "deployment-1",
+        deploymentName: "hivewatch",
+        projectId: "hivewatch",
+        component: "api",
+        summary,
+        requiredLabels: {
+          "hiveforge.deployment": "deployment-1"
+        },
+        containers: [],
+        services: []
+      };
+    }
+  };
+}
+
+function deploymentRecord(overrides: Partial<DeploymentStateRecord> = {}): DeploymentStateRecord {
+  return {
+    deploymentId: "deployment-1",
+    deploymentName: "hivewatch",
+    environment: "local",
+    project: "hivewatch",
+    repository: "https://github.com/sepa79/HiveWatch.git",
+    gitRef: "main",
+    component: "api",
+    profile: "test",
+    executorKind: "docker-direct",
+    status: "deployed",
+    lastAction: "deploy",
+    operationId: "op-1",
+    updatedAt: "2026-05-17T09:00:00.000Z",
+    ...overrides
+  };
+}
+
+function dockerDeployment(calls: unknown[]): DeploymentExecutor {
+  return {
+    executorKind: "docker-direct",
     async deploy(input: unknown) {
       calls.push({ dockerDeploy: input });
       return {
-        deploymentId: "deployment-1",
         composeFile: "/data/deployed/hivewatch/stacks/compose.yml",
         runtime: "docker-single",
+        executorKind: "docker-direct",
         stdout: "deployed",
         stderr: ""
       };
@@ -639,13 +880,13 @@ function dockerDeployment(calls: unknown[]): DockerDeploymentService {
     async remove(input: unknown) {
       calls.push({ dockerRemove: input });
       return {
-        deploymentId: "deployment-1",
         runtime: "docker-swarm",
+        executorKind: "docker-direct",
         stdout: "removed",
         stderr: ""
       };
     }
-  } as unknown as DockerDeploymentService;
+  };
 }
 
 function registry(): ProjectRegistry {
@@ -739,7 +980,13 @@ function registryWithProfiles(): ProjectRegistry {
   };
 }
 
-function environment(capabilities: EnvironmentDefinition["capabilities"]): EnvironmentDefinition {
+function environment(
+  input:
+    | EnvironmentDefinition["capabilities"]
+    | (Partial<EnvironmentDefinition> & { capabilities: EnvironmentDefinition["capabilities"] })
+): EnvironmentDefinition {
+  const overrides = "capabilities" in input ? input : { capabilities: input };
+  const { capabilities, ...rest } = overrides;
   return {
     id: "local",
     name: "Local",
@@ -747,6 +994,7 @@ function environment(capabilities: EnvironmentDefinition["capabilities"]): Envir
     capabilities,
     policy: {
       projects: []
-    }
+    },
+    ...rest
   };
 }

@@ -50,7 +50,7 @@ Ansible playbooks from project repo
       |
       | rendered Compose/Stack file
       v
-HiveForge Docker deploy executor
+HiveForge deployment executor (`docker-direct` or `portainer-stack`)
       |
       v
 Docker / Swarm target resources

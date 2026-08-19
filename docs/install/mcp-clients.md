@@ -20,7 +20,7 @@ Before changing the user's editor or agent configuration, collect:
 - HiveForge base URL, for example `http://swarm-manager.example:3000`,
 - HiveForge auth token,
 - HiveForge image tag matching the installed control-plane release, for example
-  `ghcr.io/sepa79/hiveforge:v0.5.5`,
+  `ghcr.io/sepa79/hiveforge:v0.5.6`,
 - desired scope: user/global configuration or workspace/local configuration.
 
 Prefer user/global scope for a non-technical workstation setup. Use workspace
@@ -40,7 +40,7 @@ configuration format:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.5 \
+  ghcr.io/sepa79/hiveforge:v0.5.6 \
   npm run hiveforge-mcp
 ```
 
@@ -87,7 +87,7 @@ Example VS Code `mcp.json`:
         "HIVEFORGE_BASE_URL=http://<host>:3000",
         "-e",
         "HIVEFORGE_AUTH_TOKEN=${input:hiveforge-token}",
-        "ghcr.io/sepa79/hiveforge:v0.5.5",
+        "ghcr.io/sepa79/hiveforge:v0.5.6",
         "npm",
         "run",
         "hiveforge-mcp"
@@ -103,7 +103,7 @@ trust when prompted, and enable the HiveForge tools in chat.
 ## Image Version Policy
 
 The MCP client image must use the same release tag as the installed HiveForge
-control plane. The examples in this guide use `v0.5.5`, the currently
+control plane. The examples in this guide use `v0.5.6`, the currently
 documented release. Update the control plane and client together; do not use
 `latest` or leave an older client pin in place without an explicit compatibility
 statement.

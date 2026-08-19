@@ -202,7 +202,7 @@ describe("UI routes", () => {
     expect(body).toContain("function renderDeploymentFinding");
     expect(body).toContain("function renderDeploymentExpected");
     expect(body).toContain("function renderHiveForgeRuntime");
-    expect(body).toContain("runtime status from Docker labels");
+    expect(body).toContain("runtime status from deployment labels");
     expect(body).toContain("No deployment matches the current filter.");
     expect(body).toContain("all replicas");
     expect(body).toContain('class="muted mono runtimeImage"');

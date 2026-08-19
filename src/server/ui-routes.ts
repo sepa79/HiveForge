@@ -200,7 +200,7 @@ button { cursor: pointer; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
 .grid { display: grid; gap: 12px; }
-.summaryGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; }
+.summaryGrid { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 12px; }
 .mainGrid { grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr); align-items: start; }
 .card {
   border: 1px solid var(--border); background: var(--panel); border-radius: 12px; box-shadow: 0 16px 40px var(--shadow);
@@ -467,10 +467,13 @@ async function refreshDeploymentRuntimeSummaries(options = {}) {
   if (options.render !== false) render({ preserveScroll: options.preserveScroll !== false });
   const entries = await Promise.all(
     state.deployments.map(async (deployment) => {
-      if (deployment.status === "removed") {
+      if (deployment.status === "removed" || deployment.status === "gone") {
         return [deployment.deploymentId, {
-          summary: "removed",
-          reason: "Deployment is recorded as removed in HiveForge state.",
+          summary: deployment.status,
+          reason:
+            deployment.status === "gone"
+              ? "Deployment runtime was removed outside HiveForge and reconciled as gone."
+              : "Deployment is recorded as removed in HiveForge state.",
           containers: [],
           services: []
         }];
@@ -760,7 +763,7 @@ function renderDeployments() {
       \${deploymentFilterButton("all", "All")}
       \${deploymentFilterButton("failed", "Problems")}
       \${deploymentFilterButton("removed", "Removed")}
-      <span class="muted2">\${state.deploymentRuntimeLoading ? "checking Docker runtime..." : "runtime status from Docker labels"}</span>
+      <span class="muted2">\${state.deploymentRuntimeLoading ? "checking deployment runtime..." : "runtime status from deployment labels"}</span>
     </div>
     <div class="activityLayout">
       <section class="card">
@@ -789,7 +792,7 @@ function renderDeploymentListItem(deployment, selected) {
       <span class="activityTitle">\${escapeHtml(deployment.project)}/\${escapeHtml(deployment.component)}</span>
       \${pill(status.label, status.kind)}
     </div>
-    <div class="activityMeta">\${escapeHtml(deployment.deploymentName || deployment.deploymentId)} · \${escapeHtml(deployment.gitRef)} · \${escapeHtml(deployment.profile || "default")}</div>
+    <div class="activityMeta">\${escapeHtml(deployment.deploymentName || deployment.deploymentId)} · \${escapeHtml(deployment.gitRef)} · \${escapeHtml(deployment.profile || "default")} · \${escapeHtml(executorKindLabel(deployment.executorKind))}</div>
     <div class="activityReason">\${escapeHtml(status.reason)}</div>
   </button>\`;
 }
@@ -806,6 +809,7 @@ function renderDeploymentDetail(deployment) {
     <div class="notice" \${status.key === "running" ? \`data-kind="ok"\` : status.key === "checking" ? "" : \`data-kind="error"\`} style="margin-top:10px;">\${escapeHtml(status.reason)}</div>
     <div class="detailGrid">
       \${detailCell("Runtime", status.label)}
+      \${detailCell("Executor", executorKindLabel(deployment.executorKind))}
       \${detailCell("Recorded state", deployment.status)}
       \${detailCell("Runtime name", deployment.deploymentName || deployment.deploymentId)}
       \${detailCell("Ref", deployment.gitRef)}
@@ -835,7 +839,7 @@ function renderRuntimeEvidence(runtime) {
   const services = runtime.services || [];
   const containers = runtime.containers || [];
   if (!services.length && !containers.length) {
-    return \`<div class="notice muted">\${escapeHtml(runtime.reason || "No Docker containers or services matched this deployment label.")}</div>\`;
+    return \`<div class="notice muted">\${escapeHtml(runtime.reason || "No runtime containers or services matched this deployment label.")}</div>\`;
   }
   return \`<div class="runtimeEvidence">
     \${services.map((service) => \`<div class="runtimeItem"><div class="runtimeNameLine"><strong class="runtimeName">\${escapeHtml(service.name)}</strong>\${pill(service.replicas || "service", service.replicas && service.replicas.startsWith("0/") ? "alert" : "")}</div><div class="muted mono runtimeImage">\${escapeHtml(service.image)}</div>\${renderServiceTasks(service.tasks || [])}</div>\`).join("")}
@@ -1221,12 +1225,30 @@ function renderOverview() {
   return \`<div class="grid">
     <div class="grid summaryGrid">
       <div class="card metric"><div class="metricLabel">Environment</div><div class="metricValue" style="font-size:18px">\${escapeHtml(current?.name || "—")}</div></div>
+      <div class="card metric"><div class="metricLabel">Runtime Owner</div><div class="metricValue" style="font-size:18px">\${escapeHtml(current ? executorKindLabel(current.deployment?.executor || "docker-direct") : "—")}</div></div>
       <div class="card metric"><div class="metricLabel">Deployments</div><div class="metricValue">\${state.deployments.length}</div></div>
       <div class="card metric"><div class="metricLabel">Projects</div><div class="metricValue">\${state.projects.length}</div></div>
       <div class="card metric"><div class="metricLabel">Activity</div><div class="metricValue">\${activityItems().length}</div></div>
     </div>
+    <section class="card"><div class="cardHeader"><h2 class="h2">Environment contract</h2><span class="muted2">\${escapeHtml(current?.kind || "unknown")}</span></div><div class="cardBody">\${renderEnvironmentContract()}</div></section>
     <section class="card"><div class="cardHeader"><h2 class="h2">Node inventory</h2><button class="button" id="refreshEnvironmentButton" type="button" \${state.environmentRefreshing || !state.token ? "disabled" : ""}>\${state.environmentRefreshing ? "Refreshing..." : "Refresh nodes"}</button></div><div class="cardBody">\${renderEnvironmentNodes()}</div></section>
     <section class="card"><div class="cardHeader"><h2 class="h2">Projects and policy</h2></div><div class="cardBody">\${renderProjects()}</div></section>
+  </div>\`;
+}
+
+function renderEnvironmentContract() {
+  const current = state.environment;
+  if (!current) {
+    return \`<div class="notice muted">Connect with the REST bearer token to load the current environment contract.</div>\`;
+  }
+  const deployment = current.deployment;
+  return \`<div class="detailGrid">
+    \${detailCell("Environment id", current.id)}
+    \${detailCell("Kind", current.kind)}
+    \${detailCell("Executor", executorKindLabel(deployment?.executor || "docker-direct"))}
+    \${detailCell("Runtime", (current.capabilities?.runtime || []).join(", ") || "—")}
+    \${deployment?.portainer?.baseUrl ? detailCell("Portainer API", deployment.portainer.baseUrl) : ""}
+    \${typeof deployment?.portainer?.endpointId === "number" ? detailCell("Portainer endpoint", String(deployment.portainer.endpointId)) : ""}
   </div>\`;
 }
 
@@ -1326,7 +1348,7 @@ function pageTitle() {
 }
 
 function pageSubtitle() {
-  if (state.view === "home") return "Deployment control plane for explicit Docker and Swarm project actions.";
+  if (state.view === "home") return "Deployment control plane for explicit runtime-owned project actions.";
   return state.environment ? state.environment.description || state.environment.name : "Connect with the REST bearer token.";
 }
 
@@ -1335,8 +1357,9 @@ function renderHome() {
     <div class="homeHeroPanel">
       <img class="homeBrandLogo" src="/assets/hiveforge-logo.svg" alt="HiveForge">
       <div class="homeCopy">
-        HiveForge runs on the target Docker or Swarm environment, registers approved project repositories,
-        validates manifests and requirements, then runs explicit lifecycle actions through UI, REST, or MCP.
+        HiveForge runs on the target environment, registers approved project repositories,
+        validates manifests and requirements, then runs explicit lifecycle actions through UI, REST, or MCP
+        using the configured runtime owner for that install.
       </div>
       <div class="homeActions">
         <a class="button" href="https://github.com/sepa79/HiveForge" target="_blank" rel="noreferrer">GitHub</a>
@@ -1359,6 +1382,11 @@ function renderCurrentView() {
     return renderActivity();
   }
   return renderOverview();
+}
+
+function executorKindLabel(value) {
+  if (value === "portainer-stack") return "Portainer stack";
+  return "Docker direct";
 }
 
 function navItem(view, icon, label) {
@@ -1521,11 +1549,11 @@ function filteredDeployments() {
 function matchesDeploymentFilter(deployment) {
   const status = deploymentPrimaryStatus(deployment);
   if (state.deploymentFilter === "all") return true;
-  if (state.deploymentFilter === "removed") return status.key === "removed";
+  if (state.deploymentFilter === "removed") return status.key === "removed" || status.key === "gone";
   if (state.deploymentFilter === "failed") {
     return deployment.status === "failed" || ["unhealthy", "exited", "missing", "unknown", "unavailable"].includes(status.key);
   }
-  return status.key !== "removed";
+  return status.key !== "removed" && status.key !== "gone";
 }
 
 function deploymentPrimaryStatus(deployment) {
@@ -1537,13 +1565,21 @@ function deploymentPrimaryStatus(deployment) {
       reason: "Removed by HiveForge. Hidden from the active filter."
     };
   }
+  if (deployment.status === "gone") {
+    return {
+      key: "gone",
+      label: "Gone",
+      kind: "warn",
+      reason: "Runtime disappeared outside HiveForge and this slot was reconciled as gone. Hidden from the active filter."
+    };
+  }
   const runtime = state.deploymentRuntime[deployment.deploymentId];
   if (!runtime) {
     return {
       key: "checking",
       label: "Checking",
       kind: "warn",
-      reason: "Checking Docker runtime status for this deployment label."
+      reason: "Checking deployment runtime status for this deployment label."
     };
   }
   if (runtime.unavailable) {
@@ -1583,7 +1619,7 @@ function runtimeStatusReason(runtime) {
     const running = containers.filter((container) => container.state === "running").length;
     return \`\${containers.length} container(s), \${running} running.\`;
   }
-  return "No Docker containers or services matched this deployment label.";
+  return "No runtime containers or services matched this deployment label.";
 }
 
 function activityIdForOperation(operation) {

@@ -5,6 +5,9 @@
 - Refresh `@modelcontextprotocol/sdk`, `undici`, `vitest`, and vulnerable
   transitive packages so `npm audit` is clean again for both production and
   development dependencies.
+- Expose the selected deployment executor kind in deployment inventory and
+  publish non-secret environment executor metadata through REST/MCP while
+  keeping Portainer API keys server-local.
 - Make the failed-command diagnostics test deterministic on this runtime by
   capturing stderr/stdout from `/bin/sh` instead of relying on fragile
   `node -e` stdio timing during non-zero exits.

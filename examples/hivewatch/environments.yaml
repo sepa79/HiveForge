@@ -9,7 +9,6 @@ environments:
         - docker-single
       managedRoot:
         shared: false
-        bindSourceRoot: /opt/hiveforge
         nodes:
           - local-docker
     policy:

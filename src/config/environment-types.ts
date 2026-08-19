@@ -11,9 +11,22 @@ export interface EnvironmentDefinition {
   description?: string;
   kind: "local-docker" | "docker" | "swarm";
   capabilities: EnvironmentCapabilities;
+  deployment?: EnvironmentDeployment;
   nodes?: EnvironmentNode[];
   vars?: Record<string, string>;
   policy: EnvironmentPolicy;
+}
+
+export interface EnvironmentDeployment {
+  executor: "docker-direct" | "portainer-stack";
+  portainer?: PortainerDeploymentConfig;
+}
+
+export interface PortainerDeploymentConfig {
+  baseUrl: string;
+  endpointId: number;
+  apiKey: string;
+  tlsInsecureSkipVerify?: boolean;
 }
 
 export interface EnvironmentNode {

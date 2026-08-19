@@ -13,6 +13,9 @@ current POC.
 The current POC exposes environments through REST so UI and MCP clients can
 discover where operations are running. Deployment authorization comes from the
 project registry plus environment-scoped project policy.
+The public REST/MCP environment payload may include non-secret deployment
+executor metadata, but never returns private deployment credentials such as a
+Portainer API key.
 
 For the target managed-service contract, an environment is represented by an
 environment-local HiveForge service. That service reports capabilities for its
@@ -39,6 +42,7 @@ Each environment declares:
 - optional `description`
 - `kind`
 - `capabilities`
+- optional `deployment`
 - `nodes`, when the environment reports runtime node inventory
 - `policy.projects`
 
@@ -47,6 +51,13 @@ Capabilities use the vocabulary in `docs/specs/capabilities.md`.
 Example:
 
 ```yaml
+deployment:
+  executor: portainer-stack
+  portainer:
+    baseUrl: https://portainer.example.com:9443/api
+    endpointId: 3
+    apiKey: ptr_xxxxx
+    tlsInsecureSkipVerify: true
 capabilities:
   runtime:
     - docker-swarm
@@ -68,6 +79,39 @@ nodes:
     labels:
       pockethive.postgres: "true"
 ```
+
+`deployment` is HiveForge-owned runtime executor configuration. It is optional;
+when omitted, HiveForge uses the direct Docker executor. The configured
+executor is part of the environment bootstrap contract and must not switch
+silently later.
+
+REST/MCP environment responses expose this deployment metadata without secrets:
+
+- `deployment.executor`
+- optional `deployment.portainer.baseUrl`
+- optional `deployment.portainer.endpointId`
+- optional `deployment.portainer.tlsInsecureSkipVerify`
+
+`deployment.portainer.apiKey` remains server-local configuration only.
+
+Supported executor kinds:
+
+- `docker-direct` - HiveForge mutates Docker/Swarm directly.
+- `portainer-stack` - HiveForge mutates one Swarm stack through Portainer's API.
+
+`portainer-stack` requires:
+
+- `capabilities.runtime` to include `docker-swarm`,
+- `deployment.portainer.baseUrl` as the explicit Portainer API base URL,
+- `deployment.portainer.endpointId` as the fixed Portainer endpoint id,
+- `deployment.portainer.apiKey` as the explicit Portainer API token stored in
+  the environment config file,
+- optional `deployment.portainer.tlsInsecureSkipVerify: true` only when the
+  Portainer API uses a self-signed or otherwise untrusted TLS certificate.
+
+HiveForge does not discover Portainer endpoints automatically, does not guess
+stack ids from Docker names, and does not fall back from `portainer-stack` to
+direct Docker mutation.
 
 `managedRoot` means the environment-local HiveForge service has one configured
 managed data root. HiveForge derives its own control-plane path internally,

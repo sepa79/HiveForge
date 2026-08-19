@@ -243,6 +243,28 @@ describe("deployment runtime status service", () => {
       reason: "No deployment state matched the requested deployment selector."
     });
   });
+
+  it("does not call Docker when the deployment slot was reconciled as gone", async () => {
+    const service = new DeploymentRuntimeStatusService(
+      scriptedDocker([]),
+      dockerEnvironment(),
+      stateStore([{ ...deployment(), status: "gone" }])
+    );
+
+    await expect(service.check({ deploymentId: "deployment-1" })).resolves.toEqual({
+      deploymentId: "deployment-1",
+      deploymentName: "hivewatch",
+      projectId: "hivewatch",
+      component: "api",
+      summary: "missing",
+      requiredLabels: {
+        "hiveforge.deployment": "deployment-1"
+      },
+      containers: [],
+      services: [],
+      reason: "Deployment runtime is recorded as gone outside HiveForge state reconciliation."
+    });
+  });
 });
 
 function scriptedDocker(steps: Array<{ args: string[]; stdout: string }>): CommandRunner {
@@ -281,6 +303,9 @@ function stateStore(records: DeploymentStateRecord[]): DeploymentStateStore {
     async ensureDeployment() {
       throw new Error("not used");
     },
+    async markGone() {
+      throw new Error("not used");
+    },
     async recordLifecycleAction() {
       return null;
     },
@@ -294,6 +319,7 @@ function deployment(): DeploymentStateRecord {
   return {
     deploymentId: "deployment-1",
     deploymentName: "hivewatch",
+    executorKind: "docker-direct",
     environment: "docker",
     project: "hivewatch",
     repository: "https://github.com/sepa79/HiveWatch.git",

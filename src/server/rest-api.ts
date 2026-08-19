@@ -76,8 +76,8 @@ export interface RestApiServices {
   };
   selfUpdate?: SelfUpdateService;
   environments?: {
-    current: unknown;
-    known: unknown[];
+    current: EnvironmentDefinition | null;
+    known: EnvironmentDefinition[];
   };
 }
 
@@ -156,7 +156,7 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       method: "GET",
       pattern: /^\/environments$/,
       async handle() {
-        return services.environments ?? { current: null, known: [] };
+        return sanitizeEnvironmentResult(services.environments ?? { current: null, known: [] });
       }
     },
     {
@@ -167,7 +167,7 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           throw new HttpError(501, "Environment refresh is not configured");
         }
         try {
-          return await services.environmentRefresh.refreshCurrent();
+          return sanitizeEnvironmentResult(await services.environmentRefresh.refreshCurrent());
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Environment refresh failed");
         }
@@ -584,6 +584,50 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
       }
     }
   ];
+}
+
+type PublicEnvironmentDefinition = Omit<EnvironmentDefinition, "deployment"> & {
+  deployment?: {
+    executor: NonNullable<EnvironmentDefinition["deployment"]>["executor"];
+    portainer?: {
+      baseUrl: string;
+      endpointId: number;
+      tlsInsecureSkipVerify?: boolean;
+    };
+  };
+};
+
+function sanitizeEnvironmentResult(input: {
+  current: EnvironmentDefinition | null;
+  known: EnvironmentDefinition[];
+}): { current: PublicEnvironmentDefinition | null; known: PublicEnvironmentDefinition[] } {
+  return {
+    current: input.current ? sanitizeEnvironment(input.current) : null,
+    known: input.known.map(sanitizeEnvironment)
+  };
+}
+
+function sanitizeEnvironment(environment: EnvironmentDefinition): PublicEnvironmentDefinition {
+  if (!environment.deployment) {
+    return environment;
+  }
+  return {
+    ...environment,
+    deployment: {
+      executor: environment.deployment.executor,
+      ...(environment.deployment.portainer
+        ? {
+            portainer: {
+              baseUrl: environment.deployment.portainer.baseUrl,
+              endpointId: environment.deployment.portainer.endpointId,
+              ...(environment.deployment.portainer.tlsInsecureSkipVerify
+                ? { tlsInsecureSkipVerify: environment.deployment.portainer.tlsInsecureSkipVerify }
+                : {})
+            }
+          }
+        : {})
+    }
+  };
 }
 
 function deployableFailureReason(result: unknown): string | null {

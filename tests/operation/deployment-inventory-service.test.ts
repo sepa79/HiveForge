@@ -9,6 +9,7 @@ describe("deployment inventory service", () => {
         {
           deploymentId: "deployment-1",
           deploymentName: "hivewatch",
+          executorKind: "docker-direct",
           environment: "local",
           project: "hivewatch",
           repository: "https://github.com/sepa79/HiveWatch.git",
@@ -29,6 +30,7 @@ describe("deployment inventory service", () => {
         {
           deploymentId: "deployment-1",
           deploymentName: "hivewatch",
+          executorKind: "docker-direct",
           environment: "local",
           project: "hivewatch",
           repository: "https://github.com/sepa79/HiveWatch.git",
@@ -57,6 +59,9 @@ function stateStore(records: Awaited<ReturnType<DeploymentStateStore["listDeploy
       return null;
     },
     async ensureDeployment() {
+      throw new Error("not used");
+    },
+    async markGone() {
       throw new Error("not used");
     },
     async recordLifecycleAction() {

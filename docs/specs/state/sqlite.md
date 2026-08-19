@@ -59,12 +59,34 @@ environment + project + component + profile
 
 `profile` may be absent; internally the empty profile key is explicit.
 
+Each deployment row also stores one explicit runtime owner:
+
+- `executor_kind` - `docker-direct` or `portainer-stack`.
+
+This value is durable state, not a retry/fallback hint. HiveForge records it so
+later deploy/remove/diagnostic flows use the same runtime owner explicitly.
+
+For Portainer-owned deployments, the row also stores:
+
+- `portainer_endpoint_id`
+- `portainer_stack_id`
+- `portainer_stack_name`
+
+`portainer_stack_id` is the stable runtime identity after the first successful
+Portainer stack create. `portainer_stack_name` is operator/debug metadata only;
+HiveForge must not treat it as the primary identity once a stack id exists.
+`portainer_endpoint_id` is also durable owner identity for that slot while the
+slot is active; HiveForge must fail explicitly rather than silently switching an
+existing slot to a different Portainer endpoint.
+
 Deployment status values:
 
 - `preparing` - HiveForge has a stable deployment id and is preparing/executing
-  the Docker deploy step.
-- `deployed` - HiveForge Docker deploy completed for the slot.
+  the deployment executor step.
+- `deployed` - HiveForge deployment executor completed for the slot.
 - `removed` - the slot was removed by a lifecycle action.
+- `gone` - HiveForge proved that a previously `deployed` runtime no longer
+  exists and reconciled the slot after it was removed outside HiveForge.
 - `failed` - HiveForge attempted the current deployment step and it failed.
 
 ## Retention

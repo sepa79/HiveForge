@@ -95,20 +95,24 @@ the action starts.
 ## Deployments View
 
 The Deployments view is the operator's answer to "what is deployed and is it
-running?". The primary status shown in the list must come from Docker runtime
-evidence, not from HiveForge's recorded state table.
+running?". The primary status shown in the list must come from deployment
+runtime evidence, not from HiveForge's recorded state table.
 
 The list uses `/deployments` as the inventory source and
 `/deployments/runtime-status` to show the runtime status for each deployment.
-The default filter is `Active`, which hides removed deployments but keeps
-runtime problems visible. `Missing`, `Unhealthy`, `Exited`, `Unknown`, and
-runtime-status lookup failures are active problems, not historical entries.
+Each deployment row also shows the recorded HiveForge executor ownership
+(`docker-direct` or `portainer-stack`) so the operator can see which runtime
+owner controls that slot.
+The default filter is `Active`, which hides `removed` and `gone` deployments
+but keeps runtime problems visible. `Missing`, `Unhealthy`, `Exited`,
+`Unknown`, and runtime-status lookup failures are active problems, not
+historical entries.
 
 The detail pane for a selected deployment uses `/deployments/diagnostics` and
 renders the one canonical post-deploy report in this order:
 
 1. summary and selected deployment identity;
-2. actual Docker/Swarm runtime evidence;
+2. actual runtime evidence;
 3. diagnostics findings, including rendered service, runtime resource, node,
    bind source/target, and safe evidence when present;
 4. expected services, bind mounts, and placement constraints derived only from
@@ -116,7 +120,11 @@ renders the one canonical post-deploy report in this order:
 5. recorded Compose artifact status and content, including digest/redaction;
 6. HiveForge managed-root visibility state and reason.
 
-If Docker runtime diagnostics are unavailable, the UI shows the explicit
+The Overview screen also shows the current environment contract, including the
+selected runtime owner and any non-secret Portainer endpoint metadata exposed
+by the REST contract.
+
+If runtime diagnostics are unavailable, the UI shows the explicit
 `unknown` report state and redacted reason. It must not replace it with a name
 lookup, a green status, or a different runtime adapter. HiveForge recorded
 state, operation ids, deployment ids, labels, and compose source metadata are

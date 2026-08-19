@@ -2,31 +2,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import YAML from "yaml";
 import type { EnvironmentDefinition } from "../config/environment-types.js";
 import type { CommandRunner, CommandResult } from "../workspace/command-runner.js";
+import type { DeploymentExecutor, DeploymentExecutorRequest, DeploymentExecutorResult, PreparedComposeDeploymentRequest } from "./deployment-executor.js";
 import { HIVEFORGE_DOCKER_LABELS } from "./deployment-runtime-status-service.js";
-
-export interface DockerDeploymentRequest {
-  deploymentId: string;
-  deploymentName: string;
-  project: string;
-  component: string;
-  profile?: string;
-  composeFile: string;
-  bindSourceDir?: string;
-}
-
-export interface DockerDeploymentRemovalRequest {
-  deploymentId: string;
-  deploymentName: string;
-  project: string;
-  component: string;
-  profile?: string;
-}
-
-export interface DockerDeploymentResult extends CommandResult {
-  composeFile?: string;
-  deploymentId: string;
-  runtime: "docker-single" | "docker-swarm";
-}
 
 export interface ComposeBindSourceValidationResult {
   ok: boolean;
@@ -55,17 +32,20 @@ export interface ComposeBindMountEvidence {
   type: "bind";
 }
 
-export class DockerDeploymentService {
+export class DockerDeploymentService implements DeploymentExecutor {
+  public readonly executorKind = "docker-direct" as const;
+
   constructor(
     private readonly commandRunner: CommandRunner,
     private readonly environment: EnvironmentDefinition
   ) {}
 
-  async deploy(request: DockerDeploymentRequest): Promise<DockerDeploymentResult> {
-    await validateComposeBindSources(request.composeFile, request.bindSourceDir, allowedBindSources(this.environment));
-    await injectDeploymentLabel(request.composeFile, request.deploymentId);
+  async deploy(request: PreparedComposeDeploymentRequest): Promise<DeploymentExecutorResult> {
     const runtime = this.environment.capabilities.runtime.includes("docker-swarm") ? "docker-swarm" : "docker-single";
-    const dockerProjectName = await dockerProjectNameFor(request, runtime);
+    const dockerProjectName = await dockerProjectNameFor(
+      { composeFile: request.composeFile, deploymentName: request.deployment.deploymentName },
+      runtime
+    );
     const result =
       runtime === "docker-swarm"
         ? await this.commandRunner.run("docker", ["stack", "deploy", "-c", request.composeFile, dockerProjectName])
@@ -81,22 +61,22 @@ export class DockerDeploymentService {
     return {
       ...result,
       composeFile: request.composeFile,
-      deploymentId: request.deploymentId,
-      runtime
+      runtime,
+      executorKind: this.executorKind
     };
   }
 
-  async remove(request: DockerDeploymentRemovalRequest): Promise<DockerDeploymentResult> {
+  async remove(request: DeploymentExecutorRequest): Promise<DeploymentExecutorResult> {
     const runtime = this.environment.capabilities.runtime.includes("docker-swarm") ? "docker-swarm" : "docker-single";
-    const dockerProjectName = dockerProjectNameForRequest(request);
+    const dockerProjectName = dockerProjectNameForRequest({ deploymentName: request.deployment.deploymentName });
     const result =
       runtime === "docker-swarm"
-        ? await this.removeSwarmStack(dockerProjectName, request.deploymentId)
+        ? await this.removeSwarmStack(dockerProjectName, request.deployment.deploymentId)
         : await this.removeComposeProject(dockerProjectName);
     return {
       ...result,
-      deploymentId: request.deploymentId,
-      runtime
+      runtime,
+      executorKind: this.executorKind
     };
   }
 
@@ -190,6 +170,16 @@ interface DockerMatchCheck {
   args: string[];
 }
 
+export async function prepareComposeDeployment(
+  composeFile: string,
+  deploymentId: string,
+  bindSourceDir: string | undefined,
+  environment: EnvironmentDefinition
+): Promise<void> {
+  await validateComposeBindSources(composeFile, bindSourceDir, allowedBindSources(environment));
+  await injectDeploymentLabel(composeFile, deploymentId);
+}
+
 async function validateComposeBindSources(
   composeFile: string,
   bindSourceDir: string | undefined,
@@ -278,7 +268,7 @@ async function injectDeploymentLabel(composeFile: string, deploymentId: string):
 }
 
 async function dockerProjectNameFor(
-  request: DockerDeploymentRequest,
+  request: { composeFile: string; deploymentName: string },
   runtime: "docker-single" | "docker-swarm"
 ): Promise<string> {
   const compose = YAML.parse(await readFile(request.composeFile, "utf8")) as unknown;

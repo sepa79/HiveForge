@@ -26,14 +26,19 @@ The 0.5 deploy flow is:
    root to the action helper as `/hf`,
 8. for active deploy actions, run the declared component lifecycle action as the
    render/preparation phase,
-9. for active deploy actions, inject HiveForge deployment metadata into the
-   rendered Compose/Stack file,
-10. validate rendered bind sources,
-11. run the Docker deployment through HiveForge.
+9. for active deploy actions, allocate or reuse the durable HiveForge
+   `deploymentId` and runtime `deploymentName` for the deployment slot,
+   reconciling the slot to `gone` first if HiveForge proves the recorded
+   runtime disappeared outside HiveForge,
+10. inject HiveForge deployment metadata into the rendered Compose/Stack file,
+11. validate rendered bind sources,
+12. run the selected HiveForge deployment executor.
 
 Each step is explicit. A failed step stops the flow; later steps do not run.
 The action journal records the lifecycle operation outcome. The SQLite state DB
-records the current deployment slot status and stable `deploymentId`.
+records the current deployment slot status, stable `deploymentId`, selected
+`executorKind`, runtime deployment name, and any executor-owned runtime ids such
+as a Portainer stack id.
 Docker Compose project names and Docker Swarm stack names use a runtime
 deployment name. The default deployment name is the project id, for example
 `hivewatch`. REST and MCP callers may pass an explicit `deploymentName` when
@@ -54,16 +59,26 @@ as `/var/run/docker.sock`, or is listed in environment
 are never valid Docker bind sources.
 
 For inactive lifecycle actions (`remove` and `purge`), HiveForge verifies that
-the component declares the requested action, then removes the Docker Compose
-project or Docker Swarm stack directly through the Docker executor. It does not
-refresh managed files before removal because those files may still be mounted by
-the running workload.
+the component declares the requested action, then removes the recorded runtime
+through the selected deployment executor. It does not refresh managed files
+before removal because those files may still be mounted by the running
+workload.
 
-Docker Swarm removal runs `docker stack rm` for the recorded deployment name and
-then waits until no services or containers remain with the recorded
-`hiveforge.deployment` label. Single-host Docker removal removes containers and
-networks carrying the exact `com.docker.compose.project` label for the recorded
-deployment name; it does not guess or re-render a Compose file during removal.
+If a recorded deployment slot is in `deployed` state and no longer has any
+runtime objects with the exact `hiveforge.deployment=<deploymentId>` label,
+HiveForge marks that slot `gone` instead of keeping it as an active blocker. A
+later deploy may then reuse the slot with a new explicit deployment name or
+executor owner. Slots in `preparing` or `failed` state are not auto-reconciled
+to `gone`.
+
+`docker-direct` Swarm removal runs `docker stack rm` for the recorded
+deployment name and then waits until no services or containers remain with the
+recorded `hiveforge.deployment` label. `docker-direct` single-host removal
+removes containers and networks carrying the exact
+`com.docker.compose.project` label for the recorded deployment name; it does
+not guess or re-render a Compose file during removal. `portainer-stack` removal
+uses the recorded Portainer `stackId`; it does not guess that id from stack
+names or Docker labels.
 
 ## Non-goals
 

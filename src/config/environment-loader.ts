@@ -45,9 +45,37 @@ function assertEnvironmentConfig(config: EnvironmentConfig): void {
       }
       projectIds.add(project.id);
     }
+
+    assertDeploymentConfig(environment);
   }
 
   if (!seen.has(config.current)) {
     throw new Error(`Current environment is not defined: ${config.current}`);
+  }
+}
+
+function assertDeploymentConfig(environment: EnvironmentConfig["environments"][number]): void {
+  const deployment = environment.deployment;
+  if (!deployment) {
+    return;
+  }
+
+  if (deployment.executor !== "portainer-stack") {
+    return;
+  }
+
+  if (!environment.capabilities.runtime.includes("docker-swarm")) {
+    throw new Error(`Portainer stack deployment requires docker-swarm runtime for environment ${environment.id}`);
+  }
+  if (!deployment.portainer) {
+    throw new Error(`Missing Portainer deployment config for environment ${environment.id}`);
+  }
+  try {
+    new URL(deployment.portainer.baseUrl);
+  } catch {
+    throw new Error(`Invalid Portainer baseUrl for environment ${environment.id}: ${deployment.portainer.baseUrl}`);
+  }
+  if (deployment.portainer.apiKey.trim().length === 0) {
+    throw new Error(`Missing Portainer apiKey for environment ${environment.id}`);
   }
 }

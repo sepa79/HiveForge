@@ -1114,6 +1114,8 @@ components:
           enum: [local-docker, docker, swarm]
         capabilities:
           $ref: "#/components/schemas/EnvironmentCapabilities"
+        deployment:
+          $ref: "#/components/schemas/EnvironmentDeployment"
         nodes:
           type: array
           items:
@@ -1130,6 +1132,30 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/EnvironmentProjectPolicy"
+    EnvironmentDeployment:
+      type: object
+      additionalProperties: false
+      required: [executor]
+      properties:
+        executor:
+          $ref: "#/components/schemas/DeploymentExecutorKind"
+        portainer:
+          $ref: "#/components/schemas/PublicPortainerDeploymentConfig"
+    PublicPortainerDeploymentConfig:
+      type: object
+      additionalProperties: false
+      required: [baseUrl, endpointId]
+      properties:
+        baseUrl:
+          type: string
+          format: uri
+        endpointId:
+          type: integer
+        tlsInsecureSkipVerify:
+          type: boolean
+    DeploymentExecutorKind:
+      type: string
+      enum: [docker-direct, portainer-stack]
     EnvironmentCapabilities:
       type: object
       additionalProperties: false
@@ -1863,12 +1889,14 @@ components:
           type: string
     Deployment:
       type: object
-      required: [deploymentId, deploymentName, environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
+      required: [deploymentId, deploymentName, executorKind, environment, project, repository, gitRef, component, status, lastAction, operationId, updatedAt]
       properties:
         deploymentId:
           type: string
         deploymentName:
           $ref: "#/components/schemas/Identifier"
+        executorKind:
+          $ref: "#/components/schemas/DeploymentExecutorKind"
         environment:
           $ref: "#/components/schemas/Identifier"
         project:
@@ -1883,7 +1911,7 @@ components:
           $ref: "#/components/schemas/Identifier"
         status:
           type: string
-          enum: [preparing, deployed, removed, failed]
+          enum: [preparing, deployed, removed, gone, failed]
         lastAction:
           $ref: "#/components/schemas/LifecycleAction"
         operationId:

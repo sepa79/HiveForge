@@ -1,8 +1,14 @@
-import type { DeploymentStateRecord, DeploymentStateStatus, DeploymentStateStore } from "./deployment-state-store.js";
+import type {
+  DeploymentExecutorKind,
+  DeploymentStateRecord,
+  DeploymentStateStatus,
+  DeploymentStateStore
+} from "./deployment-state-store.js";
 
 export interface DeploymentInventoryItem {
   deploymentId: string;
   deploymentName: string;
+  executorKind: DeploymentExecutorKind;
   environment: string;
   project: string;
   repository: string;
@@ -32,6 +38,7 @@ function inventoryItem(record: DeploymentStateRecord): DeploymentInventoryItem {
   return {
     deploymentId: record.deploymentId,
     deploymentName: record.deploymentName,
+    executorKind: record.executorKind,
     environment: record.environment,
     project: record.project,
     repository: record.repository,
