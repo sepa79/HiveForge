@@ -1,18 +1,5 @@
 # Changelog
 
-## 0.5.10 - 2026-08-20
-
-- Reconcile Portainer-backed deployment slots to `gone` when the recorded
-  runtime is already `missing` after `remove`, `purge`, or a failed lifecycle
-  attempt, so HiveForge clears stale Portainer `stackId` state instead of
-  retrying updates against orphaned stack records.
-- Fix redeploy recovery for orphaned Portainer slots by allowing a subsequent
-  `deploy` to discard stale `failed` runtime state when Docker runtime evidence
-  proves the deployment is already gone outside HiveForge.
-- Add MCP `get_operator_workflows`, a built-in operator help tool that returns
-  structured production, development, and HiveForge-maintainer playbooks
-  without requiring agents to infer flows from repository docs.
-
 ## 0.5.9 - 2026-08-20
 
 - Add explicit registered-project repository replacement through REST
@@ -30,6 +17,16 @@
   before moving the checked-out repository into the workspace root. This fixes
   repository inspection, project registration, and other checkout-backed paths
   on real runtimes.
+- Reconcile Portainer-backed deployment slots to `gone` when the recorded
+  runtime is already `missing` after `remove`, `purge`, or a failed lifecycle
+  attempt, so HiveForge clears stale Portainer `stackId` state instead of
+  retrying updates against orphaned stack records.
+- Fix redeploy recovery for orphaned Portainer slots by allowing a subsequent
+  `deploy` to discard stale `failed` runtime state when Docker runtime evidence
+  proves the deployment is already gone outside HiveForge.
+- Add MCP `get_operator_workflows`, a built-in operator help tool that returns
+  structured production, development, and HiveForge-maintainer playbooks
+  without requiring agents to infer flows from repository docs.
 - Refresh current-release documentation examples to `v0.5.9`.
 
 ## 0.5.8 - 2026-08-20
