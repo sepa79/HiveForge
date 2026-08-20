@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.8 - 2026-08-20
+
+- Add canonical workspace retention metadata and lifecycle handling as the
+  SSOT for HiveForge-managed checkout workspaces.
+- Add REST `GET /workspaces` and `POST /workspaces/cleanup` plus MCP
+  `list_workspaces` and `cleanup_workspaces` for listing and explicit cleanup
+  of retained workspaces.
+- Update checkout, inspection, deploy, release-prepare, and repository
+  inspection flows to track real workspace use through `lastUsedAt`, close
+  workspace leases explicitly, and avoid leaking active workspaces after
+  successful prerequisite or inactive lifecycle flows.
+- Make automatic workspace cleanup best-effort so unrelated broken workspace
+  metadata does not fail an otherwise successful user operation.
+
 ## 0.5.7 - 2026-08-20
 
 - Preserve operator-owned `deployment` and `capabilities.bindSources.allowed`
