@@ -91,6 +91,18 @@ export class HiveForgeApiClient {
     return this.request({ method: "GET", path: "/deployments" });
   }
 
+  listWorkspaces(): Promise<unknown> {
+    return this.request({ method: "GET", path: "/workspaces" });
+  }
+
+  cleanupWorkspaces(input: { dryRun: boolean; olderThanHours: number }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: "/workspaces/cleanup",
+      body: input
+    });
+  }
+
   diagnoseHiveForgeRuntime(): Promise<unknown> {
     return this.request({ method: "GET", path: "/diagnostics/runtime" });
   }

@@ -133,6 +133,62 @@ describe("REST API", () => {
     });
   });
 
+  it("lists tracked workspaces", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/workspaces`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      workspaces: [
+        {
+          workspaceId: "workspace-1",
+          kind: "project-checkout",
+          projectId: "hivewatch",
+          repository: "https://github.com/sepa79/HiveWatch.git",
+          gitRef: "main",
+          operationId: "op-1",
+          workspacePath: "/workspace/hivewatch/main-1",
+          createdAt: "2026-08-20T10:00:00.000Z",
+          lastUsedAt: "2026-08-20T10:15:00.000Z",
+          inUse: false,
+          lifecycleState: "completed",
+          cleanupEligibleAfter: "2026-08-20T11:15:00.000Z"
+        }
+      ]
+    });
+    expect(calls).toContainEqual({ listWorkspaces: true });
+  });
+
+  it("previews workspace cleanup", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/workspaces/cleanup`, {
+      method: "POST",
+      body: JSON.stringify({ dryRun: true, olderThanHours: 1 })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      dryRun: true,
+      olderThanHours: 1,
+      evaluatedAt: "2026-08-20T12:20:00.000Z",
+      candidates: [
+        {
+          workspaceId: "workspace-1",
+          workspacePath: "/workspace/hivewatch/main-1",
+          eligible: true,
+          reason: "cleanup window elapsed"
+        }
+      ],
+      removed: [],
+      skipped: []
+    });
+    expect(calls).toContainEqual({ cleanupWorkspaces: { dryRun: true, olderThanHours: 1 } });
+  });
+
   it("runs deploy through orchestrator", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -1153,6 +1209,47 @@ async function startServer(
           };
         }
       } as never,
+      workspaces: {
+        async listWorkspaces() {
+          options.calls?.push({ listWorkspaces: true });
+          return {
+            workspaces: [
+              {
+                workspaceId: "workspace-1",
+                kind: "project-checkout",
+                projectId: "hivewatch",
+                repository: "https://github.com/sepa79/HiveWatch.git",
+                gitRef: "main",
+                operationId: "op-1",
+                workspacePath: "/workspace/hivewatch/main-1",
+                createdAt: "2026-08-20T10:00:00.000Z",
+                lastUsedAt: "2026-08-20T10:15:00.000Z",
+                inUse: false,
+                lifecycleState: "completed",
+                cleanupEligibleAfter: "2026-08-20T11:15:00.000Z"
+              }
+            ]
+          };
+        },
+        async cleanupWorkspaces(request: unknown) {
+          options.calls?.push({ cleanupWorkspaces: request });
+          return {
+            dryRun: true,
+            olderThanHours: 1,
+            evaluatedAt: "2026-08-20T12:20:00.000Z",
+            candidates: [
+              {
+                workspaceId: "workspace-1",
+                workspacePath: "/workspace/hivewatch/main-1",
+                eligible: true,
+                reason: "cleanup window elapsed"
+              }
+            ],
+            removed: [],
+            skipped: []
+          };
+        }
+      },
       journal: journal(),
       inspection: {
         async inspect() {

@@ -131,32 +131,39 @@ export class ReleaseDeployService {
       projectId: request.projectId,
       gitRef
     });
-    const managedFiles = await this.options.managedFiles.prepare({
-      projectId: inspection.projectId,
-      workspacePath: inspection.workspacePath,
-      registry: inspection.registry
-    });
+    try {
+      await inspection.touchWorkspace?.();
+      const managedFiles = await this.options.managedFiles.prepare({
+        projectId: inspection.projectId,
+        workspacePath: inspection.workspacePath,
+        registry: inspection.registry
+      });
 
-    await assertRequiredFiles(managedFiles.projectDir, request.requiredFiles ?? []);
+      await assertRequiredFiles(managedFiles.projectDir, request.requiredFiles ?? []);
 
-    const project = {
-      id: inspection.projectId,
-      ...(inspection.registry.project.vars ? { vars: inspection.registry.project.vars } : {}),
-      ...(inspection.registry.project.profiles ? { profiles: inspection.registry.project.profiles } : {})
-    };
-    const result = await this.prepareFromMetadata(request, project, managedFiles);
-    const releaseVarsFile = path.join(managedFiles.artifactsDir, "release-vars.json");
-    await writeFile(releaseVarsFile, `${JSON.stringify(result.plan.vars, null, 2)}\n`, "utf8");
+      const project = {
+        id: inspection.projectId,
+        ...(inspection.registry.project.vars ? { vars: inspection.registry.project.vars } : {}),
+        ...(inspection.registry.project.profiles ? { profiles: inspection.registry.project.profiles } : {})
+      };
+      const result = await this.prepareFromMetadata(request, project, managedFiles);
+      const releaseVarsFile = path.join(managedFiles.artifactsDir, "release-vars.json");
+      await writeFile(releaseVarsFile, `${JSON.stringify(result.plan.vars, null, 2)}\n`, "utf8");
 
-    return {
-      ...result,
-      inspection,
-      releaseVarsFile,
-      plan: {
-        ...result.plan,
-        env: mergeReleaseEnv(result.plan.env, managedFiles, releaseVarsFile)
-      }
-    };
+      await inspection.closeWorkspace?.("completed");
+      return {
+        ...result,
+        inspection,
+        releaseVarsFile,
+        plan: {
+          ...result.plan,
+          env: mergeReleaseEnv(result.plan.env, managedFiles, releaseVarsFile)
+        }
+      };
+    } catch (error) {
+      await inspection.closeWorkspace?.("failed");
+      throw error;
+    }
   }
 }
 

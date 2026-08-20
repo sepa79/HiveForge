@@ -151,6 +151,34 @@ paths:
                 properties:
                   error:
                     type: string
+  /workspaces:
+    get:
+      summary: List checkout workspaces and derived cleanup eligibility
+      operationId: listWorkspaces
+      responses:
+        "200":
+          description: Known checkout workspaces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceListResult"
+  /workspaces/cleanup:
+    post:
+      summary: Preview or execute checkout workspace cleanup
+      operationId: cleanupWorkspaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceCleanupRequest"
+      responses:
+        "200":
+          description: Workspace cleanup report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceCleanupResult"
   /repositories/inspect:
     post:
       summary: Inspect a repository for HiveForge deployability without authorizing deployment
@@ -1777,6 +1805,102 @@ components:
           minimum: 0
         digestMatchesJournal:
           type: boolean
+    WorkspaceLifecycleState:
+      type: string
+      enum: [active, completed, failed, cleanup-pending]
+    WorkspaceKind:
+      type: string
+      enum: [project-checkout, manifest-preflight, repository-inspection]
+    Workspace:
+      type: object
+      additionalProperties: false
+      required:
+        [workspaceId, kind, workspacePath, createdAt, lastUsedAt, inUse, lifecycleState, cleanupEligibleAfter]
+      properties:
+        workspaceId:
+          type: string
+        kind:
+          $ref: "#/components/schemas/WorkspaceKind"
+        projectId:
+          $ref: "#/components/schemas/Identifier"
+        repository:
+          type: string
+        gitRef:
+          type: string
+        operationId:
+          type: string
+        workspacePath:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+        inUse:
+          type: boolean
+        lifecycleState:
+          $ref: "#/components/schemas/WorkspaceLifecycleState"
+        cleanupEligibleAfter:
+          type: string
+          format: date-time
+    WorkspaceListResult:
+      type: object
+      additionalProperties: false
+      required: [workspaces]
+      properties:
+        workspaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/Workspace"
+    WorkspaceCleanupRequest:
+      type: object
+      additionalProperties: false
+      required: [dryRun, olderThanHours]
+      properties:
+        dryRun:
+          type: boolean
+        olderThanHours:
+          type: integer
+          minimum: 0
+    WorkspaceCleanupEntry:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, workspacePath, eligible, reason]
+      properties:
+        workspaceId:
+          type: string
+        workspacePath:
+          type: string
+        eligible:
+          type: boolean
+        reason:
+          type: string
+    WorkspaceCleanupResult:
+      type: object
+      additionalProperties: false
+      required: [dryRun, olderThanHours, evaluatedAt, candidates, removed, skipped]
+      properties:
+        dryRun:
+          type: boolean
+        olderThanHours:
+          type: integer
+          minimum: 0
+        evaluatedAt:
+          type: string
+          format: date-time
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceCleanupEntry"
+        removed:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceCleanupEntry"
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceCleanupEntry"
     RepositoryInspectionRequest:
       type: object
       additionalProperties: false

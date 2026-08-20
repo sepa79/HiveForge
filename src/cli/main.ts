@@ -18,6 +18,7 @@ import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
 import { WorkspaceManager } from "../workspace/workspace-manager.js";
+import { WorkspaceRetentionService } from "../workspace/workspace-retention-service.js";
 import { resolveRuntimePaths } from "../runtime/runtime-paths.js";
 
 interface CliOptions {
@@ -46,61 +47,81 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   if (command === "inspect") {
     const result = await context.inspection.inspect(requiredProjectRef(options));
-    writeJson(result);
+    try {
+      writeJson(result);
+    } finally {
+      await result.closeWorkspace?.("completed");
+    }
     return;
   }
 
   if (command === "validate") {
     const inspection = await context.inspection.inspect(requiredProjectRef(options));
-    const runtimeEnv = await context.runtimeEnv.resolve(runtimeEnvScope(inspection.projectId, options.profile));
-    const result = await context.validation.validate({
-      projectId: inspection.projectId,
-      repository: inspection.repository,
-      gitRef: inspection.gitRef,
-      registry: inspection.registry,
-      environment: {
-        ...runtimeEnv,
-        ...(options.profile ? { HIVEFORGE_PROFILE: options.profile } : {})
-      }
-    });
-    writeJson(result);
+    try {
+      const runtimeEnv = await context.runtimeEnv.resolve(runtimeEnvScope(inspection.projectId, options.profile));
+      const result = await context.validation.validate({
+        projectId: inspection.projectId,
+        repository: inspection.repository,
+        gitRef: inspection.gitRef,
+        registry: inspection.registry,
+        environment: {
+          ...runtimeEnv,
+          ...(options.profile ? { HIVEFORGE_PROFILE: options.profile } : {})
+        }
+      });
+      writeJson(result);
+    } catch (error) {
+      await inspection.closeWorkspace?.("failed");
+      throw error;
+    } finally {
+      await inspection.closeWorkspace?.("completed");
+    }
     return;
   }
 
   if (command === "run-action") {
     const inspection = await context.inspection.inspect(requiredProjectRef(options));
-    const runtimeEnv = await context.runtimeEnv.resolve(runtimeEnvScope(inspection.projectId, options.profile));
-    await context.validation.validate({
-      projectId: inspection.projectId,
-      repository: inspection.repository,
-      gitRef: inspection.gitRef,
-      registry: inspection.registry,
-      environment: {
-        ...runtimeEnv,
-        ...(options.profile ? { HIVEFORGE_PROFILE: options.profile } : {})
-      }
-    });
-    const managedFiles = await context.managedFiles.prepare({
-      projectId: inspection.projectId,
-      workspacePath: inspection.workspacePath,
-      registry: inspection.registry
-    });
-    const result = await context.action.run({
-      projectId: inspection.projectId,
-      repository: inspection.repository,
-      gitRef: inspection.gitRef,
-      workspacePath: inspection.workspacePath,
-      registry: inspection.registry,
-      component: required(options.component, "--component"),
-      action: required(options.action, "--action"),
-      profile: options.profile,
-      environment: {
-        ...runtimeEnv,
-        ...managedFilesEnvironment(managedFiles)
-      },
-      managedFiles
-    });
-    writeJson(result);
+    try {
+      const runtimeEnv = await context.runtimeEnv.resolve(runtimeEnvScope(inspection.projectId, options.profile));
+      await context.validation.validate({
+        projectId: inspection.projectId,
+        repository: inspection.repository,
+        gitRef: inspection.gitRef,
+        registry: inspection.registry,
+        environment: {
+          ...runtimeEnv,
+          ...(options.profile ? { HIVEFORGE_PROFILE: options.profile } : {})
+        }
+      });
+      await inspection.touchWorkspace?.();
+      const managedFiles = await context.managedFiles.prepare({
+        projectId: inspection.projectId,
+        workspacePath: inspection.workspacePath,
+        registry: inspection.registry
+      });
+      await inspection.touchWorkspace?.();
+      const result = await context.action.run({
+        projectId: inspection.projectId,
+        repository: inspection.repository,
+        gitRef: inspection.gitRef,
+        workspacePath: inspection.workspacePath,
+        registry: inspection.registry,
+        component: required(options.component, "--component"),
+        action: required(options.action, "--action"),
+        profile: options.profile,
+        environment: {
+          ...runtimeEnv,
+          ...managedFilesEnvironment(managedFiles)
+        },
+        managedFiles
+      });
+      writeJson(result);
+    } catch (error) {
+      await inspection.closeWorkspace?.("failed");
+      throw error;
+    } finally {
+      await inspection.closeWorkspace?.("completed");
+    }
     return;
   }
 
@@ -200,7 +221,8 @@ async function buildContext(options: CliOptions) {
   const clock = new SystemClock();
   const commandRunner = new NodeCommandRunner();
   const deploymentState = new SqliteDeploymentStateStore(runtimePaths.stateDb, ids);
-  const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
+  const workspaceRetention = new WorkspaceRetentionService(workspaceRoot, ids, clock);
+  const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner, workspaceRetention);
   const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
   const validation = new ProjectValidationService(
     new RequirementValidator(new DockerCliProbe(commandRunner)),

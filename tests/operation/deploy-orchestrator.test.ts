@@ -525,6 +525,35 @@ describe("deploy orchestrator", () => {
     ]);
   });
 
+  it("closes the inspection workspace after a successful inactive lifecycle action", async () => {
+    const calls: unknown[] = [];
+    const orchestrator = new DeployOrchestrator(
+      inspectionServiceWithLease(calls as string[], registryWithRemoveAction()),
+      validationService(calls as string[]),
+      actionService(calls as string[]),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls),
+      dockerDeployment(calls)
+    );
+
+    await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "remove",
+      environmentId: "swarm"
+    });
+
+    expect(calls).toContain("close_workspace:completed");
+  });
+
   it("marks missing runtime as gone and skips executor removal", async () => {
     const calls: unknown[] = [];
     const stale = deploymentRecord({
@@ -647,6 +676,25 @@ function inspectionService(calls: string[], projectRegistry = registry()): Proje
         gitRef: "main",
         workspacePath: "/workspace",
         registry: projectRegistry
+      };
+    }
+  } as unknown as ProjectInspectionService;
+}
+
+function inspectionServiceWithLease(calls: string[], projectRegistry = registry()): ProjectInspectionService {
+  return {
+    async inspect() {
+      calls.push("inspect");
+      return {
+        operationId: "inspect-op",
+        projectId: "hivewatch",
+        repository: "https://github.com/sepa79/HiveWatch.git",
+        gitRef: "main",
+        workspacePath: "/workspace",
+        registry: projectRegistry,
+        async closeWorkspace(state = "completed") {
+          calls.push(`close_workspace:${state}`);
+        }
       };
     }
   } as unknown as ProjectInspectionService;

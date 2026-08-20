@@ -92,6 +92,12 @@ must not overwrite existing `projects.yaml`, `environments.yaml`, or
 outside its own `data/` directory. A non-writable runtime root is a deployment
 configuration error.
 
+The workspace directory under `<runtime-root>/workspace` is temporary checkout
+state, not durable deployment state. Its retention and cleanup contract is
+owned by `docs/specs/workspaces.md`. Automatic cleanup may remove terminal
+workspaces after their retention window elapses, but must never delete
+`<runtime-root>/data/deployed/<projectId>/`.
+
 Explicit runtime path mode remains supported for advanced installs:
 
 - `HIVEFORGE_PROJECT_REGISTRY_PATH` for registered project config,

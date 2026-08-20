@@ -203,6 +203,55 @@ state DB. Each deployment includes `deploymentId`, `deploymentName`,
 `executorKind`, project, component, profile, current status, last action,
 operation id, and update timestamp.
 
+### `list_workspaces`
+
+Input: none.
+
+Output: current checkout workspace metadata and derived cleanup status.
+
+Each workspace includes canonical metadata such as:
+
+- `workspaceId`
+- `kind`
+- optional `projectId`
+- optional `gitRef`
+- optional `operationId`
+- `workspacePath`
+- `createdAt`
+- `lastUsedAt`
+- `inUse`
+- `lifecycleState`
+- `cleanupEligibleAfter`
+
+Behavior: read-only. This tool does not mutate cleanup timers or delete any
+workspace. It reports exactly what HiveForge currently knows about checkout
+workspaces and whether each one is eligible for retention-based cleanup.
+
+### `cleanup_workspaces`
+
+Input:
+
+```json
+{
+  "dryRun": true,
+  "olderThanHours": 1
+}
+```
+
+Output: a cleanup report containing evaluated candidates plus removed and
+skipped workspaces.
+
+Behavior:
+
+- uses the same retention contract as automatic cleanup
+- never deletes a workspace marked `inUse`
+- never deletes HiveForge-managed deployed files under `data/deployed`
+- supports dry-run preview before deletion
+
+The first slice intentionally keeps selector scope narrow. `olderThanHours` is
+the explicit operator or agent knob; project/ref/status filtering can be added
+later if needed without weakening the current cleanup rules.
+
 ### `diagnose_hiveforge_runtime`
 
 Input: none.

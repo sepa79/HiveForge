@@ -137,6 +137,30 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "list_workspaces",
+    {
+      title: "List checkout workspaces",
+      description: "List current checkout workspace metadata and retention timestamps without mutating cleanup state.",
+      inputSchema: {}
+    },
+    runtime.listWorkspaces
+  );
+
+  server.registerTool(
+    "cleanup_workspaces",
+    {
+      title: "Preview or clean checkout workspaces",
+      description:
+        "Preview or execute time-based cleanup for terminal checkout workspaces. It never deletes a workspace still marked in use.",
+      inputSchema: {
+        dryRun: z.boolean(),
+        olderThanHours: z.number().int().min(0)
+      }
+    },
+    runtime.cleanupWorkspaces
+  );
+
+  server.registerTool(
     "diagnose_hiveforge_runtime",
     {
       title: "Diagnose HiveForge runtime",

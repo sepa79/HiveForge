@@ -17,6 +17,8 @@ describe("HiveForge MCP runtime", () => {
       "refresh_environment",
       "list_environment_nodes",
       "list_deployments",
+      "list_workspaces",
+      "cleanup_workspaces",
       "diagnose_hiveforge_runtime",
       "verify_managed_root_access",
       "check_deployment_runtime_status",
@@ -135,6 +137,33 @@ describe("HiveForge MCP runtime", () => {
     const result = await runtime.refreshEnvironment();
 
     expect(result.structuredContent).toEqual({ current: { id: "swarm", name: "Docker Swarm" }, known: [] });
+  });
+
+  it("lists workspaces through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async listWorkspaces() {
+        return { workspaces: [{ workspaceId: "workspace-1" }] };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.listWorkspaces();
+
+    expect(result.structuredContent).toEqual({ workspaces: [{ workspaceId: "workspace-1" }] });
+  });
+
+  it("previews workspace cleanup through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async cleanupWorkspaces(input: unknown) {
+        return { dryRun: true, input };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.cleanupWorkspaces({ dryRun: true, olderThanHours: 1 });
+
+    expect(result.structuredContent).toEqual({
+      dryRun: true,
+      input: { dryRun: true, olderThanHours: 1 }
+    });
   });
 
   it("returns HiveForge runtime diagnostics through the runtime", async () => {

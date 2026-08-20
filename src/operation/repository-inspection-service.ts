@@ -4,6 +4,7 @@ import { isInspectableRepository } from "../config/repository-source.js";
 import type { ProjectProfile } from "../manifest/manifest-types.js";
 import { loadProjectRegistry } from "../manifest/project-registry.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
+import { WorkspaceRetentionService } from "../workspace/workspace-retention-service.js";
 
 export interface RepositoryInspectionRequest {
   repository: string;
@@ -28,7 +29,8 @@ export interface RepositoryInspectionResult {
 export class RepositoryInspectionService {
   constructor(
     private readonly workspaceRoot: string,
-    private readonly commandRunner: CommandRunner
+    private readonly commandRunner: CommandRunner,
+    private readonly retention: WorkspaceRetentionService
   ) {}
 
   async inspect(request: RepositoryInspectionRequest): Promise<RepositoryInspectionResult> {
@@ -37,6 +39,8 @@ export class RepositoryInspectionService {
     const workspace = await this.checkout(request.repository, request.gitRef);
     try {
       const registry = await loadProjectRegistry(workspace);
+      await this.retention.touchWorkspace(workspace);
+      await this.retention.finalizeWorkspace(workspace, "completed");
       return {
         repository: request.repository,
         gitRef: request.gitRef,
@@ -51,6 +55,7 @@ export class RepositoryInspectionService {
         }))
       };
     } catch (error) {
+      await this.retention.finalizeWorkspace(workspace, "failed");
       return {
         repository: request.repository,
         gitRef: request.gitRef,
@@ -65,8 +70,19 @@ export class RepositoryInspectionService {
     const checkoutParent = path.join(this.workspaceRoot, "repository-inspection");
     await mkdir(checkoutParent, { recursive: true });
     const checkoutPath = await mkdtemp(path.join(checkoutParent, "repo-"));
-    await this.commandRunner.run("git", ["clone", "--no-checkout", repository, checkoutPath]);
-    await this.commandRunner.run("git", ["checkout", gitRef], { cwd: checkoutPath });
+    await this.retention.createWorkspace({
+      kind: "repository-inspection",
+      workspacePath: checkoutPath,
+      repository,
+      gitRef
+    });
+    try {
+      await this.commandRunner.run("git", ["clone", "--no-checkout", repository, checkoutPath]);
+      await this.commandRunner.run("git", ["checkout", gitRef], { cwd: checkoutPath });
+    } catch (error) {
+      await this.retention.finalizeWorkspace(checkoutPath, "failed");
+      throw error;
+    }
     return checkoutPath;
   }
 }

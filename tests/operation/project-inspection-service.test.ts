@@ -3,26 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ProjectRegistryConfig } from "../../src/config/project-registry-types.js";
-import type { Clock } from "../../src/operation/clock.js";
-import type { IdGenerator } from "../../src/operation/id-generator.js";
 import { ProjectInspectionService } from "../../src/operation/project-inspection-service.js";
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
 import { WorkspaceManager } from "../../src/workspace/workspace-manager.js";
 import { JsonlJournal } from "../../src/journal/jsonl-journal.js";
-
-class SequenceIds implements IdGenerator {
-  private next = 1;
-
-  nextId(prefix: string): string {
-    return `${prefix}-${this.next++}`;
-  }
-}
-
-class FixedClock implements Clock {
-  now(): Date {
-    return new Date("2026-05-17T10:00:00.000Z");
-  }
-}
+import { FixedClock, SequenceIds, createWorkspaceRetentionService } from "../helpers/workspace-retention.js";
 
 class FixtureCheckoutRunner implements CommandRunner {
   public fullCheckoutCount = 0;
@@ -175,7 +160,7 @@ function buildService(
   };
 
   return new ProjectInspectionService(
-    new WorkspaceManager(workspaceRoot, projectRegistry, runner),
+    new WorkspaceManager(workspaceRoot, projectRegistry, runner, createWorkspaceRetentionService(workspaceRoot)),
     new JsonlJournal(journalDir),
     new SequenceIds(),
     new FixedClock()

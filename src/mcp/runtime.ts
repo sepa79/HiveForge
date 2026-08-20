@@ -11,6 +11,8 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     refreshEnvironment: () => call(() => apiClient.refreshEnvironment()),
     listEnvironmentNodes: () => call(() => listEnvironmentNodes(apiClient)),
     listDeployments: () => call(() => apiClient.listDeployments()),
+    listWorkspaces: () => call(() => apiClient.listWorkspaces()),
+    cleanupWorkspaces: (input: { dryRun: boolean; olderThanHours: number }) => call(() => apiClient.cleanupWorkspaces(input)),
     diagnoseHiveForgeRuntime: () => call(() => apiClient.diagnoseHiveForgeRuntime()),
     verifyManagedRootAccess: () => call(() => apiClient.verifyManagedRootAccess()),
     getDeploymentCompose: (input: { operationId: string }) => call(() => apiClient.getDeploymentCompose(input)),

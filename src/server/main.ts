@@ -37,6 +37,7 @@ import { DockerCliProbe } from "../validation/docker-cli-probe.js";
 import { RequirementValidator } from "../validation/requirement-validator.js";
 import { NodeCommandRunner } from "../workspace/node-command-runner.js";
 import { WorkspaceManager } from "../workspace/workspace-manager.js";
+import { WorkspaceRetentionService } from "../workspace/workspace-retention-service.js";
 import { createHttpServer } from "./http-server.js";
 import { createRestRoutes } from "./rest-api.js";
 import { createUiRoutes, uiPublicPaths } from "./ui-routes.js";
@@ -110,7 +111,8 @@ const runtimeEnv = new RuntimeEnvStore(runtimeEnvPath);
 const ids = new UuidGenerator();
 const deploymentState = new SqliteDeploymentStateStore(stateDbPath, ids);
 const clock = new SystemClock();
-const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner);
+const workspaceRetention = new WorkspaceRetentionService(workspaceRoot, ids, clock);
+const workspace = new WorkspaceManager(workspaceRoot, projectRegistry, commandRunner, workspaceRetention);
 const inspection = new ProjectInspectionService(workspace, journal, ids, clock);
 const validation = new ProjectValidationService(
   new RequirementValidator(new DockerCliProbe(commandRunner)),
@@ -124,7 +126,7 @@ const action = new ProjectActionService(
   ids,
   clock
 );
-const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner);
+const repositoryInspection = new RepositoryInspectionService(workspaceRoot, commandRunner, workspaceRetention);
 const projectRegistration = new ProjectRegistrationService(projectRegistryPath, projectRegistry, repositoryInspection);
 const currentEnvironment = environmentConfig.environments.find((environment) => environment.id === environmentConfig.current);
 if (!currentEnvironment) {
@@ -187,6 +189,7 @@ createHttpServer(
       managedArtifactServices,
       journal,
       inspection,
+      workspaces: workspace,
       validation,
       deploy,
       releaseDeploy,

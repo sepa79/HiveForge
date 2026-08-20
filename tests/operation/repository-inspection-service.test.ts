@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { RepositoryInspectionService } from "../../src/operation/repository-inspection-service.js";
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
+import { createWorkspaceRetentionService } from "../helpers/workspace-retention.js";
 
 class FixtureGitRunner implements CommandRunner {
   async run(command: string, args: string[]) {
@@ -20,7 +21,7 @@ class FixtureGitRunner implements CommandRunner {
 describe("repository inspection service", () => {
   it("reports deployable HTTPS Git repositories without requiring project registration", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
-    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(), createWorkspaceRetentionService(workspaceRoot));
 
     await expect(
       service.inspect({
@@ -59,7 +60,7 @@ describe("repository inspection service", () => {
 
   it("accepts environment-reachable HTTP Git repositories", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
-    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(), createWorkspaceRetentionService(workspaceRoot));
 
     await expect(
       service.inspect({
@@ -75,7 +76,7 @@ describe("repository inspection service", () => {
 
   it("keeps file repositories inspectable", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
-    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(), createWorkspaceRetentionService(workspaceRoot));
 
     await expect(
       service.inspect({
@@ -91,7 +92,7 @@ describe("repository inspection service", () => {
 
   it("rejects unsupported repository URLs before git runs", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
-    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(), createWorkspaceRetentionService(workspaceRoot));
 
     await expect(
       service.inspect({
@@ -103,7 +104,7 @@ describe("repository inspection service", () => {
 
   it("rejects malformed and non-git arbitrary HTTP URLs before git runs", async () => {
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-repo-inspect-"));
-    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner());
+    const service = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(), createWorkspaceRetentionService(workspaceRoot));
 
     await expect(
       service.inspect({

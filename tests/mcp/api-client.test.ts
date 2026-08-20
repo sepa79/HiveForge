@@ -122,6 +122,54 @@ describe("HiveForge MCP API client", () => {
     });
   });
 
+  it("lists workspaces through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { workspaces: [] });
+      }
+    });
+
+    await expect(client.listWorkspaces()).resolves.toEqual({ workspaces: [] });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/workspaces",
+      init: {
+        method: "GET",
+        headers: {
+          authorization: "Bearer secret"
+        }
+      }
+    });
+  });
+
+  it("previews workspace cleanup through REST transport", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new HiveForgeApiClient({
+      baseUrl: "http://127.0.0.1:3000",
+      authToken: "secret",
+      fetchImpl: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return jsonResponse(200, { dryRun: true });
+      }
+    });
+
+    await expect(client.cleanupWorkspaces({ dryRun: true, olderThanHours: 1 })).resolves.toEqual({ dryRun: true });
+    expect(calls[0]).toEqual({
+      url: "http://127.0.0.1:3000/workspaces/cleanup",
+      init: {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ dryRun: true, olderThanHours: 1 })
+      }
+    });
+  });
+
   it("reads runtime diagnostics through REST transport", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const client = new HiveForgeApiClient({

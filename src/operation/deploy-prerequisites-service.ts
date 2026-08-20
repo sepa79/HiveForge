@@ -9,6 +9,7 @@ import {
 import type { ProjectRegistry } from "../manifest/manifest-types.js";
 import type { RequirementValidator } from "../validation/requirement-validator.js";
 import type { ProjectInspectionService } from "./project-inspection-service.js";
+import type { ProjectInspectionResult } from "./project-inspection-service.js";
 
 export type PrerequisiteStatus = "present" | "missing" | "unknown" | "not_applicable";
 export type DeploymentMode = "action" | "release";
@@ -116,8 +117,9 @@ export class DeployPrerequisitesService {
     request: DeployPrerequisitesRequest,
     hiveforgePrerequisites: PrerequisiteItem[]
   ): Promise<{ registry: ProjectRegistry } | undefined> {
+    let inspection: ProjectInspectionResult | undefined;
     try {
-      const inspection = await this.inspection.inspect({
+      inspection = await this.inspection.inspect({
         projectId: request.projectId,
         gitRef: request.gitRef
       });
@@ -128,6 +130,8 @@ export class DeployPrerequisitesService {
         missing("project_manifest", "hiveforge.yaml", error instanceof Error ? error.message : "Project inspection failed")
       );
       return undefined;
+    } finally {
+      await inspection?.closeWorkspace?.();
     }
   }
 

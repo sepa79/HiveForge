@@ -6,6 +6,7 @@ import { loadProjectRegistryConfig } from "../../src/config/project-registry-loa
 import { ProjectRegistrationService } from "../../src/operation/project-registration-service.js";
 import { RepositoryInspectionService } from "../../src/operation/repository-inspection-service.js";
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
+import { createWorkspaceRetentionService } from "../helpers/workspace-retention.js";
 
 class FixtureGitRunner implements CommandRunner {
   constructor(private readonly fixtureRoot: string) {}
@@ -28,7 +29,11 @@ describe("project registration service", () => {
     const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
     await writeFile(registryPath, "projects: []\n");
     const registry = await loadProjectRegistryConfig(registryPath);
-    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
     const service = new ProjectRegistrationService(registryPath, registry, inspection);
 
     await expect(
@@ -65,7 +70,11 @@ describe("project registration service", () => {
     const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
     await writeFile(registryPath, "projects: []\n");
     const registry = await loadProjectRegistryConfig(registryPath);
-    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
     const service = new ProjectRegistrationService(registryPath, registry, inspection);
 
     await expect(
@@ -103,7 +112,11 @@ describe("project registration service", () => {
       ].join("\n")
     );
     const registry = await loadProjectRegistryConfig(registryPath);
-    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
     const service = new ProjectRegistrationService(registryPath, registry, inspection);
 
     await expect(
@@ -133,7 +146,11 @@ describe("project registration service", () => {
       ].join("\n")
     );
     const registry = await loadProjectRegistryConfig(registryPath);
-    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
     const service = new ProjectRegistrationService(registryPath, registry, inspection);
 
     await expect(
@@ -191,7 +208,11 @@ describe("project registration service", () => {
       ].join("\n")
     );
     const registry = await loadProjectRegistryConfig(registryPath);
-    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
     const service = new ProjectRegistrationService(registryPath, registry, inspection);
 
     await expect(
@@ -240,7 +261,11 @@ describe("project registration service", () => {
       ].join("\n")
     );
     const registry = await loadProjectRegistryConfig(registryPath);
-    const inspection = new RepositoryInspectionService(workspaceRoot, new FixtureGitRunner(fixture));
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
     const service = new ProjectRegistrationService(registryPath, registry, inspection);
 
     await expect(

@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { CommandRunner } from "../../src/workspace/command-runner.js";
 import { WorkspaceManager } from "../../src/workspace/workspace-manager.js";
+import { createWorkspaceRetentionService } from "../helpers/workspace-retention.js";
 
 class RecordingRunner implements CommandRunner {
   public readonly calls: Array<{ command: string; args: string[]; cwd?: string }> = [];
@@ -31,7 +32,8 @@ describe("workspace manager", () => {
           }
         ]
       },
-      runner
+      runner,
+      createWorkspaceRetentionService(workspaceRoot)
     );
 
     const result = await manager.checkout({ projectId: "hivewatch", gitRef: "main" });
@@ -68,7 +70,8 @@ describe("workspace manager", () => {
           }
         ]
       },
-      runner
+      runner,
+      createWorkspaceRetentionService(workspaceRoot)
     );
 
     const first = await manager.checkout({ projectId: "hivewatch", gitRef: "main" });
@@ -93,7 +96,8 @@ describe("workspace manager", () => {
           }
         ]
       },
-      runner
+      runner,
+      createWorkspaceRetentionService(workspaceRoot)
     );
 
     await expect(manager.checkout({ projectId: "hivewatch", gitRef: "dev" })).rejects.toThrow(
@@ -118,7 +122,8 @@ describe("workspace manager", () => {
           }
         ]
       },
-      runner
+      runner,
+      createWorkspaceRetentionService(workspaceRoot)
     );
 
     const result = await manager.checkoutManifestPreflight({ projectId: "hivewatch", gitRef: "main" });

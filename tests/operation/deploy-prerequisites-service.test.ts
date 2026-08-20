@@ -239,9 +239,40 @@ describe("deploy prerequisites service", () => {
       ])
     });
   });
+
+  it("closes the inspection workspace after reading project manifests", async () => {
+    const calls: string[] = [];
+    const service = new DeployPrerequisitesService(
+      {
+        projects: [
+          {
+            id: "hivewatch",
+            name: "HiveWatch",
+            source: "https-git",
+            repository: "https://github.com/sepa79/HiveWatch.git",
+            approvedRefs: ["main"]
+          }
+        ]
+      },
+      inspection(registry(), calls),
+      validator([]),
+      runtimeEnv({}),
+      environment()
+    );
+
+    await service.explain({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "deploy",
+      profile: "normal"
+    });
+
+    expect(calls).toEqual(["close_workspace"]);
+  });
 });
 
-function inspection(projectRegistry: ProjectRegistry): ProjectInspectionService {
+function inspection(projectRegistry: ProjectRegistry, calls: string[] = []): ProjectInspectionService {
   return {
     async inspect() {
       return {
@@ -250,7 +281,10 @@ function inspection(projectRegistry: ProjectRegistry): ProjectInspectionService 
         repository: "https://github.com/sepa79/HiveWatch.git",
         gitRef: "main",
         workspacePath: "/workspace",
-        registry: projectRegistry
+        registry: projectRegistry,
+        async closeWorkspace() {
+          calls.push("close_workspace");
+        }
       };
     }
   } as unknown as ProjectInspectionService;

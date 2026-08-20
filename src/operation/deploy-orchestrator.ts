@@ -15,6 +15,7 @@ import {
 import type { DeploymentExecutor } from "./deployment-executor.js";
 import type { DeploymentRuntimeStatusService } from "./deployment-runtime-status-service.js";
 import { prepareComposeDeployment } from "./docker-deployment-service.js";
+import type { WorkspaceTerminalState } from "../workspace/workspace-retention-service.js";
 
 export interface DeployRequest {
   projectId: string;
@@ -69,97 +70,107 @@ export class DeployOrchestrator {
       projectId: request.projectId,
       gitRef: request.gitRef
     });
-    request.progress?.({
-      stage: "inspect",
-      status: "succeeded",
-      message: `Loaded ${inspection.registry.components.length} component(s)`
-    });
-    const resolvedRuntimeEnv = this.runtimeEnv
-      ? await this.runtimeEnv.resolve({
-          projectId: inspection.projectId,
-          ...(request.profile ? { profile: request.profile } : {})
-        })
-      : {};
-
-    request.progress?.({
-      stage: "validate",
-      status: "running",
-      message: "Validating runtime requirements"
-    });
-    const validation = await this.validationService.validate({
-      projectId: inspection.projectId,
-      repository: inspection.repository,
-      gitRef: inspection.gitRef,
-      registry: inspection.registry,
-      environment: actionEnvironment(resolvedRuntimeEnv, undefined, request.profile),
-      deploymentEnvironment: this.environment,
-      profile: request.profile
-    });
-    request.progress?.({
-      stage: "validate",
-      status: "succeeded",
-      message: "Runtime requirements are valid"
-    });
-
-    if (INACTIVE_LIFECYCLE_ACTIONS.has(request.action)) {
-      return this.removeDockerDeployment({
-        request,
-        inspection,
-        validation
+    let workspaceState: WorkspaceTerminalState = "failed";
+    try {
+      request.progress?.({
+        stage: "inspect",
+        status: "succeeded",
+        message: `Loaded ${inspection.registry.components.length} component(s)`
       });
-    }
+      const resolvedRuntimeEnv = this.runtimeEnv
+        ? await this.runtimeEnv.resolve({
+            projectId: inspection.projectId,
+            ...(request.profile ? { profile: request.profile } : {})
+          })
+        : {};
 
-    request.progress?.({
-      stage: "managed_files",
-      status: "running",
-      message: "Preparing managed files"
-    });
-    const managedFiles = this.managedFilesService
-      ? await this.managedFilesService.prepare({
-          projectId: inspection.projectId,
-          workspacePath: inspection.workspacePath,
-          registry: inspection.registry
-        })
-      : undefined;
-    request.progress?.({
-      stage: "managed_files",
-      status: "succeeded",
-      message: managedFiles ? `Prepared ${managedFiles.prepared.length} managed path(s)` : "No managed files configured"
-    });
+      request.progress?.({
+        stage: "validate",
+        status: "running",
+        message: "Validating runtime requirements"
+      });
+      const validation = await this.validationService.validate({
+        projectId: inspection.projectId,
+        repository: inspection.repository,
+        gitRef: inspection.gitRef,
+        registry: inspection.registry,
+        environment: actionEnvironment(resolvedRuntimeEnv, undefined, request.profile),
+        deploymentEnvironment: this.environment,
+        profile: request.profile
+      });
+      request.progress?.({
+        stage: "validate",
+        status: "succeeded",
+        message: "Runtime requirements are valid"
+      });
 
-    request.progress?.({
-      stage: "action",
-      status: "running",
-      message: `Running ${request.action} for ${request.component}`
-    });
-    const action = await this.actionService.run({
-      projectId: inspection.projectId,
-      repository: inspection.repository,
-      gitRef: inspection.gitRef,
-      workspacePath: inspection.workspacePath,
-      registry: inspection.registry,
-      component: request.component,
-      action: request.action,
-      environmentId: request.environmentId,
-      profile: request.profile,
-      environment: actionEnvironment(resolvedRuntimeEnv, managedFiles, request.profile),
-      ...(managedFiles ? { managedFiles } : {}),
-      afterRun: async ({ operationId, endedAt }) =>
-        this.afterActionRendered({
+      if (INACTIVE_LIFECYCLE_ACTIONS.has(request.action)) {
+        const result = await this.removeDockerDeployment({
           request,
           inspection,
-          managedFiles,
-          operationId,
-          updatedAt: endedAt
-        })
-    });
-    request.progress?.({
-      stage: "action",
-      status: "succeeded",
-      message: `${request.action} completed: ${action.operationId}`
-    });
+          validation
+        });
+        workspaceState = "completed";
+        return result;
+      }
 
-    return { inspection, validation, managedFiles, action };
+      request.progress?.({
+        stage: "managed_files",
+        status: "running",
+        message: "Preparing managed files"
+      });
+      await inspection.touchWorkspace?.();
+      const managedFiles = this.managedFilesService
+        ? await this.managedFilesService.prepare({
+            projectId: inspection.projectId,
+            workspacePath: inspection.workspacePath,
+            registry: inspection.registry
+          })
+        : undefined;
+      request.progress?.({
+        stage: "managed_files",
+        status: "succeeded",
+        message: managedFiles ? `Prepared ${managedFiles.prepared.length} managed path(s)` : "No managed files configured"
+      });
+
+      request.progress?.({
+        stage: "action",
+        status: "running",
+        message: `Running ${request.action} for ${request.component}`
+      });
+      await inspection.touchWorkspace?.();
+      const action = await this.actionService.run({
+        projectId: inspection.projectId,
+        repository: inspection.repository,
+        gitRef: inspection.gitRef,
+        workspacePath: inspection.workspacePath,
+        registry: inspection.registry,
+        component: request.component,
+        action: request.action,
+        environmentId: request.environmentId,
+        profile: request.profile,
+        environment: actionEnvironment(resolvedRuntimeEnv, managedFiles, request.profile),
+        ...(managedFiles ? { managedFiles } : {}),
+        afterRun: async ({ operationId, endedAt }) =>
+          this.afterActionRendered({
+            request,
+            inspection,
+            managedFiles,
+            operationId,
+            updatedAt: endedAt
+          })
+      });
+      request.progress?.({
+        stage: "action",
+        status: "succeeded",
+        message: `${request.action} completed: ${action.operationId}`
+      });
+
+      workspaceState = "completed";
+      return { inspection, validation, managedFiles, action };
+    } finally {
+      await inspection.closeWorkspace?.(workspaceState);
+    }
   }
 
   private async removeDockerDeployment(input: RemoveDockerDeploymentInput): Promise<DeployResult> {

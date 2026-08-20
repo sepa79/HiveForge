@@ -4,6 +4,7 @@ import { loadProjectRegistry, validateProjectManifestPreflight } from "../manife
 import type { CheckoutRequest, WorkspaceManager } from "../workspace/workspace-manager.js";
 import type { Clock } from "./clock.js";
 import type { IdGenerator } from "./id-generator.js";
+import type { WorkspaceTerminalState } from "../workspace/workspace-retention-service.js";
 
 export interface ProjectInspectionResult {
   operationId: string;
@@ -12,6 +13,8 @@ export interface ProjectInspectionResult {
   gitRef: string;
   workspacePath: string;
   registry: ProjectRegistry;
+  touchWorkspace?(): Promise<void>;
+  closeWorkspace?(state?: WorkspaceTerminalState): Promise<void>;
 }
 
 export class ProjectInspectionService {
@@ -25,13 +28,21 @@ export class ProjectInspectionService {
   async inspect(request: CheckoutRequest): Promise<ProjectInspectionResult> {
     const operationId = this.ids.nextId("op");
     const startedAt = this.clock.now().toISOString();
+    let preflightPath: string | undefined;
     let checkout;
 
     try {
-      const preflight = await this.workspaceManager.checkoutManifestPreflight(request);
+      const preflight = await this.workspaceManager.checkoutManifestPreflight({ ...request, operationId });
+      preflightPath = preflight.workspacePath;
       await validateProjectManifestPreflight(preflight.workspacePath);
-      checkout = await this.workspaceManager.checkout(request);
+      await this.workspaceManager.touchWorkspace(preflight.workspacePath);
+      await this.workspaceManager.finalizeWorkspace(preflight.workspacePath, "completed");
+      preflightPath = undefined;
+      checkout = await this.workspaceManager.checkout({ ...request, operationId });
     } catch (error) {
+      if (preflightPath) {
+        await this.workspaceManager.finalizeWorkspace(preflightPath, "failed");
+      }
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,
@@ -48,6 +59,7 @@ export class ProjectInspectionService {
 
     try {
       const registry = await loadProjectRegistry(checkout.workspacePath);
+      await this.workspaceManager.touchWorkspace(checkout.workspacePath);
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,
@@ -67,9 +79,11 @@ export class ProjectInspectionService {
         repository: checkout.repository,
         gitRef: checkout.gitRef,
         workspacePath: checkout.workspacePath,
-        registry
+        registry,
+        ...workspaceLease(this.workspaceManager, checkout.workspacePath)
       };
     } catch (error) {
+      await this.workspaceManager.finalizeWorkspace(checkout.workspacePath, "failed");
       await this.journal.append({
         eventId: this.ids.nextId("evt"),
         operationId,
@@ -85,4 +99,23 @@ export class ProjectInspectionService {
       throw error;
     }
   }
+}
+
+function workspaceLease(workspaceManager: WorkspaceManager, workspacePath: string) {
+  let closed = false;
+  return {
+    async touchWorkspace() {
+      if (closed) {
+        return;
+      }
+      await workspaceManager.touchWorkspace(workspacePath);
+    },
+    async closeWorkspace(state: WorkspaceTerminalState = "completed") {
+      if (closed) {
+        return;
+      }
+      await workspaceManager.finalizeWorkspace(workspacePath, state);
+      closed = true;
+    }
+  };
 }

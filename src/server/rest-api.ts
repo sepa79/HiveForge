@@ -31,6 +31,11 @@ import type { RuntimeDiagnosticsService } from "../runtime/runtime-diagnostics-s
 import type { ManagedRootVerificationReport } from "../runtime/managed-root-verification-service.js";
 import type { SelfUpdateService } from "../runtime/self-update-service.js";
 import type { ManagedArtifactServices } from "../config/managed-artifact-services.js";
+import type {
+  WorkspaceCleanupRequest,
+  WorkspaceCleanupResult,
+  WorkspaceListResult
+} from "../workspace/workspace-retention-service.js";
 import { HttpError, readJsonBody } from "./json-http.js";
 import type { HttpRoute } from "./http-types.js";
 
@@ -42,6 +47,10 @@ export interface RestApiServices {
   managedArtifactServices: ManagedArtifactServices;
   journal: Journal;
   inspection: ProjectInspectionService;
+  workspaces?: {
+    listWorkspaces(): Promise<WorkspaceListResult>;
+    cleanupWorkspaces(request: WorkspaceCleanupRequest): Promise<WorkspaceCleanupResult>;
+  };
   validation: ProjectValidationService;
   deploy: DeployOrchestrator;
   releaseDeploy?: {
@@ -150,6 +159,26 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
             approvedRefs: project.approvedRefs
           }))
         };
+      }
+    },
+    {
+      method: "GET",
+      pattern: /^\/workspaces$/,
+      async handle() {
+        if (!services.workspaces) {
+          throw new HttpError(501, "Workspace retention is not configured");
+        }
+        return services.workspaces.listWorkspaces();
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/workspaces\/cleanup$/,
+      async handle({ request }) {
+        if (!services.workspaces) {
+          throw new HttpError(501, "Workspace retention is not configured");
+        }
+        return services.workspaces.cleanupWorkspaces(await readWorkspaceCleanupRequest(request));
       }
     },
     {
@@ -426,17 +455,21 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
               gitRef: body.gitRef
             })
         );
-        return {
-          operationId: operation.operationId,
-          inspectionOperationId: result.operationId,
-          projectId: result.projectId,
-          repository: result.repository,
-          gitRef: result.gitRef,
-          components: result.registry.components.map((component) => ({
-            name: component.name,
-            actions: Object.keys(component.manifest.deployment.actions)
-          }))
-        };
+        try {
+          return {
+            operationId: operation.operationId,
+            inspectionOperationId: result.operationId,
+            projectId: result.projectId,
+            repository: result.repository,
+            gitRef: result.gitRef,
+            components: result.registry.components.map((component) => ({
+              name: component.name,
+              actions: Object.keys(component.manifest.deployment.actions)
+            }))
+          };
+        } finally {
+          await result.closeWorkspace?.("completed");
+        }
       }
     },
     {
@@ -473,7 +506,10 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
             issues: validation.report.issues
           };
         } catch (error) {
+          await inspection.closeWorkspace?.("failed");
           throw new HttpError(400, error instanceof Error ? error.message : "Requirement validation failed");
+        } finally {
+          await inspection.closeWorkspace?.("completed");
         }
       }
     },
@@ -765,6 +801,26 @@ async function readRuntimeEnvSetRequest(
   return {
     ...(typeof body.profile === "string" ? { profile: body.profile } : {}),
     values: body.values
+  };
+}
+
+async function readWorkspaceCleanupRequest(
+  request: Parameters<typeof readJsonBody>[0]
+): Promise<WorkspaceCleanupRequest> {
+  const body = await readJsonBody(request);
+  if (!isObject(body)) {
+    throw new HttpError(400, "Invalid workspace cleanup request body");
+  }
+  if (typeof body.dryRun !== "boolean") {
+    throw new HttpError(400, "Missing required field: dryRun");
+  }
+  const olderThanHours = body.olderThanHours;
+  if (typeof olderThanHours !== "number" || !Number.isInteger(olderThanHours) || olderThanHours < 0) {
+    throw new HttpError(400, "Invalid field: olderThanHours");
+  }
+  return {
+    dryRun: body.dryRun,
+    olderThanHours
   };
 }
 

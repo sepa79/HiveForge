@@ -41,6 +41,7 @@ Use it for:
 | `journal/jsonl.md` | POC JSONL journal storage contract. | Draft |
 | `state/sqlite.md` | Durable SQLite current-state store contract. | Draft |
 | `runtime-container.md` | Self-contained deploy container runtime contract. | Draft |
+| `workspaces.md` | Checkout workspace lifecycle, retention, and cleanup contract. | Draft |
 | `runtime-env.md` | Non-secret runtime environment variable storage and injection contract. | Draft |
 | `validation/runtime-requirements.md` | Runtime requirement validation contract. | Draft |
 | `profiles.md` | Deployment profile contract. | Draft |

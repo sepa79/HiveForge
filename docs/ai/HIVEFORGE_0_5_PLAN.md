@@ -1051,12 +1051,25 @@ directories remain on disk.
 
 0.5.x should make this visible and controlled.
 
+Accepted direction:
+
+- Workspace retention is a time-based contract, not indefinite retention.
+- Terminal workspaces become cleanup-eligible automatically after one hour.
+- Manual cleanup is not a separate retention model; it is an explicit way to
+  accelerate the same cleanup contract.
+- Failed checkouts are not retained by default once they are old enough to meet
+  the cleanup contract.
+- `lastUsedAt` updates on every real workspace use, not only at creation.
+
 Required design decisions:
 
-- Whether cleanup is manual-only, TTL-based, max-count-based, or a combination.
-- Whether failed checkouts are retained by default for diagnostics.
-- What metadata identifies the owning operation, project, ref, creation time,
-  and last use.
+- What exact metadata identifies the owning operation, project, ref, creation
+  time, last use, lifecycle kind, and cleanup eligibility.
+- Which workspace kinds participate in automatic one-hour retention, for
+  example deploy/validate/inspect checkouts versus repository bootstrap or
+  other special-purpose workspaces.
+- Whether the first implementation runs auto-cleanup opportunistically during
+  normal server operations, on startup, on a timer, or by a dedicated sweeper.
 
 Candidate MCP/admin tools:
 
@@ -1065,23 +1078,39 @@ list_workspaces
 cleanup_workspaces
 ```
 
-`cleanup_workspaces` should support dry-run output before deletion:
+`cleanup_workspaces` should support dry-run output before deletion. The first
+selector stays intentionally narrow:
 
 ```json
 {
   "dryRun": true,
-  "olderThanHours": 72,
-  "projectId": "pockethive"
+  "olderThanHours": 1
 }
 ```
 
 Behavior rules:
 
-- No implicit cleanup that hides evidence of a failed deploy.
+- Cleanup must never delete a workspace that HiveForge still marks as active or
+  in use.
+- Automatic cleanup applies only to workspaces HiveForge can explicitly
+  associate with a terminal operation or equivalent completed lifecycle state.
 - Cleanup decisions should be auditable.
 - Do not delete HiveForge-managed deployed runtime files under
   `<runtime-root>/data/deployed/<projectId>/`; workspace cleanup is only for git
   checkout workspaces.
+- The first cleanup API does not need project/ref/status selectors. `olderThanHours`
+  is sufficient for the initial explicit operator/agent control surface.
+
+Suggested metadata per workspace:
+
+- `projectId`
+- `gitRef`
+- `createdAt`
+- `lastUsedAt`
+- `operationId`
+- `kind`
+- `inUse`
+- `cleanupEligibleAfter`
 
 ## 11. Project Operator UI View
 
