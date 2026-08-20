@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.10 - 2026-08-20
+## 0.5.9 - 2026-08-20
 
 - Add explicit registered-project repository replacement through REST
   `POST /projects/{projectId}/repository/replace` and MCP
@@ -17,7 +17,7 @@
   before moving the checked-out repository into the workspace root. This fixes
   repository inspection, project registration, and other checkout-backed paths
   on real runtimes.
-- Refresh current-release documentation examples to `v0.5.10`.
+- Refresh current-release documentation examples to `v0.5.9`.
 
 ## 0.5.8 - 2026-08-20
 
