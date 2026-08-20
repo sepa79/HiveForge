@@ -669,7 +669,7 @@ describe("deploy orchestrator", () => {
     expect(calls).not.toContainEqual(expect.objectContaining({ recordLifecycleAction: expect.anything() }));
   });
 
-  it("does not reconcile failed slots to gone when runtime is missing", async () => {
+  it("reconciles failed slots to gone when runtime is missing", async () => {
     const calls: unknown[] = [];
     const stale = deploymentRecord({
       status: "failed"
@@ -699,8 +699,15 @@ describe("deploy orchestrator", () => {
       environmentId: "local"
     });
 
-    expect(calls).not.toContainEqual(expect.objectContaining({ markGone: expect.anything() }));
-    expect(calls).not.toContainEqual(expect.objectContaining({ runtimeStatus: expect.anything() }));
+    expect(calls).toContainEqual({
+      runtimeStatus: { deploymentId: "deployment-1" }
+    });
+    expect(calls).toContainEqual({
+      markGone: {
+        deploymentId: "deployment-1",
+        updatedAt: "2026-05-17T10:00:00.000Z"
+      }
+    });
   });
 
   it("rejects inactive lifecycle actions that are not declared by the component", async () => {

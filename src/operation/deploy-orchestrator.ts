@@ -393,7 +393,7 @@ async function reconcileGoneDeploymentSlot(
   if (!existing || existing.status === "gone") {
     return existing;
   }
-  if (existing.status !== "deployed" && existing.status !== "removed") {
+  if (existing.status !== "deployed" && existing.status !== "removed" && existing.status !== "failed") {
     return existing;
   }
 

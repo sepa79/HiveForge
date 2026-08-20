@@ -64,12 +64,12 @@ through the selected deployment executor. It does not refresh managed files
 before removal because those files may still be mounted by the running
 workload.
 
-If a recorded deployment slot is in `deployed` or `removed` state and no longer
-has any runtime objects with the exact
+If a recorded deployment slot is in `deployed`, `removed`, or `failed` state
+and no longer has any runtime objects with the exact
 `hiveforge.deployment=<deploymentId>` label, HiveForge marks that slot `gone`
 instead of keeping it as an active blocker. A later deploy may then reuse the
 slot with a new explicit deployment name or executor owner. Slots in
-`preparing` or `failed` state are not auto-reconciled to `gone`.
+`preparing` state are not auto-reconciled to `gone`.
 
 `docker-direct` Swarm removal runs `docker stack rm` for the recorded
 deployment name and then waits until no services or containers remain with the
