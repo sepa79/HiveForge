@@ -390,10 +390,10 @@ async function reconcileGoneDeploymentSlot(
     component: input.component,
     profile: input.profile
   });
-  if (!existing || existing.status === "removed" || existing.status === "gone") {
+  if (!existing || existing.status === "gone") {
     return existing;
   }
-  if (existing.status !== "deployed") {
+  if (existing.status !== "deployed" && existing.status !== "removed") {
     return existing;
   }
 

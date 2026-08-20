@@ -600,6 +600,75 @@ describe("deploy orchestrator", () => {
     expect(calls).not.toContainEqual(expect.objectContaining({ recordLifecycleAction: expect.anything() }));
   });
 
+  it("marks a previously removed missing runtime as gone before purge", async () => {
+    const calls: unknown[] = [];
+    const stale = deploymentRecord({
+      status: "removed",
+      lastAction: "remove",
+      executorKind: "portainer-stack",
+      portainer: {
+        endpointId: 3,
+        stackId: 41,
+        stackName: "hivewatch"
+      }
+    });
+    const removeExecutor: DeploymentExecutor = {
+      executorKind: "portainer-stack",
+      async deploy() {
+        throw new Error("deploy should not be called");
+      },
+      async remove(input: unknown) {
+        calls.push({ executorRemove: input });
+        return {
+          runtime: "docker-swarm",
+          executorKind: "portainer-stack",
+          stdout: "",
+          stderr: ""
+        };
+      }
+    };
+    const orchestrator = new DeployOrchestrator(
+      inspectionService(calls as string[], registryWithPurgeAction()),
+      validationService(calls as string[]),
+      actionService(calls as string[]),
+      managedFilesService(calls as string[]),
+      environment({
+        runtime: ["docker-swarm"],
+        managedRoot: {
+          shared: true
+        }
+      }),
+      undefined,
+      deploymentState(calls, stale),
+      removeExecutor,
+      runtimeStatus(calls, "missing")
+    );
+
+    const result = await orchestrator.deploy({
+      projectId: "hivewatch",
+      gitRef: "main",
+      component: "api",
+      action: "purge",
+      environmentId: "swarm",
+      profile: "test"
+    });
+
+    expect(result.action).toMatchObject({
+      deploymentId: "deployment-1",
+      stdout: "",
+      stderr: ""
+    });
+    expect(calls).toContainEqual({
+      markGone: {
+        deploymentId: "deployment-1",
+        updatedAt: expect.any(String)
+      }
+    });
+    expect(calls).not.toContainEqual(expect.objectContaining({ ensureDeployment: expect.anything() }));
+    expect(calls).not.toContainEqual(expect.objectContaining({ executorRemove: expect.anything() }));
+    expect(calls).not.toContainEqual(expect.objectContaining({ recordLifecycleAction: expect.anything() }));
+  });
+
   it("does not reconcile failed slots to gone when runtime is missing", async () => {
     const calls: unknown[] = [];
     const stale = deploymentRecord({
@@ -994,6 +1063,44 @@ function registryWithRemoveAction(): ProjectRegistry {
               },
               remove: {
                 playbook: "ansible/remove.yml"
+              }
+            }
+          }
+        }
+      }
+    ]
+  };
+}
+
+function registryWithPurgeAction(): ProjectRegistry {
+  return {
+    ...registry(),
+    project: {
+      name: "hivewatch",
+      repository: "https://github.com/sepa79/HiveWatch.git",
+      actions: ["deploy", "remove", "purge"]
+    },
+    components: [
+      {
+        name: "api",
+        manifestPath: "components/api/hiveforge.yaml",
+        manifest: {
+          kind: "component",
+          component: {
+            name: "api",
+            project: "hivewatch"
+          },
+          deployment: {
+            adapter: "ansible",
+            actions: {
+              deploy: {
+                playbook: "ansible/deploy.yml"
+              },
+              remove: {
+                playbook: "ansible/remove.yml"
+              },
+              purge: {
+                playbook: "ansible/purge.yml"
               }
             }
           }

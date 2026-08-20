@@ -85,8 +85,9 @@ Deployment status values:
   the deployment executor step.
 - `deployed` - HiveForge deployment executor completed for the slot.
 - `removed` - the slot was removed by a lifecycle action.
-- `gone` - HiveForge proved that a previously `deployed` runtime no longer
-  exists and reconciled the slot after it was removed outside HiveForge.
+- `gone` - HiveForge proved that a previously `deployed` or `removed` runtime
+  no longer exists and reconciled the slot after it was removed outside
+  HiveForge.
 - `failed` - HiveForge attempted the current deployment step and it failed.
 
 ## Retention
