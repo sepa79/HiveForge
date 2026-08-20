@@ -23,7 +23,17 @@ describe("environment refresh service", () => {
       "        bindSourceRoot: /mnt/shared_nfs/hiveforge",
       "        nodes:",
       "          - docker-swarm-mgr-1",
+      "      bindSources:",
+      "        allowed:",
+      "          - /data/postgres",
       "      placement: true",
+      "    deployment:",
+      "      executor: portainer-stack",
+      "      portainer:",
+      "        baseUrl: https://portainer.example.com:9443/api",
+      "        endpointId: 3",
+      "        apiKey: ptr_xxxxx",
+      "        tlsInsecureSkipVerify: true",
       "    vars:",
       "      imageRepository.project: registry.lan:5000/pockethive",
       "    nodes:",
@@ -93,7 +103,19 @@ describe("environment refresh service", () => {
           bindSourceRoot: "/mnt/shared_nfs/hiveforge",
           nodes: ["docker-swarm-mgr-1"]
         },
+        bindSources: {
+          allowed: ["/data/postgres"]
+        },
         placement: true
+      },
+      deployment: {
+        executor: "portainer-stack",
+        portainer: {
+          baseUrl: "https://portainer.example.com:9443/api",
+          endpointId: 3,
+          apiKey: "ptr_xxxxx",
+          tlsInsecureSkipVerify: true
+        }
       },
       vars: {
         "imageRepository.project": "registry.lan:5000/pockethive"
@@ -131,6 +153,8 @@ describe("environment refresh service", () => {
       environments: [refreshed.current]
     });
     await expect(readFile(filePath, "utf8")).resolves.toContain("pockethive.clickhouse: \"true\"");
+    await expect(readFile(filePath, "utf8")).resolves.toContain("executor: portainer-stack");
+    await expect(readFile(filePath, "utf8")).resolves.toContain("- /data/postgres");
   });
 
   it("rejects refresh when autodetection reports a different environment id", async () => {
