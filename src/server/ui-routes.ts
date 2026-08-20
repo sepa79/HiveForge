@@ -1637,6 +1637,7 @@ function operationTitle(operation, journal) {
   if (operation.kind === "project_inspection") return "Inspect project";
   if (operation.kind === "repository_inspection") return "Inspect repository";
   if (operation.kind === "project_registration") return "Register project";
+  if (operation.kind === "project_repository_replacement") return "Replace project repository";
   if (operation.kind === "project_ref_unregistration") return "Unregister project ref";
   return journal ? journalTitle(journal) : humanLabel(operation.kind || "operation");
 }

@@ -174,6 +174,17 @@ export class HiveForgeApiClient {
     return this.request({ method: "POST", path: "/projects/register", body: input });
   }
 
+  replaceProjectRepository(input: { projectId: string; repository: string; gitRef: string }): Promise<unknown> {
+    return this.request({
+      method: "POST",
+      path: `/projects/${encodeURIComponent(input.projectId)}/repository/replace`,
+      body: {
+        repository: input.repository,
+        gitRef: input.gitRef
+      }
+    });
+  }
+
   unregisterProjectRef(input: { projectId: string; gitRef: string }): Promise<unknown> {
     return this.request({
       method: "POST",

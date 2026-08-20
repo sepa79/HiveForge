@@ -56,8 +56,24 @@ export function upsertRegisteredProject(
             approvedRefs: [...new Set([...candidate.approvedRefs, ...project.approvedRefs])]
           }
         : candidate
-    )
+      )
   };
+}
+
+export function replaceRegisteredProject(
+  registry: ProjectRegistryConfig,
+  project: RegisteredProject
+): ProjectRegistryConfig {
+  const existing = registry.projects.find((candidate) => candidate.id === project.id);
+  if (!existing) {
+    throw new Error(`Project is not registered: ${project.id}`);
+  }
+
+  const updated = {
+    projects: registry.projects.map((candidate) => (candidate.id === project.id ? project : candidate))
+  };
+  assertUniqueProjects(updated);
+  return updated;
 }
 
 function assertUniqueProjects(registry: ProjectRegistryConfig): void {

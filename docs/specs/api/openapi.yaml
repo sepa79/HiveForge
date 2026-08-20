@@ -213,6 +213,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRegistrationResult"
+  /projects/{projectId}/repository/replace:
+    post:
+      summary: Replace the registered repository for an existing project
+      description: >
+        Inspects the provided repository/ref and replaces the registered
+        repository for the selected project when the inspected manifest still
+        maps to that same project variant. This resets approved refs to the new
+        repository source.
+      operationId: replaceProjectRepository
+      parameters:
+        - $ref: "#/components/parameters/projectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepositoryInspectionRequest"
+      responses:
+        "200":
+          description: Updated registered project after replacing the repository
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRepositoryReplacementResult"
   /projects/{projectId}/refs/unregister:
     post:
       summary: Remove one registered git ref from a project registration
@@ -1927,6 +1951,17 @@ components:
           type: string
           description: official registers the manifest project name as-is; development registers a separate <project>-development variant.
           enum: [official, development]
+    ProjectRepositoryReplacementResult:
+      type: object
+      required: [operationId, project, deployable]
+      properties:
+        operationId:
+          type: string
+        project:
+          $ref: "#/components/schemas/Project"
+        deployable:
+          type: boolean
+          const: true
     RepositoryInspectionResult:
       type: object
       required: [operationId, repository, gitRef, deployable, components]
@@ -2054,7 +2089,8 @@ components:
           enum: [running, succeeded, failed]
         kind:
           type: string
-          enum: [lifecycle_action, repository_inspection, project_registration, project_inspection]
+          enum:
+            [lifecycle_action, repository_inspection, project_registration, project_repository_replacement, project_ref_unregistration, project_inspection]
         projectId:
           $ref: "#/components/schemas/Identifier"
         repository:

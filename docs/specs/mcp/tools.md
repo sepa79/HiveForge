@@ -451,6 +451,27 @@ repository can coexist with the official repository explicitly.
 
 Output: registered project metadata and `deployable: true`.
 
+### `replace_project_repository`
+
+Input:
+
+```json
+{
+  "projectId": "pockethive-development",
+  "repository": "http://192.168.88.50:3001/hiveforge/PocketHive.git",
+  "gitRef": "main"
+}
+```
+
+Behavior: run read-only repository inspection, then replace the registered
+repository for one existing project when the inspected manifest still maps to
+that same project variant. This resets the project's approved refs to the new
+repository source instead of merging old refs from the previous repository.
+The tool fails explicitly if the project is not registered or the inspected
+manifest maps to another project id.
+
+Output: updated registered project metadata and `deployable: true`.
+
 ### `unregister_project_ref`
 
 Input:

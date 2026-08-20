@@ -16,6 +16,7 @@ export type OperationKind =
   | "lifecycle_action"
   | "repository_inspection"
   | "project_registration"
+  | "project_repository_replacement"
   | "project_ref_unregistration"
   | "project_inspection";
 

@@ -964,6 +964,52 @@ describe("REST API", () => {
     });
   });
 
+  it("replaces a registered project repository through the configured registrar", async () => {
+    const calls: unknown[] = [];
+    const baseUrl = await startServer({ calls });
+
+    const response = await fetch(`${baseUrl}/projects/hivewatch-development/repository/replace`, {
+      method: "POST",
+      body: JSON.stringify({
+        repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+        gitRef: "forgejo-main"
+      })
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      operationId: "uiop-1",
+      deployable: true,
+      project: {
+        id: "hivewatch-development",
+        name: "hivewatch development",
+        source: "http-git",
+        repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+        approvedRefs: ["forgejo-main"]
+      }
+    });
+    expect(calls).toContainEqual({
+      replaceRepository: {
+        projectId: "hivewatch-development",
+        repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+        gitRef: "forgejo-main"
+      }
+    });
+    const operations = await fetch(`${baseUrl}/operations`);
+    await expect(operations.json()).resolves.toMatchObject({
+      operations: [
+        {
+          operationId: "uiop-1",
+          status: "succeeded",
+          kind: "project_repository_replacement",
+          projectId: "hivewatch-development",
+          repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+          gitRef: "forgejo-main"
+        }
+      ]
+    });
+  });
+
   it("unregisters project refs through the configured registrar", async () => {
     const calls: unknown[] = [];
     const baseUrl = await startServer({ calls });
@@ -1177,6 +1223,7 @@ async function startServer(
     refreshedEnvironment?: EnvironmentDefinition;
     validationError?: string;
     repositoryInspectionResult?: unknown;
+    projectRepositoryReplacementError?: string;
     projectRefUnregistrationError?: string;
     selfUpdateError?: string;
   } = {}
@@ -1443,6 +1490,22 @@ async function startServer(
               id: "hivewatch",
               name: "hivewatch",
               source: "https-git",
+              repository: request.repository,
+              approvedRefs: [request.gitRef]
+            }
+          };
+        },
+        async replaceRepository(request: { projectId: string; repository: string; gitRef: string }) {
+          options.calls?.push({ replaceRepository: request });
+          if (options.projectRepositoryReplacementError) {
+            throw new Error(options.projectRepositoryReplacementError);
+          }
+          return {
+            deployable: true,
+            project: {
+              id: request.projectId,
+              name: "hivewatch development",
+              source: "http-git",
               repository: request.repository,
               approvedRefs: [request.gitRef]
             }

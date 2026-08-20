@@ -189,6 +189,97 @@ describe("project registration service", () => {
     });
   });
 
+  it("replaces a registered project repository and resets approved refs to the new source", async () => {
+    const fixture = await writeDeployableFixture();
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(
+      registryPath,
+      [
+        "projects:",
+        "  - id: hivewatch-development",
+        "    name: hivewatch development",
+        "    source: http-git",
+        "    repository: http://192.168.88.54:8081/git/HiveWatch.git",
+        "    approvedRefs:",
+        "      - old-ref",
+        "      - older-ref",
+        ""
+      ].join("\n")
+    );
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.replaceRepository({
+        projectId: "hivewatch-development",
+        repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+        gitRef: "forgejo-main"
+      })
+    ).resolves.toEqual({
+      deployable: true,
+      project: {
+        id: "hivewatch-development",
+        name: "hivewatch development",
+        source: "http-git",
+        repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+        approvedRefs: ["forgejo-main"]
+      }
+    });
+    await expect(loadProjectRegistryConfig(registryPath)).resolves.toEqual({
+      projects: [
+        {
+          id: "hivewatch-development",
+          name: "hivewatch development",
+          source: "http-git",
+          repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+          approvedRefs: ["forgejo-main"]
+        }
+      ]
+    });
+  });
+
+  it("rejects repository replacement when the inspected manifest maps to another project id", async () => {
+    const fixture = await writeDeployableFixture({
+      projectName: "otherwatch"
+    });
+    const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
+    const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-registry-")), "projects.yaml");
+    await writeFile(
+      registryPath,
+      [
+        "projects:",
+        "  - id: hivewatch-development",
+        "    name: hivewatch development",
+        "    source: http-git",
+        "    repository: http://192.168.88.54:8081/git/HiveWatch.git",
+        "    approvedRefs:",
+        "      - old-ref",
+        ""
+      ].join("\n")
+    );
+    const registry = await loadProjectRegistryConfig(registryPath);
+    const inspection = new RepositoryInspectionService(
+      workspaceRoot,
+      new FixtureGitRunner(fixture),
+      createWorkspaceRetentionService(workspaceRoot)
+    );
+    const service = new ProjectRegistrationService(registryPath, registry, inspection);
+
+    await expect(
+      service.replaceRepository({
+        projectId: "hivewatch-development",
+        repository: "http://192.168.88.50:3001/hiveforge/OtherWatch.git",
+        gitRef: "forgejo-main"
+      })
+    ).rejects.toThrow("Repository manifest project does not match registered project id: hivewatch-development");
+  });
+
   it("unregisters one existing project ref without deleting the project", async () => {
     const fixture = await writeDeployableFixture();
     const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-workspace-"));
@@ -279,7 +370,8 @@ describe("project registration service", () => {
   });
 });
 
-async function writeDeployableFixture(): Promise<string> {
+async function writeDeployableFixture(options?: { projectName?: string }): Promise<string> {
+  const projectName = options?.projectName ?? "hivewatch";
   const fixture = await mkdtemp(path.join(os.tmpdir(), "hiveforge-register-fixture-"));
   await mkdir(path.join(fixture, "components/api/deploy"), { recursive: true });
   await writeFile(
@@ -288,7 +380,7 @@ async function writeDeployableFixture(): Promise<string> {
       "kind: project",
       'version: "0.5"',
       "project:",
-      "  name: hivewatch",
+      `  name: ${projectName}`,
       "  repository: https://github.com/sepa79/HiveWatch.git",
       "  actions:",
       "    - deploy",
@@ -304,7 +396,7 @@ async function writeDeployableFixture(): Promise<string> {
       "kind: component",
       "component:",
       "  name: api",
-      "  project: hivewatch",
+      `  project: ${projectName}`,
       "deployment:",
       "  adapter: ansible",
       "  actions:",

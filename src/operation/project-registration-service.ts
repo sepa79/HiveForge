@@ -1,4 +1,5 @@
 import {
+  replaceRegisteredProject,
   saveProjectRegistryConfig,
   upsertRegisteredProject
 } from "../config/project-registry-loader.js";
@@ -13,6 +14,17 @@ export interface ProjectRegistrationRequest {
 }
 
 export interface ProjectRegistrationResult {
+  project: RegisteredProject;
+  deployable: true;
+}
+
+export interface ProjectRepositoryReplacementRequest {
+  projectId: string;
+  repository: string;
+  gitRef: string;
+}
+
+export interface ProjectRepositoryReplacementResult {
   project: RegisteredProject;
   deployable: true;
 }
@@ -43,14 +55,43 @@ export class ProjectRegistrationService {
     }
 
     const registrationKind = request.registrationKind ?? "official";
-    const project: RegisteredProject = {
-      id: registeredProjectId(inspection.project.name, registrationKind),
-      name: registeredProjectName(inspection.project.name, registrationKind),
-      source: sourceForRepository(request.repository),
+    const project = buildRegisteredProject({
+      projectName: inspection.project.name,
+      registrationKind,
       repository: request.repository,
-      approvedRefs: [request.gitRef]
-    };
+      gitRef: request.gitRef
+    });
     const updated = upsertRegisteredProject(this.registry, project);
+    await saveProjectRegistryConfig(this.registryPath, updated);
+    this.registry.projects = updated.projects;
+
+    return {
+      project: updated.projects.find((candidate) => candidate.id === project.id) ?? project,
+      deployable: true
+    };
+  }
+
+  async replaceRepository(
+    request: ProjectRepositoryReplacementRequest
+  ): Promise<ProjectRepositoryReplacementResult> {
+    const existing = this.registry.projects.find((candidate) => candidate.id === request.projectId);
+    if (!existing) {
+      throw new Error(`Project is not registered: ${request.projectId}`);
+    }
+
+    const inspection = await this.repositoryInspection.inspect(request);
+    if (!inspection.deployable || !inspection.project) {
+      throw new Error(inspection.reason ?? "Repository is not deployable by HiveForge");
+    }
+
+    const registrationKind = registrationKindForProjectId(request.projectId, inspection.project.name);
+    const project = buildRegisteredProject({
+      projectName: inspection.project.name,
+      registrationKind,
+      repository: request.repository,
+      gitRef: request.gitRef
+    });
+    const updated = replaceRegisteredProject(this.registry, project);
     await saveProjectRegistryConfig(this.registryPath, updated);
     this.registry.projects = updated.projects;
 
@@ -105,4 +146,29 @@ function registeredProjectName(projectName: string, registrationKind: ProjectReg
     return projectName;
   }
   return `${projectName} development`;
+}
+
+function buildRegisteredProject(input: {
+  projectName: string;
+  registrationKind: ProjectRegistrationKind;
+  repository: string;
+  gitRef: string;
+}): RegisteredProject {
+  return {
+    id: registeredProjectId(input.projectName, input.registrationKind),
+    name: registeredProjectName(input.projectName, input.registrationKind),
+    source: sourceForRepository(input.repository),
+    repository: input.repository,
+    approvedRefs: [input.gitRef]
+  };
+}
+
+function registrationKindForProjectId(projectId: string, projectName: string): ProjectRegistrationKind {
+  if (projectId === registeredProjectId(projectName, "official")) {
+    return "official";
+  }
+  if (projectId === registeredProjectId(projectName, "development")) {
+    return "development";
+  }
+  throw new Error(`Repository manifest project does not match registered project id: ${projectId}`);
 }

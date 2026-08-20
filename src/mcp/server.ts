@@ -251,6 +251,21 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "replace_project_repository",
+    {
+      title: "Replace project repository",
+      description:
+        "Inspect a repository/ref and replace the registered repository for one existing project when the manifest still maps to that same project variant.",
+      inputSchema: {
+        projectId: z.string().min(1),
+        repository: z.string().min(1),
+        gitRef: z.string().min(1)
+      }
+    },
+    runtime.replaceProjectRepository
+  );
+
+  server.registerTool(
     "unregister_project_ref",
     {
       title: "Unregister project ref",

@@ -75,6 +75,7 @@ export interface RestApiServices {
   };
   projectRegistration?: {
     register(request: { repository: string; gitRef: string; registrationKind?: "official" | "development" }): Promise<unknown>;
+    replaceRepository(request: { projectId: string; repository: string; gitRef: string }): Promise<unknown>;
     unregisterRef(request: { projectId: string; gitRef: string }): Promise<unknown>;
   };
   environmentPolicyEditor?: {
@@ -334,6 +335,34 @@ export function createRestRoutes(services: RestApiServices): HttpRoute[] {
           return withOperationId(result, operation.operationId);
         } catch (error) {
           throw new HttpError(400, error instanceof Error ? error.message : "Project registration failed");
+        }
+      }
+    },
+    {
+      method: "POST",
+      pattern: /^\/projects\/(?<projectId>[a-z][a-z0-9-]*)\/repository\/replace$/,
+      async handle({ params, request }) {
+        const projectRegistration = services.projectRegistration;
+        if (!projectRegistration) {
+          throw new HttpError(501, "Project registration is not configured");
+        }
+        if (!services.operations) {
+          throw new HttpError(501, "Operation logs are not configured");
+        }
+        const body = await readRepositoryInspectionRequest(request);
+        try {
+          const { operation, result } = await services.operations.runPreDeployAttempt(
+            {
+              kind: "project_repository_replacement",
+              projectId: params.projectId,
+              repository: body.repository,
+              gitRef: body.gitRef
+            },
+            () => projectRegistration.replaceRepository({ projectId: params.projectId, ...body })
+          );
+          return withOperationId(result, operation.operationId);
+        } catch (error) {
+          throw new HttpError(400, error instanceof Error ? error.message : "Project repository replacement failed");
         }
       }
     },

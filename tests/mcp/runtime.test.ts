@@ -26,6 +26,7 @@ describe("HiveForge MCP runtime", () => {
       "get_deployment_compose",
       "inspect_repository",
       "register_project",
+      "replace_project_repository",
       "unregister_project_ref",
       "set_environment_project_policy",
       "list_project_runtime_env",
@@ -40,6 +41,32 @@ describe("HiveForge MCP runtime", () => {
       "list_operations",
       "read_journal"
     ]);
+  });
+
+  it("replaces a registered project repository through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({
+      async replaceProjectRepository(input: unknown) {
+        return {
+          deployable: true,
+          project: input
+        };
+      }
+    } as unknown as HiveForgeApiClient);
+
+    const result = await runtime.replaceProjectRepository({
+      projectId: "hivewatch-development",
+      repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+      gitRef: "forgejo-main"
+    });
+
+    expect(result.structuredContent).toEqual({
+      deployable: true,
+      project: {
+        projectId: "hivewatch-development",
+        repository: "http://192.168.88.50:3001/hiveforge/HiveWatch.git",
+        gitRef: "forgejo-main"
+      }
+    });
   });
 
   it("requires deploymentId for deployment diagnostics in the MCP tool schema", async () => {
