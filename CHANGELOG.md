@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.9 - 2026-08-20
+## 0.5.10 - 2026-08-20
 
 - Add explicit registered-project repository replacement through REST
   `POST /projects/{projectId}/repository/replace` and MCP
@@ -12,7 +12,12 @@
   variant, instead of silently retargeting another project id.
 - Reset approved refs to the new repository source during replacement, so
   refs from the previous repository are not carried over accidentally.
-- Refresh current-release documentation examples to `v0.5.9`.
+- Fix real Git checkout flows to keep HiveForge workspace metadata out of the
+  clone destination by cloning into a nested temporary checkout directory
+  before moving the checked-out repository into the workspace root. This fixes
+  repository inspection, project registration, and other checkout-backed paths
+  on real runtimes.
+- Refresh current-release documentation examples to `v0.5.10`.
 
 ## 0.5.8 - 2026-08-20
 
