@@ -5,6 +5,8 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
   return {
     checkHealth: () => call(() => apiClient.getHealth()),
     getHiveForgeInfo: () => call(() => apiClient.getInfo()),
+    getOperatorWorkflows: (input: { topic?: "production" | "development" | "hiveforge-maintainer" }) =>
+      call(async () => operatorWorkflows(input.topic)),
     getManagedRepositoriesInfo: () => call(() => apiClient.getManagedRepositoriesInfo()),
     listProjects: () => call(() => apiClient.listProjects()),
     listEnvironments: () => call(() => apiClient.listEnvironments()),
@@ -69,6 +71,64 @@ export function createHiveForgeMcpRuntime(apiClient: HiveForgeApiClient) {
     }) =>
       call(() => apiClient.startAction(input)),
     prepareReleaseDeploy: (input: ReleaseDeployApiInput) => call(() => apiClient.prepareReleaseDeploy(input))
+  };
+}
+
+function operatorWorkflows(topic?: "production" | "development" | "hiveforge-maintainer") {
+  const workflows = [
+    {
+      id: "production",
+      title: "Production or release deployment through HiveForge",
+      summary: "Use this when deploying a registered project through normal HiveForge operator flows.",
+      steps: [
+        "Use `check_health` and `get_hiveforge_info` to confirm the connected target.",
+        "Use `list_environments`, `refresh_environment` when needed, and `list_projects` to confirm the target environment and registered project.",
+        "Use `inspect_project`, `explain_deploy_prerequisites`, and `validate_requirements` before deployment.",
+        "For repo/ref lifecycle deploys, use `start_action` with an explicit `projectId`, `gitRef`, `component`, `action`, and optional `profile`.",
+        "For release/image-tag-set deploy preparation, use `prepare_release_deploy` first; it validates inputs but does not build, push, or execute deployment.",
+        "Use `get_operation`, `get_deployment_compose`, `check_deployment_runtime_status`, and `read_journal` for evidence and post-deploy verification."
+      ],
+      notes: [
+        "MCP is the supported operator interface; REST is an implementation and maintainer debug surface.",
+        "Use published release images or explicitly prepared image references. Do not infer tags, refs, or fallback profiles."
+      ]
+    },
+    {
+      id: "development",
+      title: "Development project deployment on a Full node",
+      summary: "Use this when a project is hosted in the Full-node Forgejo service and development images are pushed to the Full-node OCI registry.",
+      steps: [
+        "Use `get_managed_repositories_info` to discover the shared Forgejo Git base URL, OCI registry address, and owner namespace for the current Full node.",
+        "Push Git changes to the Full-node Forgejo repository and push the development image to the discovered OCI registry using your normal Git and Docker tooling.",
+        "Register or update the project as a `development` variant when appropriate so HiveForge tracks it as `<project>-development`.",
+        "Run the normal HiveForge operator flow: `inspect_project`, `explain_deploy_prerequisites`, `validate_requirements`, then `start_action` or `prepare_release_deploy` with the explicit dev ref and image inputs.",
+        "Use `get_operation`, `check_deployment_runtime_status`, and `read_journal` to confirm the deployed development runtime."
+      ],
+      notes: [
+        "Full-node Git and OCI discovery does not build images, choose repository paths, or choose tags for you.",
+        "The same deployment validation rules apply to development variants as to official project variants."
+      ]
+    },
+    {
+      id: "hiveforge-maintainer",
+      title: "HiveForge maintainer development update on a Full node",
+      summary: "Use this when developing HiveForge itself against a Full-node Forgejo and OCI registry without publishing an official release.",
+      steps: [
+        "Use `get_managed_repositories_info` to discover the Full-node Git and OCI endpoints.",
+        "Push HiveForge source changes to the Full-node Forgejo repository using normal Git tooling.",
+        "Build a development HiveForge image and push it to the Full-node OCI registry using normal Docker tooling.",
+        "Update the running HiveForge Compose project or Swarm service manually to that explicit development image.",
+        "After the update, use `check_health`, `get_hiveforge_info`, and other MCP tools against the refreshed endpoint to verify the new build."
+      ],
+      notes: [
+        "This is a maintainer workflow. It is separate from deploying ordinary application projects through HiveForge.",
+        "The `Update HF` UI action remains release-only; it targets published official releases and is not a development-image deployment path."
+      ]
+    }
+  ] as const;
+
+  return {
+    workflows: topic ? workflows.filter((workflow) => workflow.id === topic) : workflows
   };
 }
 

@@ -48,30 +48,32 @@ Use MCP tools in this order:
 
 1. `check_health`
 2. `get_hiveforge_info`
-3. `list_environments`
-4. `refresh_environment` when Docker/Swarm node labels or node membership may
+3. `get_operator_workflows` when the agent needs the built-in production,
+   development, or HiveForge-maintainer playbook before acting
+4. `list_environments`
+5. `refresh_environment` when Docker/Swarm node labels or node membership may
    have changed
-5. `list_environment_nodes` when node inventory or placement labels matter
-6. `list_projects`
-7. `list_deployments`
-8. `inspect_repository` only for a candidate repository/ref not yet registered
-9. `register_project` only after inspection succeeds and the operator approves
-10. `unregister_project_ref` only when the operator explicitly wants to remove an
+6. `list_environment_nodes` when node inventory or placement labels matter
+7. `list_projects`
+8. `list_deployments`
+9. `inspect_repository` only for a candidate repository/ref not yet registered
+10. `register_project` only after inspection succeeds and the operator approves
+11. `unregister_project_ref` only when the operator explicitly wants to remove an
    old ref from an existing project registration
-11. `set_environment_project_policy` only after the operator approves the
+12. `set_environment_project_policy` only after the operator approves the
    environment, actions, and profiles for that project
-12. `set_project_runtime_env` for non-secret values that must stay outside git
-13. `inspect_project`
-14. `explain_deploy_prerequisites`
-15. `validate_requirements`
-16. `prepare_release_deploy` for release/image-tag prepare checks, or
+13. `set_project_runtime_env` for non-secret values that must stay outside git
+14. `inspect_project`
+15. `explain_deploy_prerequisites`
+16. `validate_requirements`
+17. `prepare_release_deploy` for release/image-tag prepare checks, or
    `start_action` for the current repo/ref POC lifecycle path
-17. `get_operation`
-18. `get_deployment_compose` when the action recorded a rendered Compose/Stack
+18. `get_operation`
+19. `get_deployment_compose` when the action recorded a rendered Compose/Stack
    artifact
-19. `check_deployment_runtime_status` after deployment execution, using the
+20. `check_deployment_runtime_status` after deployment execution, using the
    `deploymentId` from `list_deployments`
-20. `read_journal`
+21. `read_journal`
 
 `prepare_release_deploy` currently prepares and validates a release plan only.
 It does not build images, push images, or execute deployment actions. With
@@ -84,6 +86,16 @@ and validates explicit
 for one operation. It does not re-render current source. `check_deployment_runtime_status`
 checks Docker containers/services by the single `hiveforge.deployment` label
 resolved from HiveForge state DB; it does not infer ownership from names.
+
+When the connected target is a Full node, use `get_managed_repositories_info`
+to discover the shared Forgejo Git service and OCI registry. For normal
+projects, the user or agent still builds, `git push`es, and `docker push`es
+manually, then uses the existing HiveForge deployment workflow with an explicit
+image reference. The same manual artifact flow may also be used for HiveForge
+maintainer development on that Full node: push Git changes, build and push a
+development image, then update the HiveForge service manually. Do not use
+`Update HF` for development images; that UI flow is reserved for published
+official releases.
 
 ## Required Inputs
 

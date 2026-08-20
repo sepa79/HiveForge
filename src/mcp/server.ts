@@ -74,6 +74,19 @@ export function createHiveForgeMcpServer(options: { baseUrl: string; authToken: 
   );
 
   server.registerTool(
+    "get_operator_workflows",
+    {
+      title: "Get operator workflows",
+      description:
+        "Read the built-in HiveForge operator playbooks for production deployments, development project deployments on a Full node, and HiveForge maintainer development updates. This tool returns workflow guidance only; it does not inspect repositories, build images, push artifacts, or start deployment.",
+      inputSchema: {
+        topic: z.enum(["production", "development", "hiveforge-maintainer"]).optional()
+      }
+    },
+    runtime.getOperatorWorkflows
+  );
+
+  server.registerTool(
     "get_managed_repositories_info",
     {
       title: "Get managed Git and OCI services",

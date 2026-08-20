@@ -154,6 +154,9 @@ Git URLs remain invalid.
 This does not add a build action: the user or agent continues to build, `git
 push`, and `docker push` manually, then uses the existing HiveForge deployment
 workflow with an explicit image reference accepted by that project's profile.
+The same manual artifact flow may also be used during HiveForge maintainer
+development on that Full node: push Git changes, build and push a development
+image to the local OCI registry, then update the HiveForge service manually.
 
 ## MCP
 
@@ -367,6 +370,8 @@ was found and does not run Docker update commands.
 
 The update target is the concrete release image tag such as
 `ghcr.io/sepa79/hiveforge:v0.5.9`; it does not update to floating `latest`.
+`Update HF` is for published official releases only; it is not the path for
+deploying development images built against the local Full-node registry.
 
 For Docker Compose installs, HiveForge uses the running container's Compose
 labels and `/hf` mount to start a helper container that runs the same Compose

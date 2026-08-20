@@ -13,6 +13,11 @@ For users and AI operators, MCP is the only supported HiveForge operation
 interface. REST is the internal transport behind MCP and a maintainer
 development/debug surface; it is not a user fallback.
 
+MCP currently does not expose a generic help/playbook tool that explains
+development and production workflows on demand. Agents must use this contract
+and the concrete discovery tools, especially `get_hiveforge_info` and
+`get_managed_repositories_info`, instead of inventing extra flows.
+
 ## Configuration
 
 The MCP process fails fast unless both variables are set:
@@ -110,6 +115,31 @@ Input: none.
 
 Output: HiveForge service name and version for the connected target.
 
+### `get_operator_workflows`
+
+Input:
+
+```json
+{
+  "topic": "development"
+}
+```
+
+`topic` is optional. Supported values are:
+
+- `production`
+- `development`
+- `hiveforge-maintainer`
+
+Behavior: return built-in operator playbooks for standard production/release
+deployment, development project deployment on a Full node, and HiveForge
+maintainer development updates on a Full node. This tool returns workflow
+guidance only. It does not inspect repositories, build images, push artifacts,
+or start deployment.
+
+Output: one or more structured workflows, each with a stable id, title,
+summary, ordered steps, and notes.
+
 ### `get_managed_repositories_info`
 
 Input: none.
@@ -135,6 +165,14 @@ or starts deployment. Full returns `trusted-lan-no-login` for both Git and OCI:
 the private gateway supplies the fixed `hiveforge` identity, therefore normal
 `git push` and `docker push` require no client login. This mode is intentionally
 open to every client that can reach the trusted lab LAN.
+
+The same manual Full-node artifact flow may be used for HiveForge maintainer
+development on that Full node: push Git changes, build and push a development
+image to the local OCI registry, then update the HiveForge Compose project or
+Swarm service manually. `get_managed_repositories_info` still does not choose
+repository paths, refs, image tags, build hosts, or update commands. HiveForge
+self-update remains an official-release flow only; it is not a development-image
+deployment path.
 
 ### `list_projects`
 

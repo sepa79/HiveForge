@@ -11,6 +11,7 @@ describe("HiveForge MCP runtime", () => {
     expect(toolNames).toEqual([
       "check_health",
       "get_hiveforge_info",
+      "get_operator_workflows",
       "get_managed_repositories_info",
       "list_projects",
       "list_environments",
@@ -125,6 +126,29 @@ describe("HiveForge MCP runtime", () => {
     const result = await runtime.getHiveForgeInfo();
 
     expect(result.structuredContent).toEqual({ hiveforge: { name: "hiveforge", version: "0.1.0-test" } });
+  });
+
+  it("returns built-in operator workflows through the runtime", async () => {
+    const runtime = createHiveForgeMcpRuntime({} as HiveForgeApiClient);
+
+    const result = await runtime.getOperatorWorkflows({ topic: "hiveforge-maintainer" });
+
+    expect(result.structuredContent).toMatchObject({
+      workflows: [
+        {
+          id: "hiveforge-maintainer",
+          title: "HiveForge maintainer development update on a Full node"
+        }
+      ]
+    });
+    const workflow = (result.structuredContent as { workflows: Array<{ steps: string[] }> }).workflows[0];
+    expect(workflow.steps).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("get_managed_repositories_info"),
+        expect.stringContaining("Build a development HiveForge image"),
+        expect.stringContaining("Update")
+      ])
+    );
   });
 
   it("returns managed Git and OCI service discovery through the runtime", async () => {
