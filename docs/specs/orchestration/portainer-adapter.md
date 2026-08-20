@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft contract. The first deploy/update/remove slice is implemented in `0.5.6`.
+Draft contract. The first deploy/update/remove slice is implemented in `0.5.7`.
 
 ## Purpose
 

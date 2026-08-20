@@ -136,10 +136,17 @@ Node inventory is not refreshed implicitly while the server is running.
 Operators can request an explicit refresh through `POST /environments/refresh`
 or the UI Overview node inventory action. The refresh re-runs the local provider
 detection, updates the current environment runtime fields such as Swarm nodes
-and labels, and preserves operator-owned `capabilities.managedRoot`,
-`policy.projects`, and `vars` for the same environment id. If autodetection
-reports a different environment id, the refresh fails explicitly instead of
-switching environments silently.
+and labels, and preserves operator-owned configuration for the same environment
+id. The refresh contract is:
+
+- replace runtime-derived fields: `kind`, `capabilities.runtime`,
+  `capabilities.placement`, and `nodes`
+- preserve operator-owned fields: `name`, `description`, `deployment`,
+  `capabilities.managedRoot`, `capabilities.bindSources`, `vars`, and
+  `policy.projects`
+
+If autodetection reports a different environment id, the refresh fails
+explicitly instead of switching environments silently.
 
 Profiles with `requires.placement.nodeLabels` use this inventory as their proof
 surface. All required labels must be present on one node with

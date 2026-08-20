@@ -175,8 +175,13 @@ Output: refreshed current environment and known environment metadata.
 
 Behavior: explicitly re-run local environment detection for the current
 HiveForge target. On Swarm managers this refreshes node inventory and node
-labels, then rewrites `environments.yaml`. The refresh fails if detection
-reports a different current environment id.
+labels, then rewrites `environments.yaml`. It replaces only runtime-derived
+environment fields (`kind`, `capabilities.runtime`,
+`capabilities.placement`, and `nodes`) and preserves operator-owned
+configuration such as `name`, `description`, `deployment`,
+`capabilities.managedRoot`, `capabilities.bindSources`, `vars`, and
+`policy.projects`. The refresh fails if detection reports a different current
+environment id.
 
 ### `list_environment_nodes`
 

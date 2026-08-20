@@ -1,4 +1,5 @@
 import { saveEnvironmentConfig } from "./environment-loader.js";
+import { applyDetectedEnvironmentRuntime } from "./environment-refresh-contract.js";
 import type { EnvironmentConfig, EnvironmentDefinition } from "./environment-types.js";
 import { createDefaultEnvironmentConfig } from "../runtime/default-environment.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
@@ -37,17 +38,7 @@ export class EnvironmentRefreshService {
       );
     }
 
-    const refreshed: EnvironmentDefinition = {
-      ...detected,
-      name: current.name,
-      ...(current.description ? { description: current.description } : {}),
-      capabilities: {
-        ...detected.capabilities,
-        managedRoot: current.capabilities.managedRoot
-      },
-      ...(current.vars ? { vars: current.vars } : {}),
-      policy: current.policy
-    };
+    const refreshed = applyDetectedEnvironmentRuntime(current, detected);
 
     replaceEnvironment(current, refreshed);
     await saveEnvironmentConfig(this.environmentsPath, this.config);

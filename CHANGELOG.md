@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.7 - 2026-08-20
+
+- Preserve operator-owned `deployment` and `capabilities.bindSources.allowed`
+  when `refresh_environment` rewrites `environments.yaml`, so a node refresh
+  updates runtime inventory without stripping Portainer executor config or bind
+  source allow-lists.
+
 ## 0.5.6 - 2026-08-17
 
 - Refresh `@modelcontextprotocol/sdk`, `undici`, `vitest`, and vulnerable
