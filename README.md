@@ -5,7 +5,7 @@ It gives a human or an AI agent one explicit surface—UI, MCP, or REST—to
 inspect approved projects, validate their declared requirements, run their
 declared lifecycle actions, and retain evidence for each deployment.
 
-Current release: **0.5.7**.
+Current release: **0.5.9**.
 
 HiveForge does not own application code or invent deployment behaviour.
 Applications carry `hiveforge.yaml`, component manifests, and declared action
@@ -95,10 +95,10 @@ configuration or claims that every node is ready.
 Run the local MCP stdio client from your workstation:
 
 ```bash
-docker run --rm -i \
+  docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.7 \
+  ghcr.io/sepa79/hiveforge:v0.5.9 \
   npm run hiveforge-mcp
 ```
 

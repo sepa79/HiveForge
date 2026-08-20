@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.9 - 2026-08-20
+
+- Add explicit registered-project repository replacement through REST
+  `POST /projects/{projectId}/repository/replace` and MCP
+  `replace_project_repository`, so operators can move an existing project
+  variant such as `*-development` to a new Git URL without hand-editing
+  `projects.yaml`.
+- Re-inspect the replacement repository/ref before saving it and fail
+  explicitly when the inspected manifest no longer maps to the same project
+  variant, instead of silently retargeting another project id.
+- Reset approved refs to the new repository source during replacement, so
+  refs from the previous repository are not carried over accidentally.
+- Refresh current-release documentation examples to `v0.5.9`.
+
 ## 0.5.8 - 2026-08-20
 
 - Add canonical workspace retention metadata and lifecycle handling as the
