@@ -3,6 +3,7 @@ import path from "node:path";
 import { selectRegisteredProject } from "../config/project-registry-loader.js";
 import type { ProjectRegistryConfig } from "../config/project-registry-types.js";
 import type { CommandRunner } from "./command-runner.js";
+import { gitCheckoutIntoWorkspace } from "./git-checkout-into-workspace.js";
 import type {
   WorkspaceCleanupRequest,
   WorkspaceCleanupResult,
@@ -54,16 +55,13 @@ export class WorkspaceManager {
       ...(request.operationId ? { operationId: request.operationId } : {})
     });
     try {
-      await this.commandRunner.run("git", [
-        "clone",
-        "--no-checkout",
-        "--filter=blob:none",
-        "--sparse",
-        project.repository,
-        checkoutPath
-      ]);
-      await this.commandRunner.run("git", ["sparse-checkout", "set", ...PROJECT_PREFLIGHT_PATHS], { cwd: checkoutPath });
-      await this.commandRunner.run("git", ["checkout", request.gitRef], { cwd: checkoutPath });
+      await gitCheckoutIntoWorkspace({
+        commandRunner: this.commandRunner,
+        repository: project.repository,
+        gitRef: request.gitRef,
+        workspacePath: checkoutPath,
+        sparsePaths: PROJECT_PREFLIGHT_PATHS
+      });
     } catch (error) {
       await this.retention.finalizeWorkspace(checkoutPath, "failed");
       throw error;
@@ -108,8 +106,12 @@ export class WorkspaceManager {
       ...(request.operationId ? { operationId: request.operationId } : {})
     });
     try {
-      await this.commandRunner.run("git", ["clone", "--no-checkout", project.repository, checkoutPath]);
-      await this.commandRunner.run("git", ["checkout", request.gitRef], { cwd: checkoutPath });
+      await gitCheckoutIntoWorkspace({
+        commandRunner: this.commandRunner,
+        repository: project.repository,
+        gitRef: request.gitRef,
+        workspacePath: checkoutPath
+      });
     } catch (error) {
       await this.retention.finalizeWorkspace(checkoutPath, "failed");
       throw error;

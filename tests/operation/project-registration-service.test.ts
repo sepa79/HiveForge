@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,9 +16,24 @@ class FixtureGitRunner implements CommandRunner {
       throw new Error(`Unexpected command: ${command}`);
     }
     if (args[0] === "clone") {
+      await assertCloneDestinationEmpty(args[3]);
       await copyFixture(this.fixtureRoot, args[3]);
     }
     return { stdout: "", stderr: "" };
+  }
+}
+
+async function assertCloneDestinationEmpty(destination: string): Promise<void> {
+  try {
+    const entries = await readdir(destination);
+    if (entries.length > 0) {
+      throw new Error(`clone destination is not empty: ${destination}`);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return;
+    }
+    throw error;
   }
 }
 

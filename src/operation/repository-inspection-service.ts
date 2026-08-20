@@ -4,6 +4,7 @@ import { isInspectableRepository } from "../config/repository-source.js";
 import type { ProjectProfile } from "../manifest/manifest-types.js";
 import { loadProjectRegistry } from "../manifest/project-registry.js";
 import type { CommandRunner } from "../workspace/command-runner.js";
+import { gitCheckoutIntoWorkspace } from "../workspace/git-checkout-into-workspace.js";
 import { WorkspaceRetentionService } from "../workspace/workspace-retention-service.js";
 
 export interface RepositoryInspectionRequest {
@@ -77,8 +78,12 @@ export class RepositoryInspectionService {
       gitRef
     });
     try {
-      await this.commandRunner.run("git", ["clone", "--no-checkout", repository, checkoutPath]);
-      await this.commandRunner.run("git", ["checkout", gitRef], { cwd: checkoutPath });
+      await gitCheckoutIntoWorkspace({
+        commandRunner: this.commandRunner,
+        repository,
+        gitRef,
+        workspacePath: checkoutPath
+      });
     } catch (error) {
       await this.retention.finalizeWorkspace(checkoutPath, "failed");
       throw error;

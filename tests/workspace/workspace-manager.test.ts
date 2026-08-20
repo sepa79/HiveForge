@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,10 @@ class RecordingRunner implements CommandRunner {
 
   async run(command: string, args: string[], options: { cwd?: string } = {}) {
     this.calls.push({ command, args, cwd: options.cwd });
+    if (command === "git" && args[0] === "clone") {
+      await mkdir(args[args.length - 1], { recursive: true });
+      await writeFile(path.join(args[args.length - 1], "hiveforge.yaml"), "kind: project\n");
+    }
     return { stdout: "", stderr: "" };
   }
 }
@@ -43,13 +47,13 @@ describe("workspace manager", () => {
     expect(runner.calls).toEqual([
       {
         command: "git",
-        args: ["clone", "--no-checkout", "https://github.com/sepa79/HiveWatch.git", result.workspacePath],
+        args: ["clone", "--no-checkout", "https://github.com/sepa79/HiveWatch.git", path.join(result.workspacePath, ".checkout")],
         cwd: undefined
       },
       {
         command: "git",
         args: ["checkout", "main"],
-        cwd: result.workspacePath
+        cwd: path.join(result.workspacePath, ".checkout")
       }
     ]);
   });
@@ -138,19 +142,19 @@ describe("workspace manager", () => {
           "--filter=blob:none",
           "--sparse",
           "https://github.com/sepa79/HiveWatch.git",
-          result.workspacePath
+          path.join(result.workspacePath, ".checkout")
         ],
         cwd: undefined
       },
       {
         command: "git",
         args: ["sparse-checkout", "set", "hiveforge.yaml", "deploy/hiveforge"],
-        cwd: result.workspacePath
+        cwd: path.join(result.workspacePath, ".checkout")
       },
       {
         command: "git",
         args: ["checkout", "main"],
-        cwd: result.workspacePath
+        cwd: path.join(result.workspacePath, ".checkout")
       }
     ]);
   });
