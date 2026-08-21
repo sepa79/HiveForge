@@ -20,6 +20,42 @@ HiveForge mounts one operator-owned runtime directory at `/hf`; the HiveForge
 server always uses `/hf` as its container runtime root and initializes missing
 runtime files there on first start.
 
+## Choose The Workflow
+
+- Fresh Lite install: install the control plane only.
+- Fresh Full install: install HiveForge plus the trusted-LAN Forgejo Git/OCI
+  hub.
+- Returning user, same topology: upgrade Lite to a newer Lite release, or Full
+  to a newer Full release.
+- Returning user, `Lite -> Full`: migrate topology from the Lite stack
+  definition to the Full stack definition.
+
+Use the workflow that matches the real change. A topology migration is not the
+same thing as an image-only upgrade.
+
+## Default Inputs
+
+These docs assume the current install templates from `main` and the default
+HiveForge image `ghcr.io/sepa79/hiveforge:latest` unless your environment
+intentionally pins something else:
+
+```text
+https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge.yml
+https://raw.githubusercontent.com/sepa79/HiveForge/main/deploy/docker-compose.hiveforge-full.yml
+```
+
+If your environment intentionally pins a non-default image tag, keep that pin
+aligned in both the deployed stack definition and any MCP client image you run.
+
+## Stack Source Of Truth
+
+For `docker compose`, the deployed Compose file on disk is the source of truth.
+For Portainer, the saved Portainer stack definition is the source of truth. For
+`docker stack deploy`, the file you redeploy is the source of truth.
+
+Do not treat a one-off generated service edit as the canonical upgrade path.
+For Portainer-managed installs, update the Portainer stack definition itself.
+
 ## Lite: Docker Compose
 
 Run this on the target Docker host or on one Swarm manager:
@@ -158,6 +194,76 @@ The same manual artifact flow may also be used during HiveForge maintainer
 development on that Full node: push Git changes, build and push a development
 image to the local OCI registry, then update the HiveForge service manually.
 
+## Returning User: Upgrade Or Migrate
+
+### Same Topology Stack Update
+
+Use this when the install stays Lite or stays Full.
+
+This path updates the stack definition you keep as the source of truth against
+the current target template. It is the normal template-diff-and-redeploy path,
+not a separate release-pinned workflow.
+
+1. Identify the current topology: Lite or Full.
+2. Download the current target template for that same topology.
+3. Diff the current deployed Compose or Portainer stack definition against that
+   target template.
+4. Carry forward the environment-specific overrides your install already
+   depends on.
+5. Update the source of truth for the install with that adjusted definition:
+   - `docker compose`: update the local Compose file and redeploy.
+   - Portainer: update the saved stack definition and redeploy.
+   - `docker stack deploy`: update the file you redeploy and run stack deploy
+     again.
+6. Verify the resulting runtime after redeploy.
+
+For Portainer-managed installs, this stack-definition update is the preferred
+upgrade path. It keeps the saved stack definition aligned with the live service
+image.
+
+### Lite To Full Migration
+
+Use this when the target topology adds Forgejo and `forgejo-gateway`.
+
+1. Confirm that the current install is Lite and that the target is Full.
+2. Save the current stack definition and record the exact current auth source:
+   - generated `/hf/auth-token`, or
+   - stack environment variable `HIVEFORGE_AUTH_TOKEN`.
+3. Preserve the current HiveForge runtime root mounted at `/hf`, usually
+   `/opt/hiveforge`. Do not switch the HiveForge runtime root implicitly during
+   migration.
+4. Prepare manager-local Forgejo storage, by default
+   `/opt/hiveforge/forgejo`, on the manager that will own Forgejo's SQLite
+   `/data`.
+5. Diff the current Lite stack definition against the current Full template.
+6. Carry forward the environment-specific overrides your install already
+   depends on, then add the required Full-specific settings such as the real
+   Forgejo public host and the manager placement constraints.
+7. Redeploy through the same source of truth:
+   - Portainer: replace the Portainer stack definition and redeploy that stack.
+   - `docker stack deploy`: redeploy the Full file.
+   - `docker compose`: redeploy the Full file locally.
+
+This migration is a topology change. `Update HF` alone cannot perform it,
+because `Update HF` changes the running HiveForge image but does not replace a
+Lite stack definition with a Full one.
+
+### Verification After Upgrade Or Migration
+
+After the redeploy, verify the install explicitly:
+
+- HiveForge health endpoint responds at `http://<host>:3000/health`.
+- Lite still exposes only the `hiveforge` service.
+- Full exposes `hiveforge`, `forgejo`, and `forgejo-gateway`.
+- HiveForge reports the expected application version.
+- The expected auth source still works.
+- Existing `projects.yaml`, `environments.yaml`, journal data, and deployment
+  state remain present under the preserved runtime root.
+
+For Full, also verify that the configured Forgejo public host is no longer the
+placeholder `.invalid` value and that `get_managed_repositories_info` reports
+the shared Git and OCI endpoints.
+
 ## MCP
 
 Start MCP against the installed HiveForge endpoint with:
@@ -175,7 +281,7 @@ the published image on your workstation:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.9 \
+  ghcr.io/sepa79/hiveforge:latest \
   npm run hiveforge-mcp
 ```
 
@@ -345,11 +451,7 @@ environment file. Run HiveForge on a manager node or provide an explicit
 
 ## Image Override And Public Port
 
-The default image is `ghcr.io/sepa79/hiveforge:latest`. Pin a release with:
-
-```bash
-HIVEFORGE_IMAGE=ghcr.io/sepa79/hiveforge:v0.5.9 docker compose -f docker-compose.hiveforge.yml up -d
-```
+The default image is `ghcr.io/sepa79/hiveforge:latest`.
 
 For Portainer or `docker stack deploy`, set `HIVEFORGE_IMAGE` before deploy or
 edit the image in the Compose file.
@@ -369,12 +471,25 @@ When no GitHub Release exists yet, HiveForge reports that no published release
 was found and does not run Docker update commands.
 
 The update target is the concrete release image tag such as
-`ghcr.io/sepa79/hiveforge:v0.5.9`; it does not update to floating `latest`.
+`ghcr.io/sepa79/hiveforge:<tag>`; it does not update to floating `latest`.
 `Update HF` is for published official releases only; it is not the path for
 deploying development images built against the local Full-node registry.
+
+`Update HF` is an in-place release image update only. It is not a Lite-to-Full
+topology migration tool and it does not rewrite the Portainer stack definition
+or the Compose file that remains the install source of truth.
+
+Use the stack update path above when you want the saved Compose or Portainer
+definition itself to become the new source of truth. Use `Update HF` when you
+want HiveForge to replace the running image with the latest published release
+tag without manually editing that stack definition first.
 
 For Docker Compose installs, HiveForge uses the running container's Compose
 labels and `/hf` mount to start a helper container that runs the same Compose
 file with the new image. For Portainer/Swarm installs, HiveForge uses the
 running service label and performs a Docker service image update so existing
 stack environment, mounts, ports, and placement are preserved.
+
+If you use `Update HF` on a Portainer-managed install, reconcile the Portainer
+stack definition afterwards before the next manual redeploy. Otherwise a later
+Portainer redeploy can reintroduce the older saved image or older topology.

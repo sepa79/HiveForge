@@ -5,8 +5,6 @@ It gives a human or an AI agent one explicit surface—UI, MCP, or REST—to
 inspect approved projects, validate their declared requirements, run their
 declared lifecycle actions, and retain evidence for each deployment.
 
-Current release: **0.5.9**.
-
 HiveForge does not own application code or invent deployment behaviour.
 Applications carry `hiveforge.yaml`, component manifests, and declared action
 assets; HiveForge executes only that explicit contract.
@@ -38,6 +36,24 @@ Full is not a repository catalog or a build system. It exposes one shared,
 trusted-LAN `hiveforge` identity. A user or agent chooses the application path
 and manually pushes its source and image; the ordinary HiveForge deploy flow
 then selects an explicit image reference from the application's profile.
+
+## Start Here
+
+- First install: choose Lite or Full, then follow the matching install path
+  below.
+- Upgrade, same topology: diff the current Compose or Portainer stack
+  definition against the current target template for that same topology, carry
+  forward your environment-specific overrides, then redeploy.
+- Change topology, `Lite <-> Full`: treat this as a stack-definition migration,
+  not as an image-only upgrade. Diff the current stack definition against the
+  target topology template, carry forward your overrides, then redeploy.
+
+For an existing install, do not paste the stock target template over your
+current stack definition unchanged. Diff the current deployed Compose or
+Portainer stack definition against the target template, then carry
+forward the environment-specific overrides your install already depends on. The
+shipped templates are the base contract, not a claim that every existing
+installation still matches the example file byte-for-byte.
 
 ## Quick Start: Lite
 
@@ -72,6 +88,10 @@ gateway. Download `docker-compose.hiveforge-full.yml`, then follow
 Do not combine it with the Lite Compose file. Forgejo data belongs on local
 storage of the selected node, never on NFS/EFS.
 
+If you are upgrading an existing Lite install to Full, do not use `Update HF`
+for that change. Use the migration workflow in
+[Install HiveForge](docs/install/docker-compose.md#returning-user-upgrade-or-migrate).
+
 The shipped Full template uses placeholder Forgejo host values under `.invalid`.
 Replace them with the real public Git/OCI host and port before using the node;
 until then, Full discovery remains intentionally `incomplete`.
@@ -98,7 +118,7 @@ Run the local MCP stdio client from your workstation:
   docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<target-host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.9 \
+  ghcr.io/sepa79/hiveforge:latest \
   npm run hiveforge-mcp
 ```
 

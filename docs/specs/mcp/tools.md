@@ -574,7 +574,7 @@ Input:
   "projectId": "hivewatch",
   "profile": "test",
   "values": {
-    "IMAGE_TAG": "latest",
+    "IMAGE_TAG": "1.2.3",
     "PUBLIC_URL": "http://192.0.2.10:18180"
   }
 }

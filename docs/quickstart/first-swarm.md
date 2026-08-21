@@ -10,7 +10,8 @@ This guide is for a new operator who wants to:
 
 1. install HiveForge on a Docker Swarm manager,
 2. connect an MCP client from their workstation,
-3. register an external HiveForge-ready project such as HiveWatch or HiveMind,
+3. use HiveForge as the assisted control plane for an external HiveForge-ready
+   project such as HiveWatch or HiveMind,
 4. allow that project on the selected environment,
 5. validate and deploy through MCP.
 
@@ -19,7 +20,12 @@ their `hiveforge.yaml` manifests and deployment assets. The development fixture
 under `examples/hivewatch/` in this repository is not the user-facing example
 deployment.
 
-## Install On A Swarm Manager
+This quickstart is for a first install and a first MCP-driven deployment flow.
+If you are upgrading an existing HiveForge install or migrating `Lite -> Full`,
+use [Install HiveForge](../install/docker-compose.md), especially
+[`Returning User: Upgrade Or Migrate`](../install/docker-compose.md#returning-user-upgrade-or-migrate).
+
+## Install HiveForge On A Swarm Manager
 
 Run this on a Swarm manager node. The current install mounts the manager's
 Docker socket, so HiveForge can validate Docker resources and run its Docker
@@ -45,7 +51,7 @@ Check process health:
 curl -fsS http://<swarm-manager-host>:3000/health
 ```
 
-## Start MCP From A Workstation
+## Assisted Flow From A Workstation
 
 The MCP server is a stdio client-side process. If you do not have a local
 HiveForge checkout, run it from the published image:
@@ -54,7 +60,7 @@ HiveForge checkout, run it from the published image:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<swarm-manager-host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token-from-/opt/hiveforge/auth-token> \
-  ghcr.io/sepa79/hiveforge:v0.5.9 \
+  ghcr.io/sepa79/hiveforge:latest \
   npm run hiveforge-mcp
 ```
 
@@ -84,7 +90,7 @@ short-lived probe on the selected Docker host or on every active ready Swarm
 node. A Swarm probe allows up to two minutes for a cold image pull. HiveForge
 never runs it automatically and it does not block deployment.
 
-## Register An External Example Project
+## Assisted Project Registration
 
 Use the external project repository URL and ref. For HiveWatch, use the
 HiveWatch repository once its HiveForge manifests are published:
@@ -105,7 +111,7 @@ register_project(repository="<HiveMind repository URL>", gitRef="<ref>")
 Registration approves the repository/ref. It does not grant environment
 permission.
 
-## Allow The Project On The Environment
+## Assisted Environment Policy
 
 Read the current environment id from `list_environments`, then set policy
 explicitly:
@@ -122,7 +128,7 @@ set_environment_project_policy(
 Do the same for HiveMind with its documented profiles and lifecycle actions.
 Do not guess profiles or actions; use the project manifest and operator intent.
 
-## Configure Non-Secret Runtime Env
+## Assisted Runtime Env
 
 If the project requires environment variables that are not secrets and should
 not be committed to git, set them before validation:
@@ -132,7 +138,7 @@ set_project_runtime_env(
   projectId="hivewatch",
   profile="normal",
   values={
-    "IMAGE_TAG": "latest"
+    "IMAGE_TAG": "1.2.3"
   }
 )
 ```
@@ -142,7 +148,10 @@ values. Secrets are outside the current HiveForge contract. Runtime env changes
 made after deployment affect only future validation/action calls; they do not
 update an already deployed service.
 
-## Validate And Deploy
+Use an explicit image tag or digest accepted by the selected project profile. Do
+not rely on `latest` unless that project contract explicitly documents it.
+
+## Assisted Validate And Deploy
 
 Inspect and validate before any action:
 

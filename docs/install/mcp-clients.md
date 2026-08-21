@@ -19,8 +19,8 @@ Before changing the user's editor or agent configuration, collect:
   Amazon Q CLI,
 - HiveForge base URL, for example `http://swarm-manager.example:3000`,
 - HiveForge auth token,
-- HiveForge image tag matching the installed control-plane release, for example
-  `ghcr.io/sepa79/hiveforge:v0.5.9`,
+- HiveForge image choice matching the installed control plane, by default
+  `ghcr.io/sepa79/hiveforge:latest`,
 - desired scope: user/global configuration or workspace/local configuration.
 
 Prefer user/global scope for a non-technical workstation setup. Use workspace
@@ -40,7 +40,7 @@ configuration format:
 docker run --rm -i \
   -e HIVEFORGE_BASE_URL=http://<host>:3000 \
   -e HIVEFORGE_AUTH_TOKEN=<token> \
-  ghcr.io/sepa79/hiveforge:v0.5.9 \
+  ghcr.io/sepa79/hiveforge:latest \
   npm run hiveforge-mcp
 ```
 
@@ -87,7 +87,7 @@ Example VS Code `mcp.json`:
         "HIVEFORGE_BASE_URL=http://<host>:3000",
         "-e",
         "HIVEFORGE_AUTH_TOKEN=${input:hiveforge-token}",
-        "ghcr.io/sepa79/hiveforge:v0.5.9",
+        "ghcr.io/sepa79/hiveforge:latest",
         "npm",
         "run",
         "hiveforge-mcp"
@@ -100,13 +100,14 @@ Example VS Code `mcp.json`:
 After saving, run `MCP: List Servers`, start or restart `hiveforge`, confirm
 trust when prompted, and enable the HiveForge tools in chat.
 
-## Image Version Policy
+## Image Choice
 
-The MCP client image must use the same release tag as the installed HiveForge
-control plane. The examples in this guide use `v0.5.9`, the currently
-documented release. Update the control plane and client together; do not use
-`latest` or leave an older client pin in place without an explicit compatibility
-statement.
+Use the same image choice as the installed HiveForge control plane. The default
+docs path uses `ghcr.io/sepa79/hiveforge:latest`. If your environment
+intentionally pins a different tag, pin that same tag here as well.
+
+If the installed HiveForge control plane was later updated to a concrete release
+tag, for example through `Update HF`, replace `latest` here with that same tag.
 
 Official VS Code references:
 
